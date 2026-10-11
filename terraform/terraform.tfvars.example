@@ -1,0 +1,23 @@
+aws_region      = "eu-west-1"
+project_name    = "docvault"
+db_password     = "CHANGE_ME_secure_password_123"
+container_image = "YOUR_AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/docvault-api:latest"
+
+# Application config (stored in AWS Secrets Manager). All optional, but for a
+# working deployment set at least jwt_secret and gemini_api_key.
+jwt_secret       = "CHANGE_ME_long_random_secret"
+gemini_api_key   = "" # Q&A + embeddings (Ollama isn't deployed on AWS)
+groq_api_key     = "" # optional alternative Q&A provider
+mistral_api_key  = "" # categorisation + Mistral OCR
+resend_api_key   = "" # transactional email (verification / reset)
+
+# Public URL of the app. CloudFront generates this, so it isn't known until the
+# first apply — leave it blank initially, then:
+#   1. terraform apply
+#   2. terraform output app_url   ->  https://dxxxxxxxxxxxxx.cloudfront.net
+#   3. paste it below and re-apply (updates FRONTEND_URL for OAuth redirects
+#      and verification emails)
+# The same value must be registered as the Google OAuth redirect URI.
+frontend_url = ""
+# google_client_id     = ""
+# google_client_secret = ""

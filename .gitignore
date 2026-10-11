@@ -1,0 +1,41 @@
+# Dependencies
+__pycache__/
+*.pyc
+.coverage
+node_modules/
+.venv/
+venv/
+
+# Environment — this repo is PUBLIC, so block every .env variant
+# (.env.local, .env.backup, .env.enc, ...) and allow only the template.
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pgdata/
+miniodata/
+
+# Reference repos
+reference/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.next/
+next-env.d.ts
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars

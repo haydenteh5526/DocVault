@@ -1,0 +1,1 @@
+run_id,document_id,input_type,condition,ground_truth_words,substitutions,insertions,deletions,wer,accuracy_percent,latency_ms,manual_correction,notes
