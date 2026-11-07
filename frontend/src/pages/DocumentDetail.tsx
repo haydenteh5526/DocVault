@@ -272,13 +272,12 @@ export default function DocumentDetail() {
                     <h3 id="bill-review-heading" className="font-semibold">Bill review</h3>
                     <Button variant="outline" size="sm" onClick={() => setTab('preview')}>View original bill</Button>
                   </div>
-                  <dl className="grid gap-5 sm:grid-cols-2">
+                  <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     <BillReviewField label="Amount due" field={doc.bill_review.amount_due}
                       display={value => '€' + value} />
-                    <BillReviewField label="Due date" field={doc.bill_review.due_date}
-                      display={value => new Date(value + 'T00:00:00Z').toLocaleDateString('en-IE', {
-                        day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-                      })} />
+                    <BillReviewField label="Due date" field={doc.bill_review.due_date} display={formatBillDate} />
+                    <BillReviewField label="Billing period" field={doc.bill_review.billing_period}
+                      display={value => value.split('/').map(formatBillDate).join(' – ')} />
                   </dl>
                 </section>
               )}
@@ -350,6 +349,12 @@ export default function DocumentDetail() {
 
     </div>
   )
+}
+
+function formatBillDate(value: string) {
+  return new Date(value + 'T00:00:00Z').toLocaleDateString('en-IE', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  })
 }
 
 function BillReviewField({ label, field, display }: {

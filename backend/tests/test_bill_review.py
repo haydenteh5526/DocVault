@@ -34,3 +34,23 @@ def test_unsupported_or_conflicting_amounts_remain_unresolved(entry):
 
 def test_unrelated_documents_do_not_show_bill_fields():
     assert extract_bill_review("User manual\nWarranty due date: 23 November 2026") is None
+
+
+def test_billing_period_uses_both_dates_from_the_same_labelled_line():
+    line = "Billing period: 1 October 2026 to 31 October 2026"
+    review = extract_bill_review(f"Electricity bill\nIssued 2 November 2026\n{line}")
+    assert review.billing_period.value == "2026-10-01/2026-10-31"
+    [source] = review.billing_period.sources
+    assert (source.line, source.text) == (3, line)
+
+
+@pytest.mark.parametrize("period", [
+    "31 October 2026 to 1 October 2026",
+    "1 to 31 October 2026",
+    "01/02/2026 – 28/02/2026",
+    "1 October 2026 to 31 October 2026\nSupply period: 2026-11-01 – 2026-11-30",
+])
+def test_invalid_or_conflicting_periods_require_review(period):
+    field = extract_bill_review(f"Electricity bill\nBilling period: {period}").billing_period
+    assert field.value is None
+    assert field.sources

@@ -19,7 +19,7 @@ test('password recovery works after a rejected login without authentication', as
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
 });
 
-test('verification and password reset arrive in the local inbox and allow sign-in', async ({ page, request }) => {
+test('verification and password reset arrive in the local inbox and allow sign-in', async ({ page, request, baseURL }) => {
   const inbox = process.env.E2E_MAILPIT_URL;
   test.skip(!inbox, 'Set E2E_MAILPIT_URL to run against the local email inbox');
   const email = `recovery-${Date.now()}@example.com`;
@@ -46,7 +46,7 @@ test('verification and password reset arrive in the local inbox and allow sign-i
     const message = await response.json();
     const link = (message.Text as string).split(/\s+/).find(value => value.startsWith('http') && value.includes(path));
     expect(link).toBeTruthy();
-    expect(new URL(link!).origin).toBe('http://localhost:3000');
+    expect(new URL(link!).origin).toBe(new URL(baseURL!).origin);
     return link!;
   }
 

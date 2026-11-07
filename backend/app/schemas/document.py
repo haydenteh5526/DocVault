@@ -49,7 +49,7 @@ class BillSourceLine(BaseModel):
 
 
 class BillField(BaseModel):
-    # EUR decimal string for amounts, ISO date for dates; None requires review.
+    # EUR decimal string, ISO date, or ISO start/end interval. None requires review.
     value: str | None
     sources: list[BillSourceLine]
 
@@ -57,6 +57,7 @@ class BillField(BaseModel):
 class BillReview(BaseModel):
     amount_due: BillField
     due_date: BillField
+    billing_period: BillField
 
 
 class DocumentDetailOut(DocumentOut):

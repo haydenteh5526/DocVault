@@ -8,6 +8,7 @@ from app.schemas.document import BillField, BillReview, BillSourceLine
 
 _AMOUNT_LABEL = re.compile(r"^\s*(?:(?:total\s+)?amount\s+(?:due|payable)|(?:total|balance)\s+due)\b", re.I)
 _DATE_LABEL = re.compile(r"^\s*(?:(?:payment\s+)?due\s+date|pay(?:ment\s+due)?\s+by)\b", re.I)
+_PERIOD_LABEL = re.compile(r"^\s*(?:billing|statement|supply)\s+period\b", re.I)
 _NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?"
 
 
@@ -45,6 +46,17 @@ def _field(lines: list[str], label: re.Pattern, parse: Callable[[str], str | Non
     return BillField(value=values.pop() if len(values) == 1 else None, sources=sources)
 
 
+def _period(text: str) -> str | None:
+    # Use a complete date on both sides. A partial month/day needs owner review.
+    parts = re.split(r"\s+to\s+|\s+-\s+|\s*[–—]\s*", text, flags=re.I)
+    if len(parts) != 2:
+        return None
+    start, end = (_date(part.strip()) for part in parts)
+    if start is None or end is None or end < start:
+        return None
+    return f"{start}/{end}"
+
+
 def extract_bill_review(text: str | None) -> BillReview | None:
     if not text or not re.search(r"\belectricity\b", text, re.I) or not re.search(r"\b(?:bill|invoice)\b", text, re.I):
         return None
@@ -52,4 +64,5 @@ def extract_bill_review(text: str | None) -> BillReview | None:
     return BillReview(
         amount_due=_field(lines, _AMOUNT_LABEL, _euros),
         due_date=_field(lines, _DATE_LABEL, _date),
+        billing_period=_field(lines, _PERIOD_LABEL, _period),
     )

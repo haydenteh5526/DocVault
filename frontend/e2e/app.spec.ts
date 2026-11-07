@@ -57,7 +57,7 @@ test.describe('DocVault auth flow', () => {
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
   });
 
-  test('verified user can upload an image and view Tesseract text', async ({ page }) => {
+  test('verified user can review a bill image against its OCR evidence', async ({ page }) => {
     test.setTimeout(60_000);
     const email = process.env.E2E_EMAIL;
     const password = process.env.E2E_PASSWORD;
@@ -67,10 +67,11 @@ test.describe('DocVault auth flow', () => {
     // fixture in the browser avoids checking in opaque binary test data.
     await page.setViewportSize({ width: 1200, height: 500 });
     await page.setContent(`
-      <main id="ocr-fixture" style="width:1100px;height:360px;padding:45px;background:#fff;color:#000;font:700 64px/1.35 Arial,sans-serif">
-        DOCVAULT OCR TEST<br>
-        RECEIPT NUMBER 48291<br>
-        WARRANTY EXPIRES 2030
+      <main id="ocr-fixture" style="width:1100px;height:360px;padding:45px;background:#fff;color:#000;font:40px/1.5 Arial,sans-serif">
+        Electricity bill<br>
+        Total amount due: EUR 123.47<br>
+        Billing period: 1 October 2026 to 31 October 2026<br>
+        Payment due date: 23 November 2026
       </main>
     `);
     const image = await page.locator('#ocr-fixture').screenshot({ animations: 'disabled' });
@@ -91,25 +92,34 @@ test.describe('DocVault auth flow', () => {
       await page.goto('/app/upload');
       await expect(page.getByRole('heading', { name: 'Upload Documents' })).toBeVisible();
       await page.locator('input[type="file"]').first().setInputFiles({
-        name: 'playwright-manual.png',
+        name: 'playwright-bill.png',
         mimeType: 'image/png',
         buffer: image,
       });
-      await expect(page.getByText('playwright-manual.png')).toBeVisible();
+      await expect(page.getByText('playwright-bill.png')).toBeVisible();
 
       const uploadResponse = page.waitForResponse(response =>
         response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST'
       );
-      await page.getByRole('button', { name: 'Upload', exact: true }).click();
+      await page.getByRole('main').getByRole('button', { name: 'Upload', exact: true }).click();
       const response = await uploadResponse;
       expect(response.status()).toBe(201);
       documentId = (await response.json()).id;
 
       await expect(page.getByRole('heading', { name: 'Upload Complete!' })).toBeVisible({ timeout: 30_000 });
-      await page.getByRole('button', { name: /playwright-manual\.png/i }).click();
-      await expect(page.getByRole('heading', { name: 'playwright-manual.png' })).toBeVisible();
+      await page.getByRole('button', { name: /playwright-bill\.png/i }).click();
+      const review = page.getByRole('region', { name: 'Bill review' });
+      await expect(review).toContainText('€123.47', { timeout: 30_000 });
+      await expect(review).toContainText('1 October 2026 – 31 October 2026');
+      await expect(review.getByText('23 November 2026', { exact: true })).toBeVisible();
       await page.getByText('Extracted Text').click();
-      await expect(page.getByText(/DOCVAULT OCR TEST/i)).toBeVisible();
+      const transcript = (await page.locator('pre').innerText()).split(/\r?\n/);
+      const quotes = review.locator('blockquote');
+      await expect(quotes).toHaveCount(3);
+      for (const quote of await quotes.all()) {
+        const line = Number((await quote.locator('span').innerText()).replace('OCR line ', ''));
+        expect(await quote.locator('p').innerText()).toBe(transcript[line - 1]);
+      }
     } finally {
       if (documentId) {
         await page.evaluate(async (id) => {
