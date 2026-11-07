@@ -1,8 +1,13 @@
 # DocVault
 
-> Snap it. Store it. Ask it anything.
+DocVault helps a household document owner check an electricity bill against its
+source. The Demo 1 web app shows the amount, due date and billing period beside
+their OCR evidence. The next increments cover confirmed records, household
+contributions, conversational requests and explicitly approved reminders.
+[Workflow design and stories](specs/BILL_WORKFLOW_SDD.md) · [Try the synthetic bill](evaluation/demo-1/README.md).
 
-A cloud-based document management app that lets you digitise physical documents (manuals, warranties, guides) and query them with AI. Never lose a manual again — and never flip through 60 pages to find one answer.
+This assessed repository starts from a migrated prototype snapshot. Its original
+development history is available in [DocVault-old](https://github.com/haydenteh5526/DocVault-old).
 
 ## Quick Start
 
@@ -14,17 +19,19 @@ A cloud-based document management app that lets you digitise physical documents 
 ### Run the app
 
 ```bash
-# 1. Start the backend (API + database + storage)
-docker compose up --build
+# 1. On a fresh checkout, create your local configuration from .env.example.
+# PowerShell: Copy-Item .env.example .env
+docker compose up --build -d
+docker compose exec api alembic upgrade head
 
 # 2. On first run, install the local embedding model (one-time download)
 docker compose exec ollama ollama pull nomic-embed-text
 
-# 3. Start the frontend
-cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:3000 — register an account and start uploading documents.
+Open http://localhost:3000, register and open the verification email in the
+[local inbox](http://localhost:8025). Docker Compose serves the web client.
+The default demo uses local OCR and embeddings.
 
 ### Run the mobile app
 

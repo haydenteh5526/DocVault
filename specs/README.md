@@ -8,6 +8,7 @@ developing, testing, or writing the final report.
 
 | Document | Purpose |
 | --- | --- |
+| [`BILL_WORKFLOW_SDD.md`](BILL_WORKFLOW_SDD.md) | November design draft for reviewed household bills, natural-language requests, allocation and approvals, with GitHub story links |
 | [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) | Verified implementation state, test baseline, known gaps, and completion criteria |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | As-built components, data flow, security boundaries, and deployment state |
 | [`TRACEABILITY.md`](TRACEABILITY.md) | Requirements mapped to implementation and verification evidence |

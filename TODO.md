@@ -1,12 +1,15 @@
 # Current FYP roadmap
 
-**Updated:** 2026-09-15
+**Updated 7 November 2026.** Follow the [bill workflow SDD](specs/BILL_WORKFLOW_SDD.md)
+and [epic #4](https://github.com/haydenteh5526/DocVault/issues/4) for the active
+delivery order. Rehearse the evidence review for Demo 1, then implement confirmed
+bill revisions, four-person allocation and approved reminders. Test the assistant's
+natural-language requests against those capabilities.
 
-The feature set is frozen unless evaluation exposes a necessary change. Work
-from top to bottom: correctness and evidence are worth more than additional UI
-features. See [specs/IMPLEMENTATION_STATUS.md](specs/IMPLEMENTATION_STATUS.md)
-for verified completion and [specs/TRACEABILITY.md](specs/TRACEABILITY.md) for
-requirement-level gaps.
+## Historical engineering backlog · September 2026
+
+The checklist below records the prototype's earlier priorities. The November SDD
+defines the assessed household workflow and its dependencies.
 
 ## Completed foundation
 

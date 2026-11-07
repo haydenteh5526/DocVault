@@ -1,5 +1,15 @@
 # Verified implementation status
 
+## November assessed repository
+
+The active design is the [bill workflow SDD](BILL_WORKFLOW_SDD.md), based on the
+revised 6 November scope. The Demo 1 feature branch adds local account email
+capture and read-only electricity bill review with source lines for the amount,
+due date and billing period. See the [local rehearsal evidence](../evaluation/demo-1/README.md).
+Confirmed records, allocations and agent-proposed reminders remain planned work.
+
+## Historical prototype snapshot
+
 **Last verified:** 2026-09-15
 **Verification baseline:** `f5dbb6e`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.

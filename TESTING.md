@@ -1,6 +1,8 @@
 # Testing and verification guide
 
-**Updated:** 2026-09-15
+**Updated 7 November 2026.** The September counts below are the historical
+prototype baseline. The [Demo 1 rehearsal](evaluation/demo-1/README.md) records the
+current bill-review check.
 
 Use this guide for engineering verification. Formal academic measurements use
 [specs/EVALUATION_PLAN.md](specs/EVALUATION_PLAN.md); do not mix smoke-test
@@ -9,16 +11,22 @@ success with accuracy or usability results.
 ## Start and check the stack
 
 ```powershell
-cd C:\FYP
+cd C:\DocVault
 docker compose up --build -d
 docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec api alembic upgrade head
 curl.exe http://localhost:8000/health/ready
 ```
 
-Expected services: `api`, `worker`, `db`, `redis`, `minio`, `ollama`, `web`.
+Expected services: `api`, `worker`, `db`, `redis`, `minio`, `ollama`, `mailpit`, `web`.
 Open the web client at <http://localhost:3000> and Swagger at
 <http://localhost:8000/docs>.
+
+Account verification and reset emails arrive at <http://localhost:8025> in the
+default local configuration. Set `E2E_MAILPIT_URL` to that inbox URL to run the
+complete password recovery browser test. For an already running preview on a
+different port, set `E2E_BASE_URL` to its URL. Authenticated browser tests require
+`E2E_EMAIL` and `E2E_PASSWORD` for a verified synthetic account.
 
 ## Automated gate
 
@@ -26,7 +34,7 @@ Run backend tests with explicit development-database credentials so a stale
 shell environment cannot substitute the placeholder defaults:
 
 ```powershell
-cd C:\FYP\backend
+cd C:\DocVault\backend
 $env:DATABASE_URL='postgresql+asyncpg://docvault:docvault@localhost:5432/docvault'
 $env:S3_ENDPOINT='http://localhost:9000'
 $env:S3_ACCESS_KEY='minioadmin'
@@ -37,13 +45,13 @@ $env:OCR_BACKEND='tesseract'
 C:\venv\fyp\Scripts\python.exe -m pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=65
 C:\venv\fyp\Scripts\python.exe -m ruff check app tests scripts
 
-cd C:\FYP\frontend
+cd C:\DocVault\frontend
 npm run lint
 npm test -- --run
 npm run build
 npx playwright test
 
-cd C:\FYP\mobile
+cd C:\DocVault\mobile
 npm run typecheck
 npm run doctor
 ```
@@ -58,7 +66,7 @@ base, then upgrades it again before running tests.
 ## Full-stack smoke test
 
 ```powershell
-cd C:\FYP
+cd C:\DocVault
 docker compose exec -T api python scripts/e2e_smoke.py
 ```
 
