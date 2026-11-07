@@ -29,14 +29,13 @@ def preprocess_image(file_bytes: bytes) -> bytes:
 
 def _deskew(image: np.ndarray) -> np.ndarray:
     """Correct skew using minimum area rectangle on detected edges."""
-    coords = np.column_stack(np.where(image < 200))
+    rows, columns = np.where(image < 200)
+    coords = np.column_stack((columns, rows)).astype(np.float32)
     if len(coords) < 100:
         return image
-    angle = cv2.minAreaRect(coords)[-1]
-    if angle < -45:
-        angle = -(90 + angle)
-    else:
-        angle = -angle
+    # Either edge of a level text block may be reported as 0 or 90 degrees.
+    # Use the small tilt of the horizontal edge in image (x, y) coordinates.
+    angle = (cv2.minAreaRect(coords)[-1] + 45) % 90 - 45
     if abs(angle) < 0.5:
         return image
     h, w = image.shape[:2]

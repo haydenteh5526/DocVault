@@ -32,15 +32,14 @@ def test_deskew_skips_sparse_and_nearly_level_images(monkeypatch):
     assert image_processing._deskew(dense) is dense
 
 
-def test_deskew_rotates_for_both_angle_conventions(monkeypatch):
-    dense = np.zeros((20, 20), dtype=np.uint8)
-    seen_angles = []
-
-    monkeypatch.setattr(cv2, "getRotationMatrix2D", lambda center, angle, scale: seen_angles.append(angle) or "matrix")
-    monkeypatch.setattr(cv2, "warpAffine", lambda image, matrix, size, **kwargs: image + 1)
-
-    monkeypatch.setattr(cv2, "minAreaRect", lambda coords: ((0, 0), (1, 1), -60.0))
-    assert np.all(image_processing._deskew(dense) == 1)
-    monkeypatch.setattr(cv2, "minAreaRect", lambda coords: ((0, 0), (1, 1), 10.0))
-    assert np.all(image_processing._deskew(dense) == 1)
-    assert seen_angles == [-30.0, -10.0]
+def test_deskew_preserves_level_lines_and_straightens_tilt_in_either_direction():
+    source = np.full((180, 300), 255, dtype=np.uint8)
+    cv2.rectangle(source, (35, 80), (265, 99), 0, -1)
+    assert np.array_equal(image_processing._deskew(source), source)
+    for angle in [-10, 10]:
+        matrix = cv2.getRotationMatrix2D((150, 90), angle, 1)
+        tilted = cv2.warpAffine(source, matrix, (300, 180), borderValue=255)
+        corrected = image_processing._deskew(tilted)
+        y, x = np.where(corrected < 128)
+        assert np.ptp(y) <= 21
+        assert np.ptp(x) >= 228
