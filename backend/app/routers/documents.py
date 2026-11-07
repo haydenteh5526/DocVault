@@ -9,12 +9,13 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import Document, DocumentVersion
-from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
+from app.schemas.document import DocumentDetailOut, DocumentList, DocumentOut, DocumentUpdate
 from app.services import (
     document_processor,
     storage_service,
     task_queue,
 )
+from app.services.bill_review import extract_bill_review
 
 router = APIRouter()
 
@@ -215,14 +216,15 @@ async def export_documents(
     )
 
 
-@router.get("/{document_id}", response_model=DocumentOut)
+@router.get("/{document_id}", response_model=DocumentDetailOut)
 async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     doc = await _get_doc_or_404(document_id, user_id, db)
     # Track last accessed
     from datetime import datetime
     doc.updated_at = datetime.utcnow()
     await db.commit()
-    return _to_response(doc)
+    review = extract_bill_review(doc.raw_text) if doc.processing_status == "complete" else None
+    return DocumentDetailOut(**_to_response(doc).model_dump(), bill_review=review)
 
 
 @router.patch("/{document_id}", response_model=DocumentOut)

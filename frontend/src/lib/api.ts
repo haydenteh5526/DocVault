@@ -79,6 +79,7 @@ export interface Document {
   document_type: string | null
   category_id: string | null
   raw_text: string | null
+  bill_review?: { amount_due: BillField; due_date: BillField } | null
   summary: string | null
   file_size: number | null
   image_url: string | null
@@ -86,6 +87,11 @@ export interface Document {
   is_favourite?: boolean
   tags?: Tag[]
   created_at: string
+}
+
+export interface BillField {
+  value: string | null
+  sources: { line: number; text: string }[]
 }
 
 export interface SearchResult {
