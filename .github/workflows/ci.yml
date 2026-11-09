@@ -149,20 +149,24 @@ jobs:
 
       - name: Start object storage and install OCR engine
         run: |
-          docker run --detach --name e2e-minio \
-            --publish 9000:9000 \
-            --env MINIO_ROOT_USER=minioadmin \
-            --env MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio server /data
+          docker run --detach --name e2e-storage \
+            --publish 127.0.0.1:9000:9000 \
+            --env RUSTFS_ACCESS_KEY=DOCVAULTCI \
+            --env RUSTFS_SECRET_KEY=docvault-ci-storage \
+            --env RUSTFS_CONSOLE_ENABLE=false \
+            rustfs/rustfs:1.0.4 /data
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then
-              echo "MinIO is up"
+            if curl -sf http://localhost:9000/health/ready > /dev/null; then
+              echo "Object storage is ready"
               break
             fi
-            echo "waiting for MinIO ($i)"
+            echo "waiting for object storage ($i)"
             sleep 1
           done
-          curl -sf http://localhost:9000/minio/health/live > /dev/null
+          if ! curl -sf http://localhost:9000/health/ready > /dev/null; then
+            docker logs e2e-storage
+            exit 1
+          fi
           if ! command -v tesseract > /dev/null; then
             sudo apt-get update
             sudo apt-get install -y tesseract-ocr
@@ -189,8 +193,8 @@ jobs:
           JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
           OCR_BACKEND: tesseract
           S3_ENDPOINT: http://localhost:9000
-          S3_ACCESS_KEY: minioadmin
-          S3_SECRET_KEY: minioadmin
+          S3_ACCESS_KEY: DOCVAULTCI
+          S3_SECRET_KEY: docvault-ci-storage
           S3_BUCKET: documents
           FRONTEND_URL: http://localhost:3000
         run: |
