@@ -2,7 +2,7 @@
   <img src="frontend/public/docvault-logo.svg" width="80" height="80" alt="DocVault logo">
   <h1>DocVault</h1>
   <p><strong>Personal AI Document Assistant</strong></p>
-  <p>A TUS Athlone final year project building an assistant that remembers the documents you choose to keep. The goal is to let you ask in your own words, whether you're looking up a detail, splitting a bill, or comparing spending over time. With enough comparable records, the assistant could also estimate your next bill.</p>
+  <p>Final year project that helps users turn the documents they keep into a personal knowledge base they can talk to. DocVault is designed to use those files as its long-term memory. Users describe what they need in their own words, and the assistant draws on their records to answer with evidence, connect information across documents, and propose actions for their approval.</p>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/haydenteh5526/DocVault" alt="MIT license"></a>
   <a href="https://github.com/haydenteh5526/DocVault/commits/main"><img src="https://img.shields.io/github/last-commit/haydenteh5526/DocVault/main" alt="Last commit"></a>
   <img src="https://img.shields.io/github/languages/top/haydenteh5526/DocVault" alt="Top language">
