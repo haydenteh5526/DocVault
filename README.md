@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/docvault-logo.svg" width="80" height="80" alt="DocVault logo">
+  <img src="frontend/public/favicon.svg" width="80" height="80" alt="DocVault logo">
   <h1>DocVault</h1>
   <p><strong>Personal AI Document Assistant</strong></p>
   <p>Final year project that helps users turn the documents they keep into a personal knowledge base they can talk to. DocVault is designed to use those files as its long-term memory. Users describe what they need in their own words, and the assistant draws on their records to answer with evidence, connect information across documents, and propose actions for their approval.</p>
@@ -114,6 +114,8 @@ DocVault/
 ├── mobile/               # Expo companion app
 ├── specs/                # Design, tickets and current state
 ├── evaluation/           # Demo fixture and assessment evidence
+├── scripts/              # Restore pinned research references
+├── terraform/            # Optional AWS infrastructure
 └── docker-compose.yml    # Local development stack
 ```
 
@@ -145,6 +147,7 @@ See the full [API reference](http://localhost:8000/docs) while the stack is runn
 | [Tickets](specs/Tickets.md) | Epic and stories linked to GitHub Issues |
 | [Repository current state](specs/Repo_Current_State.md) | Verified capabilities, results and limits |
 | [Evaluation](evaluation/README.md) | Assessment protocols, fixtures and results |
+| [Web client](frontend/README.md) | Run Vite on the host and find frontend entry points |
 
 ---
 

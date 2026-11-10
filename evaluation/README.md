@@ -6,6 +6,10 @@ rehearsal](demo-1/README.md). The [evaluation plan](EVALUATION_PLAN.md) and
 any adaptations for the [revised bill workflow](../specs/MVP_Technical_Design.md)
 before collecting results.
 
+The [reference fetch script](../scripts/fetch-reference.sh) restores the pinned
+source repositories used for the literature review. From the repository root,
+run `bash scripts/fetch-reference.sh` to fetch them into the ignored `reference/` folder.
+
 Recommended layout for each frozen run:
 
 ```text
@@ -31,7 +35,7 @@ From the repository root, validate a complete result set and write its derived
 metrics as JSON:
 
 ```powershell
-C:\venv\fyp\Scripts\python.exe backend\scripts\analyse_evaluation.py `
+python backend/scripts/analyse_evaluation.py `
   evaluation\results\2026-09-14 `
   --output evaluation\results\2026-09-14\summary.json
 ```

@@ -1,9 +1,15 @@
 # DocVault web client
 
-React 19, TypeScript and Vite client for the AI Cloud Document Vault. The web
-client is the primary interface; the Expo app is a capture-focused companion.
+Use the [root quick start](../README.md#quick-start) to run the full app and the
+[verification guide](../AGENTS.md#verification) for test commands.
 
-## Development
+## Run Vite on the host
+
+Prepare `.env` as described in the quick start. From the repository root, start
+the backend with `docker compose up -d --build api worker`, then run the
+migration and model setup commands from the quick start.
+If the Compose web service is running, stop it with `docker compose stop web`
+to free port 3000. Then run:
 
 ```powershell
 cd frontend
@@ -11,36 +17,20 @@ npm ci
 npm run dev
 ```
 
-The Vite development server runs at <http://localhost:3000> and proxies `/api`
-to the FastAPI service at <http://localhost:8000>. Start the repository Docker
-stack first when exercising real authentication or data.
+Open <http://localhost:3000>. Vite sends `/api` requests to the API on port 8000.
 
-## Quality gate
+## Code map
 
-```powershell
-npm run lint
-npm test -- --run
-npm run build
-npx playwright test
-```
+| Area | Entry point |
+| --- | --- |
+| Routes and protected views | [`src/App.tsx`](src/App.tsx) and [`src/pages/`](src/pages/) |
+| Reusable UI | [`src/components/`](src/components/) |
+| API and authentication | [`src/lib/api.ts`](src/lib/api.ts), [`src/lib/auth.tsx`](src/lib/auth.tsx) |
+| Server state | [`src/lib/queryClient.ts`](src/lib/queryClient.ts) |
+| Browser scenarios | [`e2e/`](e2e/) |
 
-Authenticated browser scenarios use a verified seed account in CI and skip in
-a local run without `E2E_EMAIL`/`E2E_PASSWORD`. See the [repository
-snapshot](../specs/Repo_Current_State.md#verified-results) for results.
-
-## Structure
-
-- `src/pages/` — lazy-loaded application routes
-- `src/components/` — shared product and UI components
-- `src/lib/api.ts` — typed API client and token refresh
-- `src/lib/auth.tsx` — authentication context
-- `src/lib/queryClient.ts` — TanStack Query configuration
-- `e2e/` — Playwright journeys against the real frontend/backend
-
-Route-level server state uses TanStack Query where migrated. Some smaller flows
-still use component state; conversion is incremental rather than a completion
-requirement.
-
-For the complete system, see the root [README](../README.md),
-[architecture and evidence flow](../specs/MVP_Technical_Design.md#architecture-and-evidence-flow), and
-[verification guide](../AGENTS.md#verification).
+Public account requests work without a bearer token. Protected requests use the
+shared API client for token refresh and retry. The browser currently stores
+tokens in local storage, and the [OAuth callback](src/pages/OAuthCallback.tsx)
+clears the URL fragment after reading it. Handle API errors in the shared
+client and invalidate the relevant queries after a write.
