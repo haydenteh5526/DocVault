@@ -10,7 +10,7 @@ The bill review screen displays read-only candidates. Corrections with explicit 
 
 ## Runtime
 
-The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, MinIO for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. The [README](../README.md) has setup and the system diagram. [CONTRIBUTING](../CONTRIBUTING.md) has verification commands.
+The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, MinIO for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. See the [README](../README.md#quick-start) for setup, the [technical design](MVP_Technical_Design.md#architecture-and-evidence-flow) for the evidence flow and [verification guide](../AGENTS.md#verification) for test commands.
 
 The assessed demo uses the existing hardware and local stack with **€0 planned additional spend**. Browser CI uses RustFS for its temporary S3-compatible store. The local Compose file still refers to MinIO. The CI runner could not pull `minio/minio:latest` on 9 November, so a fresh local setup without the cached image may hit the same pull failure. The rehearsed stack used the existing image.
 
@@ -27,4 +27,4 @@ The assessed demo uses the existing hardware and local stack with **€0 planned
 - The mobile check covers types and Expo configuration. The lockfile update to `shell-quote` 1.12.0 cleared the critical advisory. The 10 November production dependency audit reported four moderate findings. Physical-device and push delivery verification remain open.
 - Terraform defines an AWS environment. Live infrastructure and deployment remain unverified. The local proof of concept takes priority. [Infrastructure notes](../terraform/COST_REVIEW.md)
 
-The [prototype archive](../docs/archive/prototype/README.md) retains the original requirements, design, work breakdown and September evidence for the report.
+The original requirements, design, work breakdown and September evidence are available in the [prototype snapshot](https://github.com/haydenteh5526/DocVault/tree/6031e7242fcfcaa1b67b48ba2742c152113c9138/docs/archive/prototype).
