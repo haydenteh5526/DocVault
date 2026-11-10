@@ -42,5 +42,5 @@ still use component state; conversion is incremental rather than a completion
 requirement.
 
 For the complete system, see the root [README](../README.md),
-[system diagram](../README.md#architecture), and
+[architecture and evidence flow](../specs/MVP_Technical_Design.md#architecture-and-evidence-flow), and
 [verification guide](../CONTRIBUTING.md#verification).

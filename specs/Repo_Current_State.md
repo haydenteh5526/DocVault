@@ -10,7 +10,7 @@ The bill review screen displays read-only candidates. Corrections with explicit 
 
 ## Runtime
 
-The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, MinIO for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. The [README](../README.md) has setup and the system diagram. [CONTRIBUTING](../CONTRIBUTING.md) has verification commands.
+The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, MinIO for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. See the [README](../README.md#getting-started) for setup, the [technical design](MVP_Technical_Design.md#architecture-and-evidence-flow) for the evidence flow and [CONTRIBUTING](../CONTRIBUTING.md) for verification commands.
 
 The assessed demo uses the existing hardware and local stack with **€0 planned additional spend**. Browser CI uses RustFS for its temporary S3-compatible store. The local Compose file still refers to MinIO. The CI runner could not pull `minio/minio:latest` on 9 November, so a fresh local setup without the cached image may hit the same pull failure. The rehearsed stack used the existing image.
 

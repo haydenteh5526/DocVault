@@ -3,7 +3,7 @@
 > Current implementation notes for contributors. For setup commands, see
 > [`README.md`](README.md). Project-wide status and architecture live in
 > the [repository snapshot](../specs/Repo_Current_State.md) and the
-> [system diagram](../README.md#architecture).
+> [architecture and evidence flow](../specs/MVP_Technical_Design.md#architecture-and-evidence-flow).
 
 ## Stack
 

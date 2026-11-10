@@ -19,9 +19,12 @@ request to review the diff and acceptance evidence before merging. For a partial
 change, reference the issue without a closing keyword. Close it on merge when
 all of its acceptance checks are met.
 
+Maintain dependencies manually through tested pull requests. Keep scheduled
+dependency updates disabled and retain the CI audits.
+
 ## Verification
 
-Start the local stack from the [README](README.md#quick-start) and check
+Start the local stack from the [README](README.md#getting-started) and check
 `/health/ready`. Use a disposable account, synthetic files and an isolated test
 database. The [CI workflow](.github/workflows/ci.yml) defines the full gate,
 including dependency audits, a migration round trip and a 65% backend coverage
