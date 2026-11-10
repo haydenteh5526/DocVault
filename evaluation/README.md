@@ -1,7 +1,10 @@
 # Evaluation workspace
 
-This folder holds anonymised, reproducible FYP measurements. The protocol is in
-[`../specs/EVALUATION_PLAN.md`](../specs/EVALUATION_PLAN.md).
+This folder holds anonymised, reproducible FYP measurements and the [Demo 1
+rehearsal](demo-1/README.md). The [evaluation plan](EVALUATION_PLAN.md) and
+[usability plan](USABILITY_TEST_PLAN.md) preserve the prototype methods. Freeze
+any adaptations for the [revised bill workflow](../specs/MVP_Technical_Design.md)
+before collecting results.
 
 Recommended layout for each frozen run:
 

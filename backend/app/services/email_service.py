@@ -1,3 +1,7 @@
+import smtplib
+import ssl
+from email.message import EmailMessage
+
 from app.config import settings
 
 
@@ -49,8 +53,27 @@ def _send(to_email: str, subject: str, html: str, fallback_url: str | None = Non
             logger.warning("Resend failed (%s); email was not sent", type(e).__name__)
             return
 
-    # Explicit development fallback only — this is intentionally unavailable
-    # when a production email provider has been configured.
+    if settings.SMTP_HOST:
+        try:
+            message = EmailMessage()
+            message["From"] = settings.SMTP_FROM
+            message["To"] = to_email
+            message["Subject"] = subject
+            message.set_content(f"{subject}\n\n{fallback_url or 'See the HTML version of this email.'}")
+            message.add_alternative(html, subtype="html")
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as smtp:
+                if settings.SMTP_STARTTLS:
+                    smtp.starttls(context=ssl.create_default_context())
+                if settings.SMTP_USER:
+                    smtp.login(settings.SMTP_USER, settings.SMTP_PASS)
+                smtp.send_message(message)
+            logger.info("Sent email to %s via SMTP", to_email)
+        except Exception as e:  # noqa: BLE001
+            # Provider errors can include message contents or credentials.
+            logger.warning("SMTP failed (%s); email was not sent", type(e).__name__)
+        return
+
+    # Development fallback when neither email provider is configured.
     logger.info("EMAIL (dev) to=%s subject=%r url=%s", to_email, subject, fallback_url or "-")
 
 

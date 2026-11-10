@@ -1,9 +1,8 @@
 # Task Breakdown & Project Plan
 
 > **Document role:** Original estimated plan, retained for retrospective
-> comparison. Empty sprint status cells are historical and are not the current
-> backlog. Use [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) and the
-> root [TODO.md](../TODO.md) for current work.
+> comparison. Empty sprint status cells describe the original planning
+> baseline. Use the [ticket index](../../../specs/Tickets.md) for current work.
 
 ## AI Cloud Document Vault
 

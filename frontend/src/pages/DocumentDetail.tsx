@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
 import Markdown from 'react-markdown'
+import type { BillField } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -54,7 +55,7 @@ export default function DocumentDetail() {
   const initialTab = (['preview', 'info', 'ask'].includes(searchParams.get('tab') || '') ? searchParams.get('tab') : 'info') as 'preview' | 'info' | 'ask'
   const [tab, setTabState] = useState<'preview' | 'info' | 'ask'>(initialTab)
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>()
-  const stableImageUrl = useRef<string | null>(null)
+  const stablePreview = useRef<{ documentId: string; url: string } | null>(null)
   const { toast } = useToast()
 
   function setTab(newTab: 'preview' | 'info' | 'ask') {
@@ -65,9 +66,10 @@ export default function DocumentDetail() {
   }
 
   // Keep the first image_url we get stable so preview doesn't re-load on polls
-  if (doc?.image_url && !stableImageUrl.current) {
-    stableImageUrl.current = doc.image_url
+  if (doc?.image_url && stablePreview.current?.documentId !== doc.id) {
+    stablePreview.current = { documentId: doc.id, url: doc.image_url }
   }
+  const originalUrl = doc && stablePreview.current?.documentId === doc.id ? stablePreview.current.url : null
 
   if (notFound) {
     return (
@@ -158,9 +160,9 @@ export default function DocumentDetail() {
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-amber-500/10" onClick={handleToggleFavourite} aria-label={doc.is_favourite ? 'Remove from favourites' : 'Add to favourites'}>
                 <Star size={16} className={doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'} />
               </Button>
-              {stableImageUrl.current && (
+              {originalUrl && (
                 <Button variant="outline" size="sm" className="h-9 rounded-full bg-background/50 hover:bg-background shadow-sm hover:shadow transition-all" asChild>
-                  <a href={stableImageUrl.current} download={doc.title} target="_blank" rel="noopener noreferrer">
+                  <a href={originalUrl} download={doc.title} target="_blank" rel="noopener noreferrer">
                     <Download size={14} className="mr-1.5" /> Download
                   </a>
                 </Button>
@@ -228,12 +230,12 @@ export default function DocumentDetail() {
         <div className="animate-fade-in">
         <Card className="border-border/50 shadow-sm animate-slide-up overflow-hidden">
           <CardContent className="p-0 bg-background/50">
-            {stableImageUrl.current ? (
+            {originalUrl ? (
               isPdf ? (
-                <PdfViewer url={stableImageUrl.current} title={doc.title} />
+                <PdfViewer url={originalUrl} title={doc.title} />
               ) : (
                 <div className="flex items-center justify-center p-8 bg-black/5">
-                  <img src={stableImageUrl.current} alt={doc.title} className="max-w-full max-h-[75vh] rounded-lg shadow-xl" />
+                  <img src={originalUrl} alt={doc.title} className="max-w-full max-h-[75vh] rounded-lg shadow-xl" />
                 </div>
               )
             ) : (
@@ -264,6 +266,21 @@ export default function DocumentDetail() {
             </Card>
           ) : (
             <>
+              {doc.bill_review && (
+                <section aria-labelledby="bill-review-heading" className="rounded-xl border bg-card p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 id="bill-review-heading" className="font-semibold">Bill review</h3>
+                    <Button variant="outline" size="sm" onClick={() => setTab('preview')}>View original bill</Button>
+                  </div>
+                  <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                    <BillReviewField label="Amount due" field={doc.bill_review.amount_due}
+                      display={value => '€' + value} />
+                    <BillReviewField label="Due date" field={doc.bill_review.due_date} display={formatBillDate} />
+                    <BillReviewField label="Billing period" field={doc.bill_review.billing_period}
+                      display={value => value.split('/').map(formatBillDate).join(' – ')} />
+                  </dl>
+                </section>
+              )}
               {/* AI Summary */}
               {doc.summary && (
                 <RichSummary summary={doc.summary} onTopicClick={(topic) => { setPendingQuestion(`Tell me about ${topic} in this document`); setTab('ask') }} />
@@ -330,6 +347,32 @@ export default function DocumentDetail() {
       </div>
       )}
 
+    </div>
+  )
+}
+
+function formatBillDate(value: string) {
+  return new Date(value + 'T00:00:00Z').toLocaleDateString('en-IE', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  })
+}
+
+function BillReviewField({ label, field, display }: {
+  label: string; field: BillField; display: (value: string) => string
+}) {
+  return (
+    <div>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-semibold">{field.value ? display(field.value) : 'Check the original bill'}</dd>
+      <dd className="mt-2 space-y-2 text-sm">
+        {field.sources.length === 0 && <p>No labelled OCR line found.</p>}
+        {field.sources.map(source => (
+          <blockquote key={source.line} className="border-l-2 border-border pl-3">
+            <span className="text-xs text-muted-foreground">OCR line {source.line}</span>
+            <p>{source.text}</p>
+          </blockquote>
+        ))}
+      </dd>
     </div>
   )
 }

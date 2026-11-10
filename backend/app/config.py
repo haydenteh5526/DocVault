@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = "http://localhost:3000/api/v1/auth/oauth/google/callback"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
+    SMTP_STARTTLS: bool = True
     SMTP_USER: str = ""
     SMTP_PASS: str = ""
     SMTP_FROM: str = "noreply@docvault.app"

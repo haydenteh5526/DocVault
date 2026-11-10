@@ -43,6 +43,27 @@ class DocumentUpdate(BaseModel):
     raw_text: str | None = None
 
 
+class BillSourceLine(BaseModel):
+    line: int
+    text: str
+
+
+class BillField(BaseModel):
+    # EUR decimal string, ISO date, or ISO start/end interval. None requires review.
+    value: str | None
+    sources: list[BillSourceLine]
+
+
+class BillReview(BaseModel):
+    amount_due: BillField
+    due_date: BillField
+    billing_period: BillField
+
+
+class DocumentDetailOut(DocumentOut):
+    bill_review: BillReview | None = None
+
+
 class DocumentList(BaseModel):
     documents: list[DocumentOut]
     total: int

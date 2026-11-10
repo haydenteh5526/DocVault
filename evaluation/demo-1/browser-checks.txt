@@ -1,0 +1,16 @@
+
+Running 11 tests using 1 worker
+
+  ok  1 e2e\accessibility.spec.ts:29:3 › WCAG regression checks › landing page has no automated WCAG A/AA violations (1.5s)
+  ok  2 e2e\accessibility.spec.ts:35:3 › WCAG regression checks › login flow has no automated WCAG A/AA violations (1.7s)
+  ok  3 e2e\accessibility.spec.ts:46:3 › WCAG regression checks › authenticated app shell has no automated WCAG A/AA violations (4.8s)
+  ok  4 e2e\app.spec.ts:8:3 › DocVault auth flow › login page renders the email step (1.0s)
+  ok  5 e2e\app.spec.ts:16:3 › DocVault auth flow › advances from email to the password step (1.1s)
+  ok  6 e2e\app.spec.ts:24:3 › DocVault auth flow › registration shows the "check your email" screen (2.2s)
+  ok  7 e2e\app.spec.ts:35:3 › DocVault auth flow › invalid login surfaces an error (1.2s)
+  ok  8 e2e\app.spec.ts:44:3 › DocVault auth flow › verified user can sign in and open the protected document dashboard (3.1s)
+  ok  9 e2e\app.spec.ts:60:3 › DocVault auth flow › verified user can review a bill image against its OCR evidence (5.1s)
+  ok 10 e2e\password-reset.spec.ts:3:1 › password recovery works after a rejected login without authentication (2.1s)
+  ok 11 e2e\password-reset.spec.ts:22:1 › verification and password reset arrive in the local inbox and allow sign-in (8.0s)
+
+  11 passed (32.9s)

@@ -1,0 +1,29 @@
+........................................................................ [ 40%]
+........................................................................ [ 81%]
+.................................                                        [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.9-final-0 _______________
+
+Name                                Stmts   Miss  Cover
+-------------------------------------------------------
+app\main.py                           103     24    77%
+app\routers\ai.py                      34      4    88%
+app\routers\auth.py                   229    129    44%
+app\routers\categories.py              39     21    46%
+app\routers\conversations.py          114     60    47%
+app\routers\documents.py              214    141    34%
+app\routers\notifications.py           35     17    51%
+app\routers\search.py                  27     18    33%
+app\routers\tags.py                    60     36    40%
+app\routers\warranties.py              59     25    58%
+app\services\bill_review.py            48      1    98%
+app\services\cache.py                  27      9    67%
+app\services\chunking_service.py       61      3    95%
+app\services\embedding_service.py      84     37    56%
+app\services\observability.py          38     28    26%
+-------------------------------------------------------
+TOTAL                                2101    553    74%
+
+27 files skipped due to complete coverage.
+Required test coverage of 65% reached. Total coverage: 73.68%
+177 passed in 30.59s

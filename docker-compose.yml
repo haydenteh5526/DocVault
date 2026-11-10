@@ -14,6 +14,9 @@ services:
       - S3_BUCKET=documents
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_URL=http://ollama:11434
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_STARTTLS=${SMTP_STARTTLS:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -22,6 +25,8 @@ services:
       redis:
         condition: service_started
       ollama:
+        condition: service_started
+      mailpit:
         condition: service_started
     volumes:
       - ./backend:/app
@@ -39,6 +44,9 @@ services:
       - S3_BUCKET=documents
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_URL=http://ollama:11434
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_STARTTLS=${SMTP_STARTTLS:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +56,8 @@ services:
         condition: service_started
       ollama:
         condition: service_started
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import redis; redis.from_url('redis://redis:6379/0').ping()"]
       interval: 30s
@@ -56,6 +66,11 @@ services:
       retries: 3
     volumes:
       - ./backend:/app
+
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    ports:
+      - "127.0.0.1:8025:8025"
 
   ollama:
     image: ollama/ollama

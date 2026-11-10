@@ -1,4 +1,4 @@
-"""Conversations router — ChatGPT-like persistent chat with RAG."""
+"""Persistent document conversations with retrieval-augmented answers."""
 import uuid
 from datetime import datetime
 
