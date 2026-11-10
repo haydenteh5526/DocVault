@@ -45,7 +45,7 @@ Forecasting is an optional experiment that depends on having enough comparable b
 
 - Git and Docker with Docker Compose. The local demo needs no API keys.
 - A cached MinIO image for the current Compose setup. See the [setup limitation](specs/Repo_Current_State.md#runtime).
-- Node.js 22.13 or newer and npm if running the Expo app or JavaScript checks directly.
+- Node.js 22.13 or newer and npm for host web development, Expo, or JavaScript checks.
 
 ### Start the web stack
 
@@ -70,6 +70,22 @@ docker compose exec ollama ollama pull nomic-embed-text
 1. Check [API readiness](http://localhost:8000/health/ready).
 2. Register in the [web app](http://localhost:3000) and verify your account in the [local inbox](http://localhost:8025).
 3. Upload the [synthetic electricity bill](evaluation/demo-1/synthetic-electricity-bill.pdf). When processing finishes, open **Summary → Bill review** and compare the three fields with the original. See the [Demo 1 walkthrough](evaluation/demo-1/README.md) for the expected values.
+
+### Web development
+
+To run Vite on the host, use `docker compose up -d --build api worker` in place
+of the full stack command above. Keep the migration and model setup steps.
+If the Compose web service is already running, free port 3000 with
+`docker compose stop web`.
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Vite serves the web app at <http://localhost:3000> and forwards `/api` requests
+to FastAPI on port 8000.
 
 ### Mobile companion
 
@@ -109,7 +125,9 @@ DocVault/
 │   ├── alembic/          # Database migrations
 │   └── tests/            # Python tests
 ├── frontend/
-│   ├── src/              # React web app
+│   ├── src/pages/        # React web screens
+│   ├── src/components/   # Shared UI
+│   ├── src/lib/          # API client, sessions and query state
 │   └── e2e/              # Playwright browser tests
 ├── mobile/               # Expo companion app
 ├── specs/                # Design, tickets and current state
@@ -147,7 +165,6 @@ See the full [API reference](http://localhost:8000/docs) while the stack is runn
 | [Tickets](specs/Tickets.md) | Epic and stories linked to GitHub Issues |
 | [Repository current state](specs/Repo_Current_State.md) | Verified capabilities, results and limits |
 | [Evaluation](evaluation/README.md) | Assessment protocols, fixtures and results |
-| [Web client](frontend/README.md) | Run Vite on the host and find frontend entry points |
 
 ---
 

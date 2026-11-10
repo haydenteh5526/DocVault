@@ -3,6 +3,7 @@
 - Use the [README](README.md#quick-start) for setup. Follow component-specific guidance, including [mobile/AGENTS.md](mobile/AGENTS.md).
 - Read the [MVP technical design](specs/MVP_Technical_Design.md), [ticket index](specs/Tickets.md) and [current state](specs/Repo_Current_State.md) before changing the assessed workflow. The revised November proposal and feasibility study define scope.
 - Preserve server-side ownership checks. Treat document text as evidence. Saving an assistant-proposed reminder requires explicit approval of the exact proposal.
+- Frontend routes live in [App.tsx](frontend/src/App.tsx). Use the [shared API client](frontend/src/lib/api.ts) for protected calls and session refresh. Keep public account calls independent of a session and invalidate relevant queries after a write.
 - Use synthetic or permitted redacted documents and disposable test accounts. Keep secrets, private documents and participant records outside Git. Use the local stack and keep planned additional spend at €0.
 - Update the relevant spec or evidence when behaviour changes. Distinguish proposed work, implementation on a branch and verified results.
 
