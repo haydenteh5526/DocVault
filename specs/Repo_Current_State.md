@@ -1,6 +1,6 @@
 # Repository current state
 
-**Snapshot, 10 November 2026.** The assessed checkout is DocVault. The Demo 1 work is in draft [PR #7](https://github.com/haydenteh5526/DocVault/pull/7) on `feature/demo-1-bill-review`. The earlier prototype's development history is in [DocVault-old](https://github.com/haydenteh5526/DocVault-old).
+**Snapshot, 10 November 2026.** The assessed checkout is DocVault. [PR #7](https://github.com/haydenteh5526/DocVault/pull/7) records the Demo 1 increment. The earlier prototype's development history is in [DocVault-old](https://github.com/haydenteh5526/DocVault-old).
 
 ## Demo 1 capability
 
@@ -24,7 +24,7 @@ The assessed demo uses the existing hardware and local stack with **€0 planned
 ## Remaining evidence and limits
 
 - The synthetic examples establish the demo behaviour. Field accuracy on varied bills, the local model's task selection, cross-owner access for new records and safe approval retries still need evaluation. [Evaluation workspace](../evaluation/README.md)
-- The mobile check covers types and Expo configuration. Physical-device and push delivery verification remain open. The hosted mobile install reported one critical npm advisory for follow-up.
+- The mobile check covers types and Expo configuration. The lockfile update to `shell-quote` 1.12.0 cleared the critical advisory. The 10 November production dependency audit reported four moderate findings. Physical-device and push delivery verification remain open.
 - Terraform defines an AWS environment. Live infrastructure and deployment remain unverified. The local proof of concept takes priority. [Infrastructure notes](../terraform/COST_REVIEW.md)
 
 The [prototype archive](../docs/archive/prototype/README.md) retains the original requirements, design, work breakdown and September evidence for the report.
