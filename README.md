@@ -12,9 +12,15 @@
 
 ## Key Features
 
-- **Capture and search** — Extract text from PDFs and photos with local OCR, then search by keyword or meaning.
-- **Ask about your documents** — Retrieve relevant excerpts and get answers with sources when a Q&A provider is configured.
-- **Review bill facts** — Compare the amount due, due date and billing period with their source lines and the original bill.
+- **Document capture** — Upload PDFs or photos. A background worker extracts text with Tesseract while you continue using the vault.
+- **Document library** — Organise files with categories, tags and favourites. Compare the original with extracted text and restore earlier text versions.
+- **Hybrid search** — Find documents by exact words or meaning using PostgreSQL full-text search and local embeddings.
+- **Document Q&A** — Retrieve relevant excerpts and get answers with sources when a Q&A provider is configured.
+- **Bill review** — Compare the amount due, due date and billing period with their source lines and the original bill.
+- **Private accounts** — Sign in to your own vault and use the local inbox for account verification and password recovery.
+
+Demo 1 covers read-only bill review. Confirmed bill records, splitting, enquiry
+drafts and approved reminders are described in the [MVP design](specs/MVP_Technical_Design.md).
 
 ---
 
@@ -22,20 +28,34 @@
 
 | Layer | Technology |
 | --- | --- |
-| Web | React, TypeScript, Vite |
-| API | Python, FastAPI |
-| Data and jobs | PostgreSQL with pgvector, MinIO, Redis and ARQ |
-| Local processing | Tesseract OCR, Ollama embeddings |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Python, FastAPI, SQLAlchemy, Alembic |
+| Database and storage | PostgreSQL with pgvector, MinIO |
+| Background jobs | Redis, ARQ |
+| Document processing | Tesseract OCR, Ollama embeddings |
+| Local email | Mailpit |
 | Mobile companion | React Native, Expo |
 
 ---
 
 ## Quick Start
 
-The local demo uses Docker Compose and needs no API keys. The current setup
-requires a cached MinIO image. See the [setup limitation](specs/Repo_Current_State.md#runtime).
+### Prerequisites
 
-From the repository root in PowerShell:
+- Git and Docker with Docker Compose. The local demo needs no API keys.
+- A cached MinIO image for the current Compose setup. See the [setup limitation](specs/Repo_Current_State.md#runtime).
+- Node.js 22.13 or newer and npm if running the Expo app or JavaScript checks directly.
+
+### Start the web stack
+
+Clone the repository in PowerShell:
+
+```powershell
+git clone https://github.com/haydenteh5526/DocVault.git
+cd DocVault
+```
+
+From the repository root, start the services:
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
@@ -44,28 +64,110 @@ docker compose exec api alembic upgrade head
 docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-Open the [web app](http://localhost:3000) and verify your account in the
-[local inbox](http://localhost:8025). Use the [Demo 1 walkthrough](evaluation/demo-1/README.md)
-to review the synthetic bill. Demo 1 shows read-only bill review. Bill
-confirmation, splitting, enquiry drafts and approved reminders are planned.
+### Verify
+
+1. Check [API readiness](http://localhost:8000/health/ready).
+2. Register in the [web app](http://localhost:3000) and verify your account in the [local inbox](http://localhost:8025).
+3. Upload the [synthetic electricity bill](evaluation/demo-1/synthetic-electricity-bill.pdf). When processing finishes, open **Summary → Bill review** and compare the three fields with the original. See the [Demo 1 walkthrough](evaluation/demo-1/README.md) for the expected values.
+
+### Mobile companion
+
+With the API running, start Expo from the repository root:
+
+```powershell
+cd mobile
+npm ci
+npm start
+```
+
+For a physical device, set `EXPO_PUBLIC_API_URL` to the computer's LAN address
+and API port, for example `http://192.168.1.10:8000`, before starting Expo.
+
+---
+
+## Environment Variables
+
+Use [`.env.example`](.env.example) for the full local configuration.
+
+| Variable | Default or use |
+| --- | --- |
+| `OCR_BACKEND` | `tesseract` for local text extraction |
+| `EMBEDDING_PROVIDER` | `auto`. Set `ollama` to pin local embeddings for an evaluation run. |
+| `GROQ_API_KEY` or `GEMINI_API_KEY` | Optional. Enable generated Q&A. Without a key, development mode returns retrieved excerpts. |
+| `FRONTEND_URL` | `http://localhost:3000`. Used in verification and recovery links. |
+| `EXPO_PUBLIC_API_URL` | Optional API base URL for the mobile client. Set it in the shell that starts Expo. |
 
 ---
 
 ## Project Structure
 
 ```text
-backend/      FastAPI, OCR and background jobs
-frontend/     Web app
-mobile/       Expo companion app
-specs/        Design, tickets and current state
-evaluation/   Demo fixture and assessment evidence
+DocVault/
+├── backend/
+│   ├── app/              # API, document processing and background jobs
+│   ├── alembic/          # Database migrations
+│   └── tests/            # Python tests
+├── frontend/
+│   ├── src/              # React web app
+│   └── e2e/              # Playwright browser tests
+├── mobile/               # Expo companion app
+├── specs/                # Design, tickets and current state
+├── evaluation/           # Demo fixture and assessment evidence
+└── docker-compose.yml    # Local development stack
 ```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/health/ready` | Check service dependencies |
+| POST | `/api/v1/auth/register` | Create an account and send a verification link |
+| POST | `/api/v1/auth/login` | Start a session |
+| POST | `/api/v1/auth/forgot-password` | Request a reset link |
+| GET | `/api/v1/documents` | List your documents |
+| POST | `/api/v1/documents` | Upload a document for processing |
+| GET | `/api/v1/documents/{document_id}` | Get document details and bill candidates when available |
+| GET | `/api/v1/search?q=...` | Search your documents |
+| POST | `/api/v1/ai/ask` | Ask a question and retrieve source excerpts |
+
+See the full [API reference](http://localhost:8000/docs) while the stack is running.
 
 ---
 
 ## Documentation
 
-[MVP design](specs/MVP_Technical_Design.md) · [Tickets](specs/Tickets.md) · [Current state](specs/Repo_Current_State.md) · [Local API reference](http://localhost:8000/docs)
+| Document | Contents |
+| --- | --- |
+| [MVP technical design](specs/MVP_Technical_Design.md) | Evidence flow, planned workflow and approval rules |
+| [Tickets](specs/Tickets.md) | Epic and stories linked to GitHub Issues |
+| [Repository current state](specs/Repo_Current_State.md) | Verified capabilities, results and limits |
+| [Evaluation](evaluation/README.md) | Assessment protocols, fixtures and results |
+
+---
+
+## Testing
+
+Install the component dependencies and configure disposable test services using
+the [verification guide](AGENTS.md#verification). Run each command from the
+directory shown.
+
+```powershell
+# backend/
+python -m pytest tests/ --cov=app --cov-fail-under=65
+
+# frontend/
+npm test
+npx playwright test
+
+# mobile/
+npm run typecheck
+npm run doctor
+```
+
+The [CI workflow](.github/workflows/ci.yml) also checks dependencies, migrations
+and the production web build.
 
 ---
 
