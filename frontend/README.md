@@ -43,4 +43,4 @@ requirement.
 
 For the complete system, see the root [README](../README.md),
 [architecture and evidence flow](../specs/MVP_Technical_Design.md#architecture-and-evidence-flow), and
-[verification guide](../CONTRIBUTING.md#verification).
+[verification guide](../AGENTS.md#verification).

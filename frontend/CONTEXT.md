@@ -75,4 +75,4 @@ npx playwright test
 ```
 
 The protected Playwright journey requires the CI stack and seeded CI-only test
-account. See the [verification guide](../CONTRIBUTING.md#verification).
+account. See the [verification guide](../AGENTS.md#verification).
