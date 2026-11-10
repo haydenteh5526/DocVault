@@ -1,6 +1,8 @@
-# Software design for the household bill assistant
+# MVP technical design
 
-**Design draft, 7 November 2026.** The revised 6 November proposal and feasibility study define the project scope. The first epic is for one household document owner to take an electricity bill from upload to reviewed facts, an exact split among four housemates and one approved internal reminder. Demo 1 demonstrates the review step. The end-to-end proof of concept is targeted for 18 December. [Epic #4](https://github.com/haydenteh5526/DocVault/issues/4)
+**Design draft, 10 November 2026.** The revised 6 November proposal and feasibility study define the project scope. The first epic is for one household document owner to take an electricity bill from upload to reviewed facts, an exact split among four housemates and one approved internal reminder. Demo 1 demonstrates the review step. The end-to-end proof of concept is targeted for 18 December 2026.
+
+Use the [ticket index](Tickets.md) for delivery order and the [repository snapshot](Repo_Current_State.md) for verified behaviour and limits.
 
 ## What the owner can ask
 
@@ -13,9 +15,9 @@
 
 Personalisation comes from the authenticated owner's documents, reviewed facts and choices in the conversation. If a request is unsupported, explain the boundary and offer a supported next step. Payments, external sending and autonomous browsing are outside the agreed workflow.
 
-## Implemented on the Demo 1 branch
+## Architecture and evidence flow
 
-React uploads the PDF or image to FastAPI. The API stores the original in MinIO and queues processing in Redis. The ARQ worker runs local Tesseract OCR and stores the transcript in PostgreSQL. Opening the owner-scoped document detail derives candidates for the amount, billing period and due date. Each candidate retains its labelled source line, including conflicting lines when found. The original file is available for comparison. This read-only review precedes the confirmed bill record. [Rehearsal and evidence](../evaluation/demo-1/README.md)
+React uploads the PDF or image to FastAPI. The API stores the original in private S3-compatible storage and queues processing in Redis. The ARQ worker runs local Tesseract OCR and stores the transcript in PostgreSQL. Opening the owner-scoped document detail derives candidates for the amount, billing period and due date. Each candidate retains its labelled source line, including conflicting lines when found. A signed preview lets the owner compare the original file. This read-only review is implemented on the Demo 1 branch. [Rehearsal and evidence](../evaluation/demo-1/README.md)
 
 ## Design for the next increments
 
@@ -28,8 +30,15 @@ React uploads the PDF or image to FastAPI. The API stores the original in MinIO 
 
 The proposed reminder states are **pending**, **cancelled**, **stale** and **saved**. A change to the confirmed bill revision or reminder details requires a new proposal and fresh approval. A retry of an already saved proposal returns its recorded reminder. Housemate labels exist within the owner's account.
 
+## Constraints on planned writes
+
+- The server derives identity from the session and checks ownership of the source document, confirmed revision, proposal and saved record. The model may suggest tool arguments. The server validates them against the owner's records and available operations.
+- Preserve the original OCR evidence and record corrections as a new confirmed revision. Missing or conflicting candidates require inspection and explicit confirmation before downstream work can use them.
+- Store amounts and calculate contributions in integer cents. The four contributions must sum to the confirmed total. The order of the labels used for remainder cents must be visible in the split.
+- Approval binds the owner to one proposal and one confirmed bill revision. Cancellation, an ownership failure or a changed revision leaves the reminder unsaved. Record the outcome alongside the proposed and approved details.
+
 ## Delivery and evaluation
 
 - **Week of 9 November.** Demonstrate the synthetic bill and explain the architecture, source evidence and read-only review limit.
 - **By 18 December.** Exercise the four stories together. Verify local answer generation and tool selection on existing hardware with €0 planned additional spend. Record OCR/field errors and cases requiring clarification. Decide separately whether permitted, comparable historical bills support the optional forecasting experiment.
-- **Ahead of Demo 2.** Test worker failure after queue acceptance, permission boundaries, retry safety and stale approvals. Prepare the comparison with document Q&A plus manual follow-up. Cloud validation depends on suitable access and agreed funding.
+- **Ahead of Demo 2.** Test worker failure after queue acceptance, permission boundaries, retry safety and stale approvals. Prepare the comparison with document Q&A plus manual follow-up. Cloud validation depends on suitable access and agreed funding. Keep the measured protocol and anonymised results in the [evaluation workspace](../evaluation/README.md).

@@ -43,8 +43,8 @@ after changing the embedding provider.
 3. Pin `OCR_BACKEND` and `EMBEDDING_PROVIDER`.
 4. Configure Groq or Gemini before evaluating generated answers. If neither is
    configured, label the run retrieval-only.
-5. Run every command in [../TESTING.md](../TESTING.md), including the 12-check
-   full-stack smoke test.
+5. Run the checks in the [verification guide](../CONTRIBUTING.md#verification),
+   including the 12-check full-stack smoke test.
 6. Copy the templates from `evaluation/templates/` into a dated results folder.
 7. Freeze all questions, relevance judgements and ground truth before tuning.
 8. Validate and summarise the completed CSVs with

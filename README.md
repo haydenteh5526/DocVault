@@ -4,7 +4,7 @@ DocVault helps a household document owner check an electricity bill against its
 source. The Demo 1 web app shows the amount, due date and billing period beside
 their OCR evidence. The next increments cover confirmed records, household
 contributions, conversational requests and explicitly approved reminders.
-[Workflow design and stories](specs/BILL_WORKFLOW_SDD.md) · [Try the synthetic bill](evaluation/demo-1/README.md).
+[MVP design](specs/MVP_Technical_Design.md) · [Ticket index](specs/Tickets.md) · [Try the synthetic bill](evaluation/demo-1/README.md)
 
 This assessed repository starts from a migrated prototype snapshot. Its original
 development history is available in [DocVault-old](https://github.com/haydenteh5526/DocVault-old).
@@ -18,9 +18,14 @@ development history is available in [DocVault-old](https://github.com/haydenteh5
 
 ### Run the app
 
+The rehearsed local stack uses the existing MinIO image. See the
+[repository snapshot](specs/Repo_Current_State.md#runtime) for the image pull
+limitation on a fresh machine.
+
 ```bash
 # 1. On a fresh checkout, create your local configuration from .env.example.
-# PowerShell: Copy-Item .env.example .env
+# PowerShell: if (!(Test-Path .env)) { Copy-Item .env.example .env }
+test -f .env || cp .env.example .env
 docker compose up --build -d
 docker compose exec api alembic upgrade head
 
@@ -168,7 +173,8 @@ Full Swagger docs at http://localhost:8000/docs
 │   └── e2e/              # Playwright end-to-end tests
 ├── mobile/               # React Native + Expo
 ├── terraform/            # AWS infrastructure (VPC, RDS, ECS, S3)
-├── specs/                # Requirements, Design, Tasks, Security
+├── specs/                # MVP design, ticket index and current state
+├── evaluation/           # Protocols, demo fixture and verification evidence
 └── docker-compose.yml    # Local development environment
 ```
 
@@ -208,38 +214,10 @@ Copy `.env.example` to `.env` and set:
 
 ## Testing
 
-Verified on 2026-09-15: 161 backend tests at 72.71% coverage, 25 frontend unit
-tests, eight Playwright scenarios (including three WCAG scans),
-backend/frontend lint, production web build, mobile type checking and Expo
-Doctor 21/21. CI enforces a 65% backend coverage floor. The categorisation,
-document-processing, email/notifications, image-preprocessing, OCR, push, RAG,
-storage, queueing, worker and warranty-extraction modules have full line coverage.
-
-```bash
-# Install dev/test tooling (pytest, ruff, coverage)
-cd backend && pip install -r requirements.txt -r dev-requirements.txt
-
-# Backend tests (run in CI or fresh container)
-cd backend && pytest tests/ -v
-
-# Backend tests with coverage
-cd backend && pytest tests/ --cov=app --cov-report=term-missing
-
-# Fast unit tests only (no DB required)
-pytest tests/test_chunking.py tests/test_cache.py tests/test_retry.py -v
-
-# Frontend unit tests (Vitest)
-cd frontend && npm test
-
-# Frontend type check + build
-cd frontend && npm run build
-
-# E2E tests
-cd frontend && npx playwright test
-
-# Load testing
-cd backend && locust -f tests/locustfile.py --host http://localhost:8000
-```
+See [verification commands](CONTRIBUTING.md#verification) for engineering
+checks, the [repository snapshot](specs/Repo_Current_State.md#verified-results)
+for results, and the [evaluation workspace](evaluation/README.md) for research
+protocols and evidence.
 
 ## Developer Experience
 
@@ -299,13 +277,11 @@ cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your values
 terraform init
 terraform plan
-# Review the plan and confirm an AWS Budget alert exists before applying.
-terraform apply
 ```
 
-The configuration is validated, but this repository does not yet contain
-evidence of a live deployment. Applying it creates chargeable AWS resources;
-follow the cloud-evidence checklist in [`TODO.md`](TODO.md).
+Live deployment remains unverified. Applying the plan creates chargeable AWS
+resources and is outside the €0 local demo. See the [infrastructure
+notes](terraform/COST_REVIEW.md) for the deployment assumptions and cost review.
 
 ## FYP Context
 
@@ -313,14 +289,14 @@ follow the cloud-evidence checklist in [`TODO.md`](TODO.md).
 **Institution:** TUS Athlone  
 **Timeline:** September 2026 – May 2027
 
-Start with:
+| Document | Purpose |
+| --- | --- |
+| [MVP technical design](specs/MVP_Technical_Design.md) | Agreed scope, proposed behaviour, data and safety rules |
+| [Tickets](specs/Tickets.md) | Epic and story index linked to the live GitHub backlog |
+| [Repository current state](specs/Repo_Current_State.md) | Implemented behaviour, dated results and gaps |
 
-- [`specs/README.md`](specs/README.md) — documentation map and maintenance rules
-- [`specs/IMPLEMENTATION_STATUS.md`](specs/IMPLEMENTATION_STATUS.md) — verified current state
-- [`specs/ARCHITECTURE.md`](specs/ARCHITECTURE.md) — system as built
-- [`specs/TRACEABILITY.md`](specs/TRACEABILITY.md) — requirements mapped to evidence and gaps
-- [`specs/EVALUATION_PLAN.md`](specs/EVALUATION_PLAN.md) — repeatable experimental protocol
-- [`specs/DESIGN.md`](specs/DESIGN.md) — original design baseline
+See the [prototype archive](docs/archive/prototype/README.md) for earlier
+requirements, design and verification history.
 
 ## License
 

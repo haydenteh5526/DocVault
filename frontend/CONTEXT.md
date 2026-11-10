@@ -2,8 +2,8 @@
 
 > Current implementation notes for contributors. For setup commands, see
 > [`README.md`](README.md). Project-wide status and architecture live in
-> [`../specs/IMPLEMENTATION_STATUS.md`](../specs/IMPLEMENTATION_STATUS.md) and
-> [`../specs/ARCHITECTURE.md`](../specs/ARCHITECTURE.md).
+> the [repository snapshot](../specs/Repo_Current_State.md) and the
+> [system diagram](../README.md#architecture).
 
 ## Stack
 
@@ -75,4 +75,4 @@ npx playwright test
 ```
 
 The protected Playwright journey requires the CI stack and seeded CI-only test
-account. See [`../TESTING.md`](../TESTING.md) for the exact workflow.
+account. See the [verification guide](../CONTRIBUTING.md#verification).

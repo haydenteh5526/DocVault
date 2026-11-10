@@ -1,21 +1,12 @@
-# Verified implementation status
-
-## November assessed repository
-
-The active design is the [bill workflow SDD](BILL_WORKFLOW_SDD.md), based on the
-revised 6 November scope. The Demo 1 feature branch adds local account email
-capture and read-only electricity bill review with source lines for the amount,
-due date and billing period. See the [local rehearsal evidence](../evaluation/demo-1/README.md).
-Confirmed records, allocations and agent-proposed reminders remain planned work.
-
-## Historical prototype snapshot
+# September prototype implementation status
 
 **Last verified:** 2026-09-15
 **Verification baseline:** `f5dbb6e`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
-This is the canonical status document for the system as built. The original
-proposal remains in [REQUIREMENTS.md](REQUIREMENTS.md), [DESIGN.md](DESIGN.md)
+The [repository snapshot](../../../specs/Repo_Current_State.md) records the
+assessed branch. The original proposal remains in
+[REQUIREMENTS.md](REQUIREMENTS.md), [DESIGN.md](DESIGN.md)
 and [TASKS.md](TASKS.md). Differences between the proposal and implementation
 are intentional evidence of the project's design evolution.
 
@@ -36,7 +27,7 @@ are intentional evidence of the project's design evolution.
 
 Automated success is not the same as evaluation evidence. Accuracy, latency,
 accessibility, load capacity and usability targets remain unproven until the
-protocol in [EVALUATION_PLAN.md](EVALUATION_PLAN.md) is executed.
+protocol in [EVALUATION_PLAN.md](../../../evaluation/EVALUATION_PLAN.md) is executed.
 
 ## Component status
 
@@ -72,7 +63,7 @@ protocol in [EVALUATION_PLAN.md](EVALUATION_PLAN.md) is executed.
 | Textract as primary OCR | Tesseract locally, with Mistral/Textract adapters | Enables repeatable local evaluation before paid-cloud comparison |
 | LocalStack | MinIO | Smaller S3-compatible local service |
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the September system view and
 [TRACEABILITY.md](TRACEABILITY.md) for requirement-level completion.
 
 ## Known gaps and risks
@@ -88,7 +79,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
 7. CloudFront terminates public TLS, but the current proposed CloudFront-to-ALB
    path requires review before claiming end-to-end encryption.
 
-## Definition of project completion
+## Prototype completion criteria at the September baseline
 
 The implementation should only be called FYP-complete when:
 

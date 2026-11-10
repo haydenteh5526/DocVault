@@ -64,6 +64,6 @@ Status meanings:
 | Backend tests | `backend/tests/` |
 | Browser tests | `frontend/e2e/` |
 | Full-stack smoke | `backend/scripts/e2e_smoke.py` |
-| Evaluation protocol | `specs/EVALUATION_PLAN.md` |
-| Usability protocol | `specs/USABILITY_TEST_PLAN.md` |
-| Current architecture | `specs/ARCHITECTURE.md` |
+| Evaluation protocol | [Evaluation plan](../../../evaluation/EVALUATION_PLAN.md) |
+| Usability protocol | [Usability plan](../../../evaluation/USABILITY_TEST_PLAN.md) |
+| September architecture | [Prototype architecture](ARCHITECTURE.md) |

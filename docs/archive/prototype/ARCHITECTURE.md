@@ -2,9 +2,10 @@
 
 **Updated:** 2026-09-14
 
-This document describes the current implementation. [DESIGN.md](DESIGN.md) is
+This document describes the September prototype. [DESIGN.md](DESIGN.md) is
 the original design baseline and is retained to show why the architecture
-changed during development.
+changed during development. See the [repository snapshot](../../../specs/Repo_Current_State.md)
+for the assessed branch.
 
 ## System view
 

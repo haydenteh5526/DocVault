@@ -6,7 +6,7 @@ client is the primary interface; the Expo app is a capture-focused companion.
 ## Development
 
 ```powershell
-cd C:\FYP\frontend
+cd frontend
 npm ci
 npm run dev
 ```
@@ -24,9 +24,9 @@ npm run build
 npx playwright test
 ```
 
-The verified baseline is 25 Vitest tests and eight Playwright scenarios. Two
-authenticated browser scenarios use an explicitly enabled seed account in CI
-and skip in an ordinary local run without `E2E_EMAIL`/`E2E_PASSWORD`.
+Authenticated browser scenarios use a verified seed account in CI and skip in
+a local run without `E2E_EMAIL`/`E2E_PASSWORD`. See the [repository
+snapshot](../specs/Repo_Current_State.md#verified-results) for results.
 
 ## Structure
 
@@ -42,5 +42,5 @@ still use component state; conversion is incremental rather than a completion
 requirement.
 
 For the complete system, see the root [README](../README.md),
-[as-built architecture](../specs/ARCHITECTURE.md), and
-[testing guide](../TESTING.md).
+[system diagram](../README.md#architecture), and
+[verification guide](../CONTRIBUTING.md#verification).

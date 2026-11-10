@@ -27,7 +27,7 @@ On 7 November 2026, the assessed checkout in `C:\DocVault` ran in its own Docker
 
 The existing image-upload browser test now generates a second synthetic bill in memory and checks that all three displayed quotes correspond to the stated transcript lines. It exposed a deskew error that could turn a level image by 90 degrees. The correction uses image x/y coordinates and the nearest horizontal angle, with a regression check for level and tilted content.
 
-The branch carries separately traceable commits for local email capture, amount/due-date review, billing-period review and the deskew correction. The [workflow SDD](../../specs/BILL_WORKFLOW_SDD.md) links the planned confirmed-record, allocation, reminder and natural-language stories.
+The branch carries separately traceable commits for local email capture, amount/due-date review, billing-period review and the deskew correction. The [ticket index](../../specs/Tickets.md) links the planned confirmed-record, allocation, reminder and natural-language stories.
 
 Checks against code commit `57bc1cc` completed on 7 November 2026.
 
