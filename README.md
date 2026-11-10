@@ -1,8 +1,8 @@
 <div align="center">
   <img src="frontend/public/docvault-logo.svg" width="80" height="80" alt="DocVault logo">
   <h1>DocVault</h1>
-  <p><strong>A personal AI assistant for your documents</strong></p>
-  <p>A TUS Athlone final year project to help you find facts in your files and approve actions based on them.</p>
+  <p><strong>Personal AI Document Assistant</strong></p>
+  <p>A TUS Athlone final year project building an assistant that remembers the documents you choose to keep. The goal is to let you ask in your own words, whether you're looking up a detail, splitting a bill, or comparing spending over time. With enough comparable records, the assistant could also estimate your next bill.</p>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/haydenteh5526/DocVault" alt="MIT license"></a>
   <a href="https://github.com/haydenteh5526/DocVault/commits/main"><img src="https://img.shields.io/github/last-commit/haydenteh5526/DocVault/main" alt="Last commit"></a>
   <img src="https://img.shields.io/github/languages/top/haydenteh5526/DocVault" alt="Top language">
@@ -21,6 +21,7 @@
 
 Demo 1 covers read-only bill review. Confirmed bill records, splitting, enquiry
 drafts and approved reminders are described in the [MVP design](specs/MVP_Technical_Design.md).
+Forecasting is an optional experiment that depends on having enough comparable bills.
 
 ---
 
