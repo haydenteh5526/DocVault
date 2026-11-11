@@ -6,7 +6,7 @@
 
 Register or reset a disposable account with the local Mailpit inbox. Upload the [synthetic electricity bill](../evaluation/demo-1/synthetic-electricity-bill.pdf), wait for local OCR, and open **Summary → Bill review**. Compare the **€123.47** amount due, **23 November 2026** due date and **1–31 October 2026** billing period with their exact transcript lines and the original PDF. The rehearsal recorded an identical byte-for-byte preview. [Demo script and raw checks](../evaluation/demo-1/README.md)
 
-The bill review screen displays read-only candidates. Corrections with explicit confirmation, persistent reviewed revisions, household contributions, internal reminder approval and natural-language tool selection are the next increments. [Design](MVP_Technical_Design.md) · [Tickets](Tickets.md)
+The bill review screen displays read-only candidates. On the `feature/confirm-bill-revision` branch, the owner can correct the amount, due date and billing period, compare them with the OCR candidates and explicitly confirm them. Each confirmation appends a revision with integer cents and a snapshot of the reviewed evidence, and the confirmed values and evidence reopen even when the transcript no longer produces candidates. A save is rejected with nothing written if the evidence or revision changed while the owner was reviewing. Household contributions, internal reminder approval and natural-language tool selection are the next increments. [Design](MVP_Technical_Design.md) · [Tickets](Tickets.md)
 
 ## Runtime
 
@@ -20,10 +20,11 @@ The assessed demo uses the existing hardware and local stack with **€0 planned
 | --- | --- |
 | [Local rehearsal, 7 November](../evaluation/demo-1/README.md) | 177 backend tests at 73.68% coverage, 25 frontend tests and 11 browser scenarios, including local email recovery. PDF and image OCR checks used synthetic bills. |
 | [Hosted CI, 9 November](https://github.com/haydenteh5526/DocVault/actions/runs/42648930881) on `6455381` | Backend, frontend, mobile and e2e passed. Backend ran 177 tests and the migration round trip. Expo Doctor passed 21 checks. Playwright ran 10 scenarios and skipped the local inbox scenario. |
+| Local gates, 11 November, on `f3c5d70` (`feature/confirm-bill-revision`) | Backend: Ruff clean and 199 tests passed (21 new for confirmed bill revisions) at 74.16% coverage against a disposable `pgvector/pgvector:pg16` database. The migration round trip (head, 013, head, base, head) passed on a fresh database. Frontend: type check, lint, 39 Vitest tests (12 for the bill panel, 2 for refetch after save) and build passed. The Playwright scenario and the manual two-tab check were not run because no local stack or verified synthetic account was available. |
 
 ## Remaining evidence and limits
 
-- The synthetic examples establish the demo behaviour. Field accuracy on varied bills, the local model's task selection, cross-owner access for new records and safe approval retries still need evaluation. [Evaluation workspace](../evaluation/README.md)
+- The synthetic examples establish the demo behaviour. Field accuracy on varied bills, the local model's task selection, cross-owner access for new records and safe approval retries still need evaluation. Confirmed bill revisions still need the extended browser scenario and the manual two-tab conflict check with the synthetic PDF. [Evaluation workspace](../evaluation/README.md)
 - The mobile check covers types and Expo configuration. The lockfile update to `shell-quote` 1.12.0 cleared the critical advisory. The 10 November production dependency audit reported four moderate findings. Physical-device and push delivery verification remain open.
 - Terraform defines an AWS environment. Live infrastructure and deployment remain unverified. The local proof of concept takes priority. [Infrastructure notes](../terraform/COST_REVIEW.md)
 
