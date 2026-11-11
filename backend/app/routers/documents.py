@@ -366,6 +366,8 @@ async def find_similar_documents(document_id: uuid.UUID, limit: int = 5, db: Asy
 
     from app.models.base import DocChunk
 
+    await _get_doc_or_404(document_id, user_id, db)
+
     # Get the average embedding of this document's chunks
     chunks = (await db.execute(select(DocChunk).where(DocChunk.document_id == document_id))).scalars().all()
     if not chunks or not chunks[0].embedding:
