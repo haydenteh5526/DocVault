@@ -62,8 +62,8 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://docvault:docvault@localhost:5432/docvault_test
           S3_ENDPOINT: http://localhost:9000
-          S3_ACCESS_KEY: minioadmin
-          S3_SECRET_KEY: minioadmin
+          S3_ACCESS_KEY: docvault-local
+          S3_SECRET_KEY: docvault-local-storage
           S3_BUCKET: documents
           JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
           OCR_BACKEND: tesseract

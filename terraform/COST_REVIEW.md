@@ -84,7 +84,7 @@ The IaC now deploys the *real* app rather than an API-only skeleton:
 5. **S3 via IAM task role** — the S3 client (app code) now falls back to the
    default credential chain and the deployment region when no explicit endpoint /
    keys are set, so on AWS it uses the task role instead of static keys. Local
-   MinIO behaviour is unchanged (docker-compose still provides the env).
+   Local S3-compatible storage behaviour is unchanged (docker-compose still provides the env).
 6. **S3 `force_destroy = true`** — `terraform destroy` no longer stalls on a
    non-empty bucket.
 

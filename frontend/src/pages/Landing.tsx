@@ -237,7 +237,7 @@ export default function Landing() {
               { name: 'Redis', desc: 'Cache + queue' },
               { name: 'Docker', desc: 'Containers' },
               { name: 'Terraform', desc: 'Infrastructure' },
-              { name: 'MinIO / S3', desc: 'Object storage' },
+              { name: 'S3 storage', desc: 'Object storage' },
               { name: 'Groq / Gemini', desc: 'LLM providers' },
               { name: 'Mistral', desc: 'Categorisation' },
               { name: 'TypeScript', desc: 'Type safety' },
