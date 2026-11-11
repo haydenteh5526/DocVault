@@ -79,7 +79,8 @@ export interface Document {
   document_type: string | null
   category_id: string | null
   raw_text: string | null
-  bill_review?: { amount_due: BillField; due_date: BillField; billing_period: BillField } | null
+  bill_review?: BillReview | null
+  confirmed_bill?: BillRevision | null
   summary: string | null
   file_size: number | null
   image_url: string | null
@@ -92,6 +93,46 @@ export interface Document {
 export interface BillField {
   value: string | null
   sources: { line: number; text: string }[]
+}
+
+export interface BillReview {
+  amount_due: BillField
+  due_date: BillField
+  billing_period: BillField
+}
+
+export interface BillRevision {
+  id: string
+  document_id: string
+  revision_number: number
+  amount_due: string
+  due_date: string
+  billing_period_start: string
+  billing_period_end: string
+  evidence: BillReview
+  created_at: string
+}
+
+export interface BillConfirmation {
+  amount_due: string
+  due_date: string
+  billing_period_start: string
+  billing_period_end: string
+  reviewed: BillReview
+  base_revision: number
+}
+
+/** An API failure carrying the HTTP status and, when the server gives one, a reason code. */
+export class ApiError extends Error {
+  status: number
+  code?: string
+
+  constructor(status: number, message: string, code?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
 }
 
 export interface SearchResult {
@@ -227,6 +268,32 @@ export async function exportDocuments(format: 'json' | 'csv'): Promise<void> {
 
 export async function getDocument(id: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${id}`)
+  return res.json()
+}
+
+export async function confirmBill(documentId: string, body: BillConfirmation): Promise<BillRevision> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/bill-revisions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try {
+      detail = (await res.json())?.detail
+    } catch {
+      detail = undefined
+    }
+    if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+      const { message, code } = detail as { message?: unknown; code?: unknown }
+      throw new ApiError(
+        res.status,
+        typeof message === 'string' ? message : 'Could not save the bill',
+        typeof code === 'string' ? code : undefined,
+      )
+    }
+    throw new ApiError(res.status, typeof detail === 'string' ? detail : 'Could not save the bill')
+  }
   return res.json()
 }
 
