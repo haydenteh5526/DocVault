@@ -29,12 +29,16 @@ Forecasting is an optional experiment that depends on having enough comparable b
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| Backend | Python, FastAPI, SQLAlchemy, Alembic |
-| Database and storage | PostgreSQL with pgvector, MinIO |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, TanStack Query |
+| Backend | Python, FastAPI, Pydantic, SQLAlchemy, Alembic |
+| Database | PostgreSQL with pgvector |
+| File storage | S3 API, served locally by RustFS |
 | Background jobs | Redis, ARQ |
 | Document processing | Tesseract OCR, Ollama embeddings |
+| Answer generation | Groq or Gemini when a key is set. Local generation with Ollama is under evaluation in [#5](https://github.com/haydenteh5526/DocVault/issues/5). |
 | Local email | Mailpit |
+| Testing and CI | pytest, Ruff, Vitest, Playwright, GitHub Actions |
+| Runtime | Docker Compose |
 | Mobile companion | React Native, Expo |
 
 ---
@@ -44,7 +48,6 @@ Forecasting is an optional experiment that depends on having enough comparable b
 ### Prerequisites
 
 - Git and Docker with Docker Compose. The local demo needs no API keys.
-- A cached MinIO image for the current Compose setup. See the [setup limitation](specs/Repo_Current_State.md#runtime).
 - Node.js 22.13 or newer and npm for host web development, Expo, or JavaScript checks.
 
 ### Start the web stack

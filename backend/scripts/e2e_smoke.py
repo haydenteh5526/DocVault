@@ -4,7 +4,7 @@ Exercises the REAL pipeline over HTTP: register -> verify -> login -> upload
 -> background OCR/categorise/embed (worker) -> search -> AI ask.
 
 Prerequisites: the full docker compose stack running (api, worker, redis, db,
-minio, ollama) and AI keys configured in .env (GROQ/GEMINI for Q&A, MISTRAL for
+storage, ollama) and AI keys configured in .env (GROQ/GEMINI for Q&A, MISTRAL for
 categorisation). Ollama must have `nomic-embed-text` pulled for embeddings.
 
 Usage:  docker compose exec -T api python scripts/e2e_smoke.py
@@ -147,7 +147,7 @@ async def main():
               f"{r.status_code} bytes={len(r.text)}")
 
         # Cleanup through the real account-deletion path. This removes the
-        # database rows and the complete S3/MinIO user prefix.
+        # database rows and the complete object-storage user prefix.
         cleanup = await c.delete(f"{BASE}/auth/account", headers=auth)
         check("cleanup_test_account", cleanup.status_code == 204, f"{cleanup.status_code}")
 

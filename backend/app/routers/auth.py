@@ -301,7 +301,7 @@ async def delete_account(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user:
-        # Database cascades cannot remove objects from S3/MinIO. Delete the
+        # Database cascades cannot remove objects from object storage. Delete the
         # entire user prefix first, including any orphaned upload objects.
         from app.services import storage_service
 

@@ -11,8 +11,8 @@ def get_s3_client(endpoint: str | None = None):
     resolved_endpoint = endpoint or settings.S3_ENDPOINT or None
     # When talking to real AWS S3 (no custom endpoint), sign with the deployment
     # region and let boto3 resolve credentials from the environment / IAM task
-    # role (empty keys -> None). Against MinIO locally, keep the explicit keys and
-    # the us-east-1 signing region MinIO expects, so local behaviour is unchanged.
+    # role (empty keys -> None). Against a local S3-compatible server, keep the
+    # explicit keys and the us-east-1 signing region, so local behaviour is unchanged.
     if resolved_endpoint is None:
         region = settings.AWS_REGION
         access_key = settings.S3_ACCESS_KEY or None
