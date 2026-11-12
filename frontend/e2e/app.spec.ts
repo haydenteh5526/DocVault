@@ -440,10 +440,16 @@ test.describe('Bill review and split', () => {
       await expect(review).toContainText('Confirmed · revision 2');
 
       await expect(reminder).toContainText(
-        'Proposal 2 is out of date and was not saved. The confirmed bill changed after it was proposed.',
+        'Proposal 2 is out of date and was not saved. The confirmed bill changed after it was proposed. Your saved reminder is unchanged.',
+      );
+      await expect(reminder.getByText('Saved · reminder for 21 November 2026', { exact: true })).toBeVisible();
+      await expect(reminder).toContainText(
+        'The confirmed bill changed after it was proposed. This reminder still shows the values it was saved with.',
       );
       await expect(reminder.getByRole('button', { name: 'Approve and save' })).toHaveCount(0);
+      await reminder.getByRole('button', { name: 'Propose a different reminder' }).click();
       await expect(reminder).toContainText('Reminder for €125.00, due 23 November 2026 (revision 2)');
+      await expect(reminder.getByRole('group', { name: 'Current saved reminder' })).toBeVisible();
 
       // Approve proposal 2 (the newest, first in the list) through the API: refused, and nothing is saved.
       const refused = await approveThroughApi(1, 0);

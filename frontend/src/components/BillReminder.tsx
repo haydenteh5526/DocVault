@@ -16,7 +16,7 @@ const MAX_DAYS = 60
 const WHAT_HAPPENED: Record<string, string> = {
   revision_changed: 'The confirmed bill changed while you were setting the reminder.',
   split_changed: 'The saved split changed while you were setting the reminder.',
-  proposal_changed: 'Another proposal was made while you were setting the reminder.',
+  proposal_changed: 'The proposals for this bill changed while you were setting the reminder.',
   proposal_pending: 'A proposal is already waiting for your decision.',
   no_confirmed_bill: 'This bill has no confirmed values.',
   proposal_stale: 'The bill or its split changed after this was proposed.',
@@ -97,6 +97,8 @@ export function BillReminderPanel({
     }
   }
   const current: ReminderProposal | undefined = list[0]
+  // The newest saved reminder is the bill's current one and stays on screen whatever happened to later proposals.
+  const currentReminder = list.find(item => item.status === 'saved')
 
   // After "Load latest" succeeds the props are fresh: show the view that fits them.
   if (blocked?.recapture) {
@@ -213,21 +215,14 @@ export function BillReminderPanel({
 
   const disabled = busy !== null || blocked !== null
   const showRefreshNotice = refreshFailed && current !== undefined
-  const showForm =
-    confirmed !== null && (openForm || !current || current.status === 'cancelled' || current.status === 'stale')
+  const undecided = current !== undefined && (current.status === 'cancelled' || current.status === 'stale')
+  const showForm = confirmed !== null && (openForm || !current || (undecided && !currentReminder))
 
   let body: ReactNode
   if (!confirmed) {
     body = <p className="text-sm text-muted-foreground">Confirm the bill above before proposing a reminder.</p>
   } else if (showForm) {
-    let status: string | null = null
-    if (!current) status = 'No reminder yet'
-    else if (current.status === 'cancelled') status = `Proposal ${current.proposal_number} was cancelled. No reminder was saved.`
-    else if (current.status === 'stale') {
-      status =
-        `Proposal ${current.proposal_number} is out of date and was not saved. ` +
-        (REASON[current.inputs_changed ?? ''] ?? '')
-    }
+    const status = statusLine(current, currentReminder !== undefined)
     const usableSplit = split && !split.stale ? split : null
     body = (
       <form className="space-y-4" onSubmit={propose} noValidate>
@@ -277,6 +272,14 @@ export function BillReminderPanel({
         </div>
       </form>
     )
+    if (currentReminder) {
+      body = (
+        <>
+          {body}
+          <SavedBlock proposal={currentReminder} title={title} today={today} />
+        </>
+      )
+    }
   } else if (current && current.status === 'pending') {
     body = (
       <>
@@ -291,34 +294,33 @@ export function BillReminderPanel({
           </Button>
           {blocked && <Button size="sm" variant="outline" onClick={loadLatest} disabled={busy === 'refresh'}>Load latest</Button>}
         </div>
+        {currentReminder && <SavedBlock proposal={currentReminder} title={title} today={today} stays />}
       </>
     )
   } else if (current) {
+    const shown = current.status === 'saved' ? current : currentReminder
     body = (
       <>
-        <p className="text-sm text-muted-foreground">
-          {`Saved · reminder for ${formatBillDate(current.reminder?.remind_on ?? current.details.remind_on)}`}
-        </p>
-        {current.inputs_changed && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            {`${REASON[current.inputs_changed] ?? ''} This reminder still shows the values it was saved with.`.trim()}
-          </p>
+        {undecided && <p className="text-sm text-muted-foreground">{statusLine(current, true)}</p>}
+        {shown && (
+          <>
+            <SavedLines proposal={shown} title={title} today={today} />
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== null}
+                onClick={() => {
+                  setOpenForm(true)
+                  setMessage(null)
+                  moveFocus()
+                }}
+              >
+                Propose a different reminder
+              </Button>
+            </div>
+          </>
         )}
-        <Details proposal={current} title={title} today={today} />
-        <div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy !== null}
-            onClick={() => {
-              setOpenForm(true)
-              setMessage(null)
-              moveFocus()
-            }}
-          >
-            Propose a different reminder
-          </Button>
-        </div>
       </>
     )
   }
@@ -330,7 +332,7 @@ export function BillReminderPanel({
         <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{message}</p>
       )}
       {body}
-      {list.length > 0 && <History proposals={list} />}
+      {list.length > 0 && <History proposals={list} currentId={currentReminder?.id} />}
       {/* Always on the page, so screen readers announce the notice when its text appears. */}
       <p role="status" className={showRefreshNotice ? 'text-sm' : 'sr-only'}>
         {showRefreshNotice &&
@@ -342,6 +344,50 @@ export function BillReminderPanel({
         </div>
       )}
     </section>
+  )
+}
+
+function statusLine(current: ReminderProposal | undefined, hasSaved: boolean): string | null {
+  if (!current) return 'No reminder yet'
+  const unchanged = 'Your saved reminder is unchanged.'
+  if (current.status === 'cancelled') {
+    return `Proposal ${current.proposal_number} was cancelled. ${hasSaved ? unchanged : 'No reminder was saved.'}`
+  }
+  if (current.status === 'stale') {
+    const reason = REASON[current.inputs_changed ?? ''] ?? ''
+    return `Proposal ${current.proposal_number} is out of date and was not saved. ${reason}${hasSaved ? ` ${unchanged}` : ''}`.trim()
+  }
+  return null
+}
+
+/** The saved reminder's line, its notice and its details. */
+function SavedLines({ proposal, title, today }: { proposal: ReminderProposal; title: string; today: string }) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        {`Saved · reminder for ${formatBillDate(proposal.reminder?.remind_on ?? proposal.details.remind_on)}`}
+      </p>
+      {proposal.inputs_changed && (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          {`${REASON[proposal.inputs_changed] ?? ''} This reminder still shows the values it was saved with.`.trim()}
+        </p>
+      )}
+      <Details proposal={proposal} title={title} today={today} />
+    </>
+  )
+}
+
+/** The saved reminder kept in view under a pending proposal or the form. It has no buttons. */
+function SavedBlock({
+  proposal, title, today, stays = false,
+}: { proposal: ReminderProposal; title: string; today: string; stays?: boolean }) {
+  const headingId = useId()
+  return (
+    <div role="group" aria-labelledby={headingId} className="space-y-3 rounded-md border p-4">
+      <h4 id={headingId} className="font-medium">Current saved reminder</h4>
+      <SavedLines proposal={proposal} title={title} today={today} />
+      {stays && <p className="text-sm text-muted-foreground">It stays in place until you approve a different one.</p>}
+    </div>
   )
 }
 
@@ -408,14 +454,16 @@ function eventText(proposal: ReminderProposal, event: ReminderProposal['history'
   }
 }
 
-function History({ proposals }: { proposals: ReminderProposal[] }) {
+function History({ proposals, currentId }: { proposals: ReminderProposal[]; currentId?: string }) {
   const headingId = useId()
   return (
     <div role="group" aria-labelledby={headingId} className="space-y-3">
       <h4 id={headingId} className="font-medium">History</h4>
       {proposals.map(proposal => (
         <div key={proposal.id} className="space-y-1">
-          <p className="text-sm font-medium">{`Proposal ${proposal.proposal_number}`}</p>
+          <p className="text-sm font-medium">
+            {`Proposal ${proposal.proposal_number}${proposal.id === currentId ? ' · current reminder' : ''}`}
+          </p>
           <ol className="list-decimal space-y-1 pl-6 text-sm text-muted-foreground">
             {[...proposal.history]
               .sort((a, b) => a.sequence - b.sequence)

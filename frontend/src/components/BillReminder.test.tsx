@@ -96,6 +96,19 @@ const saved: ReminderProposal = {
 
 const conflict = (code: string) => new ApiError(409, 'changed', code)
 
+function second(status: ReminderProposal['status'], extra: Partial<ReminderProposal> = {}): ReminderProposal {
+  return {
+    ...pending,
+    id: 'p2',
+    proposal_number: 2,
+    status,
+    details: { ...details, days_before_due: 5, remind_on: '2026-11-18' },
+    reminder: null,
+    history: [{ sequence: 1, event: 'proposed', detail: {}, created_at: '2026-11-12T11:00:00' }],
+    ...extra,
+  }
+}
+
 const NO_DAYS = 'How many days before the due date should the reminder be?'
 const BAD_DAYS = 'Enter a whole number from 0 to 60.'
 const SAVED_VIEW = 'Saved · reminder for 21 November 2026'
@@ -124,8 +137,9 @@ function setup(overrides: Partial<Props> = {}) {
     if (value) await user.type(input, value)
   }
   const text = (value: string) => within(region()).getByText(value)
+  const savedBlock = () => within(region()).getByRole('group', { name: 'Current saved reminder' })
   const absent = (value: string) => expect(within(region()).queryByText(value)).not.toBeInTheDocument()
-  return { props, rerender, region, user, click, days, text, absent }
+  return { props, rerender, region, user, click, days, text, absent, savedBlock }
 }
 
 describe('BillReminderPanel', () => {
@@ -285,7 +299,7 @@ describe('BillReminderPanel', () => {
   it('a saved reminder reopens with its history', () => {
     const { region, text } = setup({ proposals: [saved] })
     const history = within(region()).getByRole('group', { name: 'History' })
-    text('Proposal 1')
+    text('Proposal 1 · current reminder')
     expect(within(history).getAllByRole('listitem').map(item => item.textContent)).toEqual([
       'Proposed by you · 12 November 2026 · remind on 21 November 2026',
       'Approved · 12 November 2026',
@@ -309,7 +323,7 @@ describe('BillReminderPanel', () => {
   })
 
   it('a different reminder can be proposed after one is saved', async () => {
-    const { props, region, click, days, text } = setup({ proposals: [saved] })
+    const { props, region, click, days } = setup({ proposals: [saved] })
     await click('Propose a different reminder')
     expect(within(region()).getByRole('button', { name: 'Back' })).toBeInTheDocument()
     await days('5')
@@ -322,7 +336,6 @@ describe('BillReminderPanel', () => {
     await back.click('Back')
     back.text(SAVED_VIEW)
     expect(back.props.onPropose).not.toHaveBeenCalled()
-    expect(text).toBeDefined()
   })
 
   it('a successful approval is shown even when the refresh fails', async () => {
@@ -344,7 +357,7 @@ describe('BillReminderPanel', () => {
   })
 
   it('a refused approval reloads and explains', async () => {
-    const { props, rerender, region, click, text } = setup({
+    const { props, rerender, region, click } = setup({
       proposals: [pending],
       onApprove: vi.fn(async () => {
         throw conflict('proposal_stale')
@@ -359,7 +372,6 @@ describe('BillReminderPanel', () => {
     )
     expect(screen.getByLabelText('Days before the due date')).toBeInTheDocument()
     expect(within(region()).queryByRole('button', { name: 'Approve and save' })).not.toBeInTheDocument()
-    expect(text).toBeDefined()
   })
 
   it('a refused proposal with a failed reload keeps the days and blocks saving', async () => {
@@ -443,6 +455,104 @@ describe('BillReminderPanel', () => {
     rerender({ proposals: [{ ...pending, status: 'stale', inputs_changed: 'revision_changed' }] })
     expect(within(region()).queryByRole('button', { name: 'Approve and save' })).not.toBeInTheDocument()
     expect(region()).toHaveTextContent('Proposal 1 is out of date and was not saved.')
+  })
+
+  it('a saved reminder stays on screen when a later proposal is cancelled', () => {
+    const { region, text, absent } = setup({ proposals: [second('cancelled'), saved] })
+    text('Proposal 2 was cancelled. Your saved reminder is unchanged.')
+    text(SAVED_VIEW)
+    text('€123.47 (revision 1)')
+    text('Propose a different reminder')
+    absent('No reminder was saved.')
+    expect(within(region()).queryByLabelText('Days before the due date')).not.toBeInTheDocument()
+  })
+
+  it('a saved reminder stays on screen when a later proposal is out of date', () => {
+    const { region, text } = setup({ proposals: [second('stale', { inputs_changed: 'split_changed' }), saved] })
+    text(
+      'Proposal 2 is out of date and was not saved. The saved split changed after it was proposed. Your saved reminder is unchanged.',
+    )
+    text(SAVED_VIEW)
+    expect(within(region()).queryByRole('button', { name: 'Approve and save' })).not.toBeInTheDocument()
+  })
+
+  it('the wording is unchanged when nothing was ever saved', () => {
+    const { region, text } = setup({ proposals: [second('cancelled')] })
+    text('Proposal 2 was cancelled. No reminder was saved.')
+    expect(within(region()).getByLabelText('Days before the due date')).toBeInTheDocument()
+    expect(within(region()).queryByRole('group', { name: 'Current saved reminder' })).not.toBeInTheDocument()
+  })
+
+  it('the saved reminder is shown under a newer proposal that awaits approval', async () => {
+    const { props, click, text, savedBlock } = setup({ proposals: [second('pending'), saved] })
+    text('Approve this reminder')
+    text('Proposal 2 · not saved yet')
+    text('18 November 2026')
+    const block = savedBlock()
+    expect(block).toHaveTextContent(SAVED_VIEW)
+    expect(block).toHaveTextContent('21 November 2026')
+    expect(block).toHaveTextContent('It stays in place until you approve a different one.')
+    expect(within(block).queryAllByRole('button')).toHaveLength(0)
+    await click('Approve and save')
+    expect(props.onApprove).toHaveBeenCalledWith(second('pending'))
+  })
+
+  it('the saved reminder is shown under the form', async () => {
+    const { click, savedBlock } = setup({ proposals: [saved] })
+    await click('Propose a different reminder')
+    expect(screen.getByLabelText('Days before the due date')).toBeInTheDocument()
+    const block = savedBlock()
+    expect(block).toHaveTextContent(SAVED_VIEW)
+    expect(block).not.toHaveTextContent('It stays in place')
+  })
+
+  it('proposing after a cancelled proposal sends the newest proposal number', async () => {
+    const { props, click, days } = setup({ proposals: [second('cancelled'), saved] })
+    await click('Propose a different reminder')
+    await days('3')
+    await click('Propose reminder')
+    expect(props.onPropose).toHaveBeenCalledWith(expect.objectContaining({ days_before_due: 3, base_proposal: 2 }))
+  })
+
+  it('cancelling a newer proposal returns to the saved reminder', async () => {
+    const { props, region, click, text } = setup({
+      proposals: [second('pending'), saved],
+      onCancel: vi.fn(async () => second('cancelled')),
+    })
+    await click('Cancel proposal')
+    expect(props.onCancel).toHaveBeenCalledWith(second('pending'))
+    text('Proposal 2 was cancelled. Your saved reminder is unchanged.')
+    text(SAVED_VIEW)
+    expect(within(region()).getByRole('button', { name: 'Propose a different reminder' })).toBeInTheDocument()
+  })
+
+  it('history marks the current reminder', () => {
+    const cancelled = setup({ proposals: [second('cancelled'), saved] })
+    cancelled.text('Proposal 1 · current reminder')
+    cancelled.absent('Proposal 2 · current reminder')
+    cleanup()
+    const newer = {
+      ...second('saved'),
+      reminder: { id: 'r2', proposal_id: 'p2', remind_on: '2026-11-18', created_at: '2026-11-12T11:05:00' },
+    }
+    const both = setup({ proposals: [newer, saved] })
+    both.text('Proposal 2 · current reminder')
+    both.absent('Proposal 1 · current reminder')
+  })
+
+  it('a proposal refused because the proposals changed is worded neutrally', async () => {
+    const { props, rerender, region, click, days, text } = setup({
+      onPropose: vi.fn(async () => {
+        throw conflict('proposal_changed')
+      }),
+    })
+    vi.mocked(props.onRefresh).mockImplementation(async () => rerender({ proposals: [pending] }))
+    await days('2')
+    await click('Propose reminder')
+    expect(within(region()).getByRole('alert')).toHaveTextContent(
+      'The proposals for this bill changed while you were setting the reminder. No reminder was saved. The latest version is shown here.',
+    )
+    text('Approve this reminder')
   })
 
   it('a conflict without a reason code uses the general wording', async () => {

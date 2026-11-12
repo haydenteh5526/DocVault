@@ -7,8 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.bill_split import BillShare
 
-# The only action the assistant (issue #5) or the owner may request. Anything else is a 422.
-REMINDER_ACTIONS = ("bill_reminder",)
+# The only action the assistant (issue #5) or the owner may request is the Literal on `action`; anything else is a 422.
 MAX_DAYS_BEFORE_DUE = 60
 
 
