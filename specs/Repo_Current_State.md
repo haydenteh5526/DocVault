@@ -20,10 +20,11 @@ The assessed demo uses the existing hardware and local stack with **€0 planned
 | --- | --- |
 | [Local rehearsal, 7 November](../evaluation/demo-1/README.md) | 177 backend tests at 73.68% coverage, 25 frontend tests and 11 browser scenarios, including local email recovery. PDF and image OCR checks used synthetic bills. |
 | [Hosted CI, 9 November](https://github.com/haydenteh5526/DocVault/actions/runs/42648930881) on `6455381` | Backend, frontend, mobile and e2e passed. Backend ran 177 tests and the migration round trip. Expo Doctor passed 21 checks. Playwright ran 10 scenarios and skipped the local inbox scenario. |
+| [Local model feasibility, 12 November](../evaluation/results/2026-11-12/RUN.md) | `qwen3:8b` on the project laptop (100% GPU, Q4_K_M, 3 runs of 18 synthetic cases): tool selection 87.5%, answers 85.7%, no unsafe outcomes or invented facts, median latency 682 ms. Verdict not feasible at the 90% threshold. It called `split_bill` with invented names instead of asking. Stub tools only, no app integration, no other model run. |
 
 ## Remaining evidence and limits
 
-- The synthetic examples establish the demo behaviour. Field accuracy on varied bills, the local model's task selection, cross-owner access for new records and safe approval retries still need evaluation. [Evaluation workspace](../evaluation/README.md)
+- The synthetic examples establish the demo behaviour. Field accuracy on varied bills, cross-owner access for new records and safe approval retries still need evaluation. Local model task selection was measured for `qwen3:8b` only and did not meet the threshold. Other local models are untested, and no local model is integrated. [Evaluation workspace](../evaluation/README.md)
 - The mobile check covers types and Expo configuration. The lockfile update to `shell-quote` 1.12.0 cleared the critical advisory. The 10 November production dependency audit reported four moderate findings. Physical-device and push delivery verification remain open.
 - Terraform defines an AWS environment. Live infrastructure and deployment remain unverified. The local proof of concept takes priority. [Infrastructure notes](../terraform/COST_REVIEW.md)
 

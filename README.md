@@ -34,6 +34,7 @@ Forecasting is an optional experiment that depends on having enough comparable b
 | Database and storage | PostgreSQL with pgvector, MinIO |
 | Background jobs | Redis, ARQ |
 | Document processing | Tesseract OCR, Ollama embeddings |
+| Answer generation | Groq or Gemini (cloud, optional key). A local Ollama model is not wired in. On 12 November, `qwen3:8b` was measured not feasible on the project laptop, so answer generation is not local. See the [run record](evaluation/results/2026-11-12/RUN.md). |
 | Local email | Mailpit |
 | Mobile companion | React Native, Expo |
 
