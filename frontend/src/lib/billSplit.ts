@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { onlineManager, type QueryClient } from '@tanstack/react-query'
 import type { BillSplit, Document, Housemate } from './api'
 import { housematesKey } from './housemates'
 
@@ -11,10 +11,17 @@ export async function refreshBillData(
   documentId: string,
   accountId: string | null,
 ): Promise<void> {
-  await Promise.all([
-    queryClient.refetchQueries({ queryKey: ['document', documentId] }, { throwOnError: true }),
-    queryClient.refetchQueries({ queryKey: housematesKey(accountId) }, { throwOnError: true }),
-  ])
+  // While offline, refetchQueries resolves without fetching; that must not count as a reload.
+  if (!onlineManager.isOnline()) throw new Error('You are offline, so the latest data could not be loaded.')
+  const keys = [['document', documentId], housematesKey(accountId)]
+  const loadsBefore = keys.map(key => queryClient.getQueryState(key)?.dataUpdateCount ?? 0)
+  await Promise.all(keys.map(queryKey => queryClient.refetchQueries({ queryKey }, { throwOnError: true })))
+  keys.forEach((key, index) => {
+    const state = queryClient.getQueryState(key)
+    if (!state || state.status !== 'success' || state.dataUpdateCount <= loadsBefore[index]) {
+      throw new Error('The latest data could not be loaded.')
+    }
+  })
 }
 
 /** Put a split returned by a successful save into the cached document, so it survives a failed reload. */

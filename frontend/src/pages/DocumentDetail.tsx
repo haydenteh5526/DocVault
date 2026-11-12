@@ -54,7 +54,8 @@ export default function DocumentDetail() {
   const doc = docQuery.data ?? null
   const { accountId } = useAuth()
   const housemates = useHousemates(!!(doc?.bill_review || doc?.confirmed_bill))
-  const notFound = docQuery.isError
+  // A failed reload keeps the document already loaded; only a document that never loaded is "not found".
+  const notFound = docQuery.isError && !docQuery.data
   // Cache-backed setter so existing optimistic `setDoc({...doc, ...})` calls
   // keep working unchanged.
   const setDoc = (updated: Document) => queryClient.setQueryData(['document', id], updated)
@@ -287,6 +288,7 @@ export default function DocumentDetail() {
           )}
           {(doc.bill_review || doc.confirmed_bill) && (
             <BillSplitPanel
+              key={doc.id}
               confirmed={doc.confirmed_bill ?? null}
               split={doc.bill_split ?? null}
               housemates={housemates.data}

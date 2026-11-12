@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { QueryClient } from '@tanstack/react-query'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { QueryClient, onlineManager } from '@tanstack/react-query'
 import type { BillSplit, Document, Housemate } from './api'
 import { refreshBillData, storeHousemates, storeSavedSplit } from './billSplit'
 
@@ -34,7 +34,26 @@ async function seeded() {
   return { qc, doc, a1, b1 }
 }
 
+afterEach(() => onlineManager.setOnline(true))
+
 describe('refreshBillData', () => {
+  it('rejects without reloading when the browser is offline', async () => {
+    const { qc, doc, a1 } = await seeded()
+    onlineManager.setOnline(false)
+    await expect(refreshBillData(qc, 'doc-1', 'a1')).rejects.toThrow()
+    expect(doc).toHaveBeenCalledTimes(1)
+    expect(a1).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects when a reload is paused by losing the connection mid-way', async () => {
+    const { qc, doc } = await seeded()
+    doc.mockImplementation(async () => {
+      onlineManager.setOnline(false)
+      throw new Error('network')
+    })
+    await expect(refreshBillData(qc, 'doc-1', 'a1')).rejects.toThrow()
+  })
+
   it('resolves when the document and the housemates both reload', async () => {
     const { qc, doc, a1 } = await seeded()
     await expect(refreshBillData(qc, 'doc-1', 'a1')).resolves.toBeUndefined()
