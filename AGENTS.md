@@ -7,6 +7,22 @@
 - Use synthetic or permitted redacted documents and disposable test accounts. Keep secrets, private documents and participant records outside Git. Use the local stack and keep planned additional spend at €0.
 - Update the relevant spec or evidence when behaviour changes. Distinguish proposed work, implementation on a branch and verified results.
 
+## Workflow
+
+One Architect session plans, and each active issue has one Issue session that builds, has the work reviewed and fixes it.
+
+| Role | Where | Does | Must not |
+| --- | --- | --- | --- |
+| Architect | The root checkout on `main`. One long-lived session, with its context cleared between unrelated features. | Turns an issue's acceptance checks into a plan in `specs/plans/`: files, names, signatures, exact copy, tests and the decisions for the owner. Commits the plan on the issue's feature branch and waits for the owner's approval. | Change application code or commit to `main`. |
+| Issue | Its own worktree, cut from the feature branch that holds the approved plan. One session per active issue. | Implements the plan test first, runs the gates, has the Reviewer check the result, shows the owner the Reviewer's full report, applies the findings the owner approves and opens the PR. | Add scope, change the plan's decisions, shorten or filter the Reviewer's report, or merge. |
+| Reviewer | Inside the Issue session, started with a fresh context that has not seen the build. Read-only. | Reads the diff against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. | Change code, post to GitHub, or merge. |
+
+- The owner approves the plan, decides which findings to fix, and merges.
+- Record the Reviewer's full report in the PR description, with what was fixed and what was left.
+- A plan that proves wrong or ambiguous goes back to the Architect. Do not improvise around it.
+- Freeze any evaluation protocol in a commit before the first measured run, and keep failed runs in the record.
+- Rename a tool-generated branch to a descriptive project name before opening its PR.
+
 ## Pull requests
 
 - Use a descriptive project branch and the configured Git identity. Submit a pull request to protected `main`, reference the relevant issue and record verification. GitHub Issues holds progress and acceptance criteria. Use a closing keyword only when the PR meets all acceptance checks.
