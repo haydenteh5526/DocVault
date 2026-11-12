@@ -9,7 +9,18 @@ from sqlalchemy import text
 from app.config import _INSECURE_JWT_SECRETS, settings
 from app.logging_config import configure_logging, get_logger, new_request_id, request_id_var
 from app.rate_limit import limiter
-from app.routers import ai, auth, categories, conversations, documents, notifications, search, tags, warranties
+from app.routers import (
+    ai,
+    auth,
+    categories,
+    conversations,
+    documents,
+    housemates,
+    notifications,
+    search,
+    tags,
+    warranties,
+)
 
 configure_logging()
 logger = get_logger("app")
@@ -103,6 +114,7 @@ app.include_router(tags.router, prefix="/api/v1/tags", tags=["tags"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(conversations.router, prefix="/api/v1/conversations", tags=["conversations"])
+app.include_router(housemates.router, prefix="/api/v1/housemates", tags=["housemates"])
 
 
 @app.get("/health")

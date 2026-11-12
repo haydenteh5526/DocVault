@@ -166,6 +166,42 @@ class BillRevision(Base):
     )
 
 
+class Housemate(Base):
+    __tablename__ = "housemates"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    label: Mapped[str] = mapped_column(String(40), nullable=False)
+    # The whole case-folded label: folding can lengthen it (40 "ß" fold to 80 "s"), so it is never truncated.
+    label_key: Mapped[str] = mapped_column(Text, nullable=False)
+    position: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "label_key", name="uq_housemates_user_label_key"),
+    )
+
+
+class BillSplit(Base):
+    __tablename__ = "bill_splits"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    bill_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill_revisions.id", ondelete="CASCADE"), nullable=False
+    )
+    split_number: Mapped[int] = mapped_column(nullable=False)
+    rule: Mapped[str] = mapped_column(String(20), nullable=False)
+    total_cents: Mapped[int] = mapped_column(nullable=False)
+    # [{"housemate_id": str, "label": str, "cents": int}, ...] in split order
+    shares: Mapped[list] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("document_id", "split_number", name="uq_bill_splits_document_split"),
+    )
+
+
 class PushToken(Base):
     __tablename__ = "push_tokens"
 
