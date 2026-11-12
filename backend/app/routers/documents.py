@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import Document, DocumentVersion
+from app.schemas.bill_split import BillSplitOut, BillSplitPreview, BillSplitRequest, BillSplitSave
 from app.schemas.document import (
     BillConfirmation,
     BillRevisionOut,
@@ -24,6 +25,7 @@ from app.services import (
 )
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import BillReviewConflict, latest_revision, save_revision
+from app.services.bill_split import BillSplitConflict, latest_split, preview_split, save_split
 
 router = APIRouter()
 
@@ -233,7 +235,10 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     await db.commit()
     review = extract_bill_review(doc.raw_text) if doc.processing_status == "complete" else None
     confirmed = await latest_revision(db, doc.id)
-    return DocumentDetailOut(**_to_response(doc).model_dump(), bill_review=review, confirmed_bill=confirmed)
+    split = await latest_split(db, doc.id)
+    return DocumentDetailOut(
+        **_to_response(doc).model_dump(), bill_review=review, confirmed_bill=confirmed, bill_split=split
+    )
 
 
 @router.post("/{document_id}/bill-revisions", response_model=BillRevisionOut, status_code=201)
@@ -248,6 +253,36 @@ async def confirm_bill_revision(
     try:
         return await save_revision(db, doc, confirmation)
     except BillReviewConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
+
+
+@router.post("/{document_id}/bill-splits/preview", response_model=BillSplitPreview)
+async def preview_bill_split(
+    document_id: uuid.UUID,
+    request: BillSplitRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Calculate an equal split of the confirmed amount without saving anything."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        return await preview_split(db, doc, user_id, request)
+    except BillSplitConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
+
+
+@router.post("/{document_id}/bill-splits", response_model=BillSplitOut, status_code=201)
+async def save_bill_split(
+    document_id: uuid.UUID,
+    request: BillSplitSave,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Save the split the owner reviewed, bound to the confirmed revision it used."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        return await save_split(db, doc, user_id, request)
+    except BillSplitConflict as exc:
         raise HTTPException(409, {"code": exc.code, "message": exc.message})
 
 

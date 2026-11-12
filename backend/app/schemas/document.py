@@ -3,6 +3,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.bill_split import BillSplitOut
+
 
 class TagOut(BaseModel):
     id: uuid.UUID
@@ -93,6 +95,7 @@ class BillRevisionOut(BaseModel):
 class DocumentDetailOut(DocumentOut):
     bill_review: BillReview | None = None
     confirmed_bill: BillRevisionOut | None = None
+    bill_split: BillSplitOut | None = None
 
 
 class DocumentList(BaseModel):
