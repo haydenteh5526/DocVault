@@ -253,6 +253,11 @@ test.describe('Bill review and split', () => {
       // 1. Account A saves two housemates.
       await signIn(page, emailA!, passwordA!);
       await clearHousemates(page);
+      // One full navigation once the service worker is registered, so the worker controls this page.
+      // Without it a worker that stores API responses would never see this page's requests.
+      await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
       documentA = await uploadBillImage(page, image);
       await confirmUnchanged();
       const aUrl = new URL(page.url()).pathname;
@@ -263,6 +268,10 @@ test.describe('Bill review and split', () => {
         await splitA.getByRole('button', { name: 'Add', exact: true }).click();
         await expect(splitA.getByRole('checkbox', { name })).toBeChecked();
       }
+      await splitA.getByRole('button', { name: 'Calculate shares' }).click();
+      await splitA.getByRole('button', { name: 'Save split' }).click();
+      await expect(splitA).toContainText('Saved · split 1');
+      await expect(splitA).toContainText('Aoife');
 
       // 2. Mark this page so a reload would be noticed.
       await page.evaluate(() => { (window as unknown as { __sameSession: boolean }).__sameSession = true; });
@@ -300,16 +309,33 @@ test.describe('Bill review and split', () => {
       await expect(page.getByText('Aoife')).toHaveCount(0);
       await expect(page.getByText('Ben', { exact: true })).toHaveCount(0);
 
-      // 8. Back to A's document URL without reloading: B cannot see A's document or housemates.
-      const documentRequest = page.waitForResponse(response => response.url().includes(`/api/v1/documents/${documentA}`));
-      await goInApp(page, aUrl);
-      await expect(page.getByRole('region', { name: 'Bill split' })).toHaveCount(0);
-      await expect(page.getByText('Aoife')).toHaveCount(0);
-      await documentRequest;
-      await expect(page.getByRole('region', { name: 'Bill split' })).toHaveCount(0);
-      await expect(page.getByText('Aoife')).toHaveCount(0);
+      // 8. Back to A's document URL without reloading, with A's document request held in flight:
+      // nothing of A's document or housemates may be shown to B while it is held, or after it ends.
+      let releaseDocument!: () => void;
+      const heldDocument = new Promise<void>(resolve => { releaseDocument = resolve; });
+      const documentPattern = `**/api/v1/documents/${documentA}`;
+      await page.route(documentPattern, route =>
+        route.request().method() === 'GET' ? heldDocument.then(() => route.continue()) : route.continue());
+      try {
+        const documentRequest = page.waitForResponse(response =>
+          response.url().includes(`/api/v1/documents/${documentA}`) && response.request().method() === 'GET');
+        await goInApp(page, aUrl);
+        await page.waitForTimeout(500);
+        await expect(page.getByRole('region', { name: 'Bill split' })).toHaveCount(0);
+        await expect(page.getByText('Aoife')).toHaveCount(0);
+        await expect(page.getByText('Saved · split 1')).toHaveCount(0);
+        releaseDocument();
+        const documentResponse = await documentRequest;
+        expect(documentResponse.status()).toBe(404);
+        await expect(page.getByRole('region', { name: 'Bill split' })).toHaveCount(0);
+        await expect(page.getByText('Aoife')).toHaveCount(0);
+      } finally {
+        releaseDocument();
+        await page.unroute(documentPattern);
+      }
 
-      // 9. The service worker stores no API responses.
+      // 9. The service worker controls this page and stores no API responses.
+      expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
       const stored = await page.evaluate(async () => {
         const urls: string[] = [];
         for (const name of await caches.keys()) {
