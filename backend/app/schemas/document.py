@@ -4,6 +4,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.bill_split import BillSplitOut
+from app.schemas.reminder import ReminderProposalOut
 
 
 class TagOut(BaseModel):
@@ -96,6 +97,7 @@ class DocumentDetailOut(DocumentOut):
     bill_review: BillReview | None = None
     confirmed_bill: BillRevisionOut | None = None
     bill_split: BillSplitOut | None = None
+    reminder_proposals: list[ReminderProposalOut] = []
 
 
 class DocumentList(BaseModel):

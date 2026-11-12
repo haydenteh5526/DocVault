@@ -18,10 +18,11 @@
 - **Document Q&A** — Retrieve relevant excerpts and get answers with sources when a Q&A provider is configured.
 - **Bill review** — Compare the amount due, due date and billing period with their source lines and the original bill.
 - **Bill split** — Save housemate names in your account, then split the confirmed amount equally in whole cents. Everyone pays the same, and leftover cents go one each to the first people in the order shown (€123.47 among four is €30.87, €30.87, €30.87 and €30.86). You review the exact shares and total before saving, and a saved split is marked out of date, not recalculated, when a newer bill revision is confirmed.
+- **Bill reminder** — Choose how many days before the due date to be reminded and review the exact proposal: the bill, the amount, the reminder date and the saved split. Nothing is saved until you approve it, and approving twice saves it once. A bill or split that changes after the proposal leaves it unsaved. A saved reminder is a record in your account shown in the document's Reminder panel, with a history of what was proposed, approved and saved. Nothing is sent outside the app: no push, email, calendar file or payment.
 - **Private accounts** — Sign in to your own vault and use the local inbox for account verification and password recovery.
 
-Demo 1 covers read-only bill review. Owner-confirmed bill revisions and the equal bill split are
-implemented. Enquiry drafts and approved reminders are described in the [MVP design](specs/MVP_Technical_Design.md).
+Demo 1 covers read-only bill review. Owner-confirmed bill revisions, the equal bill split and one approved internal reminder are
+implemented. Enquiry drafts are described in the [MVP design](specs/MVP_Technical_Design.md).
 Forecasting is an optional experiment that depends on having enough comparable bills.
 
 ---
@@ -160,6 +161,9 @@ DocVault/
 | DELETE | `/api/v1/housemates/{housemate_id}` | Remove a housemate name |
 | POST | `/api/v1/documents/{document_id}/bill-splits/preview` | Calculate an equal split of the confirmed amount without saving |
 | POST | `/api/v1/documents/{document_id}/bill-splits` | Save the split you reviewed, bound to the confirmed revision it used |
+| POST | `/api/v1/documents/{document_id}/reminder-proposals` | Propose a reminder a number of days before the confirmed due date (nothing is saved yet) |
+| POST | `/api/v1/documents/{document_id}/reminder-proposals/{proposal_id}/approve` | Save the reminder you reviewed, once (201 the first time, 200 with the same outcome after that) |
+| POST | `/api/v1/documents/{document_id}/reminder-proposals/{proposal_id}/cancel` | Cancel a pending proposal |
 | GET | `/api/v1/search?q=...` | Search your documents |
 | POST | `/api/v1/ai/ask` | Ask a question and retrieve source excerpts |
 

@@ -82,6 +82,7 @@ export interface Document {
   bill_review?: BillReview | null
   confirmed_bill?: BillRevision | null
   bill_split?: BillSplit | null
+  reminder_proposals?: ReminderProposal[]
   summary: string | null
   file_size: number | null
   image_url: string | null
@@ -154,6 +155,53 @@ export interface BillSplit extends BillSplitPreview {
   split_number: number
   stale: boolean
   created_at: string
+}
+
+export interface ReminderSplit {
+  split_number: number
+  total: string
+  shares: BillShare[]
+}
+
+export interface ReminderDetails {
+  bill_revision: number
+  amount_due: string
+  due_date: string
+  billing_period_start: string
+  billing_period_end: string
+  days_before_due: number
+  remind_on: string
+  split: ReminderSplit | null
+}
+
+export interface ReminderEvent {
+  sequence: number
+  event: 'proposed' | 'approved' | 'saved' | 'cancelled' | 'stale'
+  detail: Record<string, unknown>
+  created_at: string
+}
+
+export interface ReminderProposal {
+  id: string
+  document_id: string
+  proposal_number: number
+  action: string
+  source: 'owner' | 'assistant'
+  status: 'pending' | 'cancelled' | 'stale' | 'saved'
+  inputs_changed: 'revision_changed' | 'split_changed' | null
+  details: ReminderDetails
+  reminder: { id: string; proposal_id: string; remind_on: string; created_at: string } | null
+  history: ReminderEvent[]
+  created_at: string
+  decided_at: string | null
+}
+
+export interface ReminderProposalRequest {
+  action: 'bill_reminder'
+  days_before_due: number
+  bill_revision: number
+  bill_split: number
+  base_proposal: number
 }
 
 /** An API failure carrying the HTTP status and, when the server gives one, a reason code. */
@@ -431,6 +479,38 @@ export async function saveBillSplit(documentId: string, body: BillSplitSave): Pr
     body: JSON.stringify(body),
   })
   if (!res.ok) throw await apiErrorFrom(res, 'Could not save the split')
+  return res.json()
+}
+
+export async function proposeReminder(documentId: string, body: ReminderProposalRequest): Promise<ReminderProposal> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/reminder-proposals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not propose the reminder')
+  return res.json()
+}
+
+export async function approveReminder(
+  documentId: string,
+  proposalId: string,
+  reviewed: ReminderDetails,
+): Promise<ReminderProposal> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/reminder-proposals/${proposalId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reviewed }),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not save the reminder')
+  return res.json()
+}
+
+export async function cancelReminder(documentId: string, proposalId: string): Promise<ReminderProposal> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/reminder-proposals/${proposalId}/cancel`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not cancel the proposal')
   return res.json()
 }
 

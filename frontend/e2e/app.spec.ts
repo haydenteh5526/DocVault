@@ -363,4 +363,104 @@ test.describe('Bill review and split', () => {
       }
     }
   });
+
+  test('an approved reminder is saved once and a changed bill leaves a proposal unsaved', async ({ page }) => {
+    test.setTimeout(120_000);
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
+    test.skip(!email || !password, 'CI seed credentials are required for this integration test');
+
+    const image = await billImage(page);
+    await signIn(page, email!, password!);
+
+    // Approve the proposal named in `index` of the document's proposals through the API, `count` times at once.
+    const approveThroughApi = (count: number, index: number) =>
+      page.evaluate(async ({ count, index }) => {
+        const headers = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+        const id = location.pathname.split('/').pop();
+        const doc = await (await fetch(`/api/v1/documents/${id}`, { headers })).json();
+        const proposal = doc.reminder_proposals[index];
+        const url = `/api/v1/documents/${id}/reminder-proposals/${proposal.id}/approve`;
+        const body = JSON.stringify({ reviewed: proposal.details });
+        const again = await Promise.all(Array.from({ length: count }, () => fetch(url, { method: 'POST', headers, body })));
+        const bodies = await Promise.all(again.map(r => r.json()));
+        return {
+          statuses: again.map(r => r.status),
+          codes: bodies.map(b => b.detail?.code ?? null),
+          reminders: bodies.map(b => b.reminder?.id ?? null),
+          first: proposal.reminder?.id ?? null,
+        };
+      }, { count, index });
+
+    let documentId: string | undefined;
+    try {
+      documentId = await uploadBillImage(page, image);
+      const review = page.getByRole('region', { name: 'Bill review' });
+      await review.getByRole('button', { name: 'Review and confirm' }).click({ timeout: 30_000 });
+      await review.getByRole('button', { name: 'Check values' }).click();
+      await review.getByRole('button', { name: 'Confirm and save' }).click();
+      await expect(review).toContainText('Confirmed · revision 1');
+
+      const reminder = page.getByRole('region', { name: 'Reminder' });
+      await expect(reminder.getByText('No reminder yet', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('No split is saved for this bill, so none will be included.')).toBeVisible();
+      await reminder.getByRole('button', { name: 'Propose reminder' }).click();
+      await expect(reminder.getByRole('alert')).toHaveText('How many days before the due date should the reminder be?');
+
+      await reminder.getByLabel('Days before the due date').fill('2');
+      await reminder.getByRole('button', { name: 'Propose reminder' }).click();
+      await expect(reminder.getByText('Approve this reminder', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('€123.47 (revision 1)', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('21 November 2026', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('(2 days before the due date)', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('No split is included.', { exact: true })).toBeVisible();
+
+      await reminder.getByRole('button', { name: 'Approve and save' }).click();
+      await expect(reminder.getByText('Saved · reminder for 21 November 2026', { exact: true })).toBeVisible();
+      await page.reload();
+      await expect(reminder.getByText('Saved · reminder for 21 November 2026', { exact: true })).toBeVisible({ timeout: 30_000 });
+      const history = reminder.getByRole('group', { name: 'History' });
+      await expect(history).toContainText('Proposed by you');
+      await expect(history).toContainText('Saved ·');
+
+      const repeated = await approveThroughApi(2, 0);
+      expect(repeated.statuses).toEqual([200, 200]);
+      expect(repeated.reminders).toEqual([repeated.first, repeated.first]);
+
+      await reminder.getByRole('button', { name: 'Propose a different reminder' }).click();
+      await reminder.getByLabel('Days before the due date').fill('5');
+      await reminder.getByRole('button', { name: 'Propose reminder' }).click();
+      await expect(reminder.getByText('Proposal 2 · not saved yet', { exact: true })).toBeVisible();
+      await expect(reminder.getByText('18 November 2026', { exact: true })).toBeVisible();
+
+      await review.getByRole('button', { name: 'Edit confirmed values' }).click();
+      await review.getByLabel('Amount due (€)').fill('125.00');
+      await review.getByRole('button', { name: 'Check values' }).click();
+      await review.getByRole('button', { name: 'Confirm and save' }).click();
+      await expect(review).toContainText('Confirmed · revision 2');
+
+      await expect(reminder).toContainText(
+        'Proposal 2 is out of date and was not saved. The confirmed bill changed after it was proposed.',
+      );
+      await expect(reminder.getByRole('button', { name: 'Approve and save' })).toHaveCount(0);
+      await expect(reminder).toContainText('Reminder for €125.00, due 23 November 2026 (revision 2)');
+
+      // Approve proposal 2 (the newest, first in the list) through the API: refused, and nothing is saved.
+      const refused = await approveThroughApi(1, 0);
+      expect(refused.statuses).toEqual([409]);
+      expect(refused.codes).toEqual(['proposal_stale']);
+      const after = await page.evaluate(async () => {
+        const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+        const id = location.pathname.split('/').pop();
+        const doc = await (await fetch(`/api/v1/documents/${id}`, { headers })).json();
+        return doc.reminder_proposals.map((p: { proposal_number: number; reminder: { id: string } | null }) => ({
+          number: p.proposal_number,
+          reminder: p.reminder?.id ?? null,
+        }));
+      });
+      expect(after).toEqual([{ number: 2, reminder: null }, { number: 1, reminder: repeated.first }]);
+    } finally {
+      if (documentId) await deleteDocument(page, documentId);
+    }
+  });
 });

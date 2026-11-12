@@ -45,3 +45,26 @@ async def delete_users(*user_ids) -> None:
             if user:
                 await db.delete(user)
         await db.commit()
+
+
+async def wait_until_blocked(task, timeout: float = 5.0) -> bool:
+    """True once another database session is waiting on a lock while `task` is still unfinished.
+
+    A fixed pause is not enough: a request that never takes the lock can still be slower than the pause.
+    """
+    import asyncio
+
+    from sqlalchemy import text
+
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline and not task.done():
+        async with async_session() as db:
+            waiting = (
+                await db.execute(
+                    text("select count(*) from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()")
+                )
+            ).scalar_one()
+        if waiting:
+            return True
+        await asyncio.sleep(0.05)
+    return False
