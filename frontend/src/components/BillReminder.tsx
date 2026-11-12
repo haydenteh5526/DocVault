@@ -80,7 +80,12 @@ export function BillReminderPanel({
   const moveFocus = () => setFocusRequest(n => n + 1)
 
   // Once the page has reloaded and its data has changed, the kept copy is no longer needed.
-  if (local && local.refreshed && proposals !== local.seen) setLocal(null)
+  // It is also dropped when other page data now says something different about that proposal.
+  if (local && proposals !== local.seen) {
+    const same = proposals.find(item => item.proposal_number === local.proposal.proposal_number)
+    const disagrees = same ? same.status !== local.proposal.status : proposals[0]?.proposal_number > local.proposal.proposal_number
+    if (local.refreshed || disagrees) setLocal(null)
+  }
 
   // The kept copy stands in for the proposal with its number, or goes ahead of the list if it is newer.
   let list = proposals
@@ -116,6 +121,7 @@ export function BillReminderPanel({
     const what = (error.code && WHAT_HAPPENED[error.code]) || DEFAULT_WHAT_HAPPENED
     if (await reload()) {
       setLocal(null)
+      setRefreshFailed(false)
       setBlocked(null)
       setOpenForm(false)
       setMessage(`${what} ${nothing} The latest version is shown here.`)
@@ -191,6 +197,7 @@ export function BillReminderPanel({
   async function loadLatest() {
     setBusy('refresh')
     if (await reload()) {
+      setRefreshFailed(false)
       if (blocked) setBlocked({ ...blocked, recapture: true })
     } else if (blocked) {
       setMessage(`${blocked.what} ${blocked.nothing} The latest version still could not be loaded. Try again.`)

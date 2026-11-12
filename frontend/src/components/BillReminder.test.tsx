@@ -410,6 +410,41 @@ describe('BillReminderPanel', () => {
     expect(within(region()).getByText(SAVED_VIEW)).toBeInTheDocument()
   })
 
+  it('does not call a refused change saved after an earlier failed refresh', async () => {
+    const { props, rerender, region, click, days } = setup({
+      onRefresh: vi.fn(async () => {
+        throw new Error('offline')
+      }),
+      onApprove: vi.fn(async () => {
+        throw conflict('proposal_stale')
+      }),
+    })
+    await days('2')
+    await click('Propose reminder')
+    expect(within(region()).getByRole('status')).toHaveTextContent('Your change was saved.')
+    vi.mocked(props.onRefresh).mockImplementation(async () =>
+      rerender({ proposals: [{ ...pending, status: 'stale', inputs_changed: 'revision_changed' }] }),
+    )
+    await click('Approve and save')
+    expect(within(region()).getByRole('alert')).toHaveTextContent('The latest version is shown here.')
+    expect(within(region()).getByRole('status')).toHaveTextContent('')
+    expect(within(region()).queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+  })
+
+  it('stops offering a kept proposal that the page data now says is out of date', async () => {
+    const { rerender, region, click, days } = setup({
+      onRefresh: vi.fn(async () => {
+        throw new Error('offline')
+      }),
+    })
+    await days('2')
+    await click('Propose reminder')
+    expect(within(region()).getByRole('button', { name: 'Approve and save' })).toBeInTheDocument()
+    rerender({ proposals: [{ ...pending, status: 'stale', inputs_changed: 'revision_changed' }] })
+    expect(within(region()).queryByRole('button', { name: 'Approve and save' })).not.toBeInTheDocument()
+    expect(region()).toHaveTextContent('Proposal 1 is out of date and was not saved.')
+  })
+
   it('a conflict without a reason code uses the general wording', async () => {
     const { region, click } = setup({
       proposals: [pending],

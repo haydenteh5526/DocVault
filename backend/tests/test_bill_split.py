@@ -13,7 +13,7 @@ from app.models.base import BillRevision, BillSplit, Document
 from app.services.auth_service import create_access_token
 from app.services.bill_revisions import to_cents
 from app.services.bill_split import split_equally
-from tests.accounts import create_users_and_document, delete_users
+from tests.accounts import create_users_and_document, delete_users, wait_until_blocked
 
 
 def test_the_issue_example_gives_the_remainder_to_the_first_three():
@@ -440,10 +440,10 @@ async def test_a_split_save_waits_for_the_document_lock(bill):
         ids = await _confirmed_with_four(client, owner_id, document_id)
         preview = (await _preview(client, document_id, owner_id, {**REQUEST, "housemate_ids": ids})).json()
         async with async_session() as locker:
-            await locker.execute(select(Document).where(Document.id == document_id).with_for_update())
+            await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             save = asyncio.create_task(_save(client, document_id, owner_id, _full_save(ids, preview)))
             try:
-                await asyncio.sleep(0.5)
+                assert await wait_until_blocked(save)
                 assert not save.done()
                 await locker.commit()
             finally:

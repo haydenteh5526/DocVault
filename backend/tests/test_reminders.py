@@ -15,7 +15,7 @@ from app.models.base import Document, Reminder, ReminderEvent, ReminderProposal
 from app.schemas.reminder import ReminderProposalRequest
 from app.services.auth_service import create_access_token
 from app.services.reminders import propose_reminder
-from tests.accounts import create_users_and_document, delete_users
+from tests.accounts import create_users_and_document, delete_users, wait_until_blocked
 
 BASE = "http://test"
 BILL = ("Electricity bill\nTotal amount due: EUR 123.47\n"
@@ -319,10 +319,10 @@ async def test_a_proposal_waits_for_the_document_lock(bill):
     async with _client() as client:
         await _confirm(client, document_id, owner_id)
         async with async_session() as locker:
-            await locker.execute(select(Document).where(Document.id == document_id).with_for_update())
+            await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             proposal = asyncio.create_task(_propose(client, document_id, owner_id))
             try:
-                await asyncio.sleep(0.5)
+                assert await wait_until_blocked(proposal)
                 assert not proposal.done()
                 await locker.commit()
             finally:
@@ -665,10 +665,10 @@ async def test_an_approval_waits_for_the_document_lock(bill):
     async with _client() as client:
         proposal = await _proposed(client, owner_id, document_id)
         async with async_session() as locker:
-            await locker.execute(select(Document).where(Document.id == document_id).with_for_update())
+            await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             approval = asyncio.create_task(_approve(client, document_id, owner_id, proposal))
             try:
-                await asyncio.sleep(0.5)
+                assert await wait_until_blocked(approval)
                 assert not approval.done()
                 await locker.commit()
             finally:
