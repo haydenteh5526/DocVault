@@ -120,6 +120,21 @@ test.describe('DocVault auth flow', () => {
         const line = Number((await quote.locator('span').innerText()).replace('OCR line ', ''));
         expect(await quote.locator('p').innerText()).toBe(transcript[line - 1]);
       }
+
+      await review.getByRole('button', { name: 'Review and confirm' }).click();
+      await review.getByLabel('Amount due (€)').fill('125.00');
+      await review.getByRole('button', { name: 'View original bill' }).click();
+      await page.getByRole('button', { name: 'Summary', exact: true }).click();
+      await expect(review.getByLabel('Amount due (€)')).toHaveValue('125.00');
+      await review.getByRole('button', { name: 'Check values' }).click();
+      await expect(review).toContainText('OCR read: €123.47');
+      await review.getByRole('button', { name: 'Confirm and save' }).click();
+      await expect(review).toContainText('Confirmed · revision 1');
+      await page.reload();
+      await expect(review).toContainText('Confirmed · revision 1', { timeout: 30_000 });
+      await expect(review).toContainText('€125.00');
+      await expect(review).toContainText('Corrected from €123.47');
+      await expect(review.locator('blockquote')).toHaveCount(3);
     } finally {
       if (documentId) {
         await page.evaluate(async (id) => {

@@ -19,6 +19,8 @@ Personalisation comes from the authenticated owner's documents, reviewed facts a
 
 React uploads the PDF or image to FastAPI. The API stores the original in private S3-compatible storage and queues processing in Redis. The ARQ worker runs local Tesseract OCR and stores the transcript in PostgreSQL. Opening the owner-scoped document detail derives candidates for the amount, billing period and due date. Each candidate retains its labelled source line, including conflicting lines when found. A signed preview lets the owner compare the original file. This read-only review is implemented on the Demo 1 branch. [Rehearsal and evidence](../evaluation/demo-1/README.md)
 
+Owner confirmation is implemented in [PR #13](https://github.com/haydenteh5526/DocVault/pull/13). Confirming appends a `bill_revisions` row with the amount in integer cents, the due date, the billing-period endpoints and a snapshot of the reviewed evidence; earlier revisions are never changed. Each save is bound to the evidence and revision number the owner had when editing started. The server checks both under a row lock on the document and otherwise answers 409 with a reason code and saves nothing. The client then reloads the document before the owner tries again, and an unsaved correction survives switching tabs. Its API, component and browser tests pass in CI, and an API test shows a save waiting for an uncommitted transcript edit.
+
 ## Design for the next increments
 
 | Story | Data and responsibilities | Acceptance evidence |

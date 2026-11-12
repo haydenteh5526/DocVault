@@ -9,13 +9,21 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import Document, DocumentVersion
-from app.schemas.document import DocumentDetailOut, DocumentList, DocumentOut, DocumentUpdate
+from app.schemas.document import (
+    BillConfirmation,
+    BillRevisionOut,
+    DocumentDetailOut,
+    DocumentList,
+    DocumentOut,
+    DocumentUpdate,
+)
 from app.services import (
     document_processor,
     storage_service,
     task_queue,
 )
 from app.services.bill_review import extract_bill_review
+from app.services.bill_revisions import BillReviewConflict, latest_revision, save_revision
 
 router = APIRouter()
 
@@ -224,7 +232,23 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     doc.updated_at = datetime.utcnow()
     await db.commit()
     review = extract_bill_review(doc.raw_text) if doc.processing_status == "complete" else None
-    return DocumentDetailOut(**_to_response(doc).model_dump(), bill_review=review)
+    confirmed = await latest_revision(db, doc.id)
+    return DocumentDetailOut(**_to_response(doc).model_dump(), bill_review=review, confirmed_bill=confirmed)
+
+
+@router.post("/{document_id}/bill-revisions", response_model=BillRevisionOut, status_code=201)
+async def confirm_bill_revision(
+    document_id: uuid.UUID,
+    confirmation: BillConfirmation,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Save the owner's explicitly confirmed bill values as a new revision."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        return await save_revision(db, doc, confirmation)
+    except BillReviewConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
 
 
 @router.patch("/{document_id}", response_model=DocumentOut)
