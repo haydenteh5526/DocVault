@@ -42,7 +42,7 @@ Use the [CI workflow](.github/workflows/ci.yml) for the full gate, including aud
 
 Check `/health/ready` before testing. Set `DATABASE_URL` and storage settings to disposable test services. Use a fresh database for migration downgrades.
 
-For browser checks, set `E2E_BASE_URL` for a running preview, `E2E_EMAIL` and `E2E_PASSWORD` for a verified synthetic account, and `E2E_MAILPIT_URL` for the email scenarios. The default inbox is <http://localhost:8025>.
+For browser checks, set `E2E_BASE_URL` for a running preview, `E2E_EMAIL` and `E2E_PASSWORD` for a verified synthetic account (`E2E_EMAIL_2` and `E2E_PASSWORD_2` for a second one, used by the two-account scenario), and `E2E_MAILPIT_URL` for the email scenarios. The default inbox is <http://localhost:8025>.
 
 For the full-stack smoke test, run `docker compose exec -T api python scripts/e2e_smoke.py` from the repository root against a disposable stack. The development excerpt fallback verifies retrieval wiring. For device checks, set `EXPO_PUBLIC_API_URL` to a reachable API and use a configured development build for push receipt.
 

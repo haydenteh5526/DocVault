@@ -6,7 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './auth'
 import { queryClient } from './queryClient'
 import { getHousemates, type Housemate } from './api'
-import { useHousemates } from './housemates'
+import { housematesKey, useHousemates } from './housemates'
 
 vi.mock('./api')
 
@@ -80,7 +80,8 @@ describe('useHousemates', () => {
   })
 
   it('the key alone separates accounts', async () => {
-    queryClient.setQueryData(['housemates', 'a1'], [aoife])
+    // Seeded through the exported key builder so an unscoped key would make this entry visible to b1.
+    queryClient.setQueryData(housematesKey('a1'), [aoife])
     localStorage.setItem('token', token('b1'))
     mocked.mockReturnValue(new Promise<Housemate[]>(() => {}))
     mount()
