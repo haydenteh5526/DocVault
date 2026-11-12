@@ -189,7 +189,7 @@ export async function registerUser(email: string, password: string, displayName?
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Registration failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Registration failed', 'Check your email address and password.') : 'Server unavailable')
   }
   return res.json()
 }
@@ -204,13 +204,13 @@ function safeJson(text: string): { detail?: unknown } | undefined {
 
 /**
  * Turn a FastAPI `detail` into text for the user. String details pass through;
- * a 422 validation list shows its first item's `msg`, else a plain fallback.
+ * a 422 validation list shows its first item's `msg`, else `listFallback`.
  */
-export function detailMessage(detail: unknown, fallback: string): string {
+export function detailMessage(detail: unknown, fallback: string, listFallback = fallback): string {
   if (typeof detail === 'string' && detail) return detail
   if (Array.isArray(detail)) {
     const msg = (detail[0] as { msg?: unknown } | undefined)?.msg
-    return typeof msg === 'string' && msg ? msg : 'Check your email address and password.'
+    return typeof msg === 'string' && msg ? msg : listFallback
   }
   return fallback
 }
@@ -226,12 +226,14 @@ export function verifyEmail(token: string): Promise<{ ok: boolean; message: stri
   if (!pending) {
     pending = (async () => {
       const res = await fetch(`${BASE}/auth/verify?token=${encodeURIComponent(token)}`)
-      let data: { message?: unknown; detail?: unknown } = {}
+      let data: { message?: unknown; detail?: unknown }
       try {
         data = await res.json()
       } catch {
-        // fall through to the generic messages below
+        // No JSON body (e.g. a proxy 502): the server never judged the token.
+        throw new Error('Server unavailable')
       }
+      if (res.status >= 500) throw new Error('Server unavailable')
       if (res.ok) {
         return { ok: true, message: typeof data.message === 'string' ? data.message : 'Email verified' }
       }

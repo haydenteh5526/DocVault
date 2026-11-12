@@ -26,7 +26,7 @@ describe('registerUser errors', () => {
   })
 
   it('keeps string detail messages as they are', async () => {
-    vi.stubGlobal('fetch', reply(400, { detail: 'Email already registered' }))
+    vi.stubGlobal('fetch', reply(409, { detail: 'Email already registered' }))
     await expect(registerUser('a@b.com', 'pw')).rejects.toThrow('Email already registered')
   })
 })
@@ -48,5 +48,18 @@ describe('verifyEmail', () => {
     vi.stubGlobal('fetch', ok)
     await expect(verifyEmail('tok-net')).resolves.toMatchObject({ ok: true })
     expect(ok).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats an unreachable API (502, empty body) as an error, not a verdict on the token', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 502 })))
+    await expect(verifyEmail('tok-502')).rejects.toThrow()
+    const ok = reply(200, { message: 'Email verified' })
+    vi.stubGlobal('fetch', ok)
+    await expect(verifyEmail('tok-502')).resolves.toMatchObject({ ok: true })
+  })
+
+  it('does not use the registration wording for a list detail', async () => {
+    vi.stubGlobal('fetch', reply(422, { detail: [{ loc: ['query'] }] }))
+    await expect(verifyEmail('tok-422')).resolves.toEqual({ ok: false, message: 'Verification failed' })
   })
 })
