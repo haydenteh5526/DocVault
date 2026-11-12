@@ -35,7 +35,7 @@ Forecasting is an optional experiment that depends on having enough comparable b
 | File storage | S3 API, served locally by RustFS |
 | Background jobs | Redis, ARQ |
 | Document processing | Tesseract OCR, Ollama embeddings |
-| Answer generation | Groq or Gemini when a key is set. Local generation with Ollama is under evaluation in [#5](https://github.com/haydenteh5526/DocVault/issues/5). |
+| Answer generation | Groq or Gemini when a key is set. Local generation with Ollama is under evaluation in [#5](https://github.com/haydenteh5526/DocVault/issues/5). On 12 November, `qwen3:8b` was measured not feasible on the project laptop (tool selection 87.5%, answers 85.7%, against a 90% threshold), so answer generation is not local and no local model is integrated. See the [run record](evaluation/results/2026-11-12/RUN.md). |
 | Local email | Mailpit |
 | Testing and CI | pytest, Ruff, Vitest, Playwright, GitHub Actions |
 | Runtime | Docker Compose |
