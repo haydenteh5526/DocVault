@@ -81,6 +81,7 @@ export interface Document {
   raw_text: string | null
   bill_review?: BillReview | null
   confirmed_bill?: BillRevision | null
+  bill_split?: BillSplit | null
   summary: string | null
   file_size: number | null
   image_url: string | null
@@ -120,6 +121,39 @@ export interface BillConfirmation {
   billing_period_end: string
   reviewed: BillReview
   base_revision: number
+}
+
+export interface BillShare {
+  housemate_id: string
+  label: string
+  amount: string
+}
+
+export interface BillSplitRequest {
+  bill_revision: number
+  rule: 'equal'
+  housemate_ids: string[]
+}
+
+export interface BillSplitSave extends BillSplitRequest {
+  base_split: number
+  reviewed: BillShare[]
+}
+
+export interface BillSplitPreview {
+  bill_revision: number
+  rule: string
+  total: string
+  remainder_cents: number
+  shares: BillShare[]
+}
+
+export interface BillSplit extends BillSplitPreview {
+  id: string
+  document_id: string
+  split_number: number
+  stale: boolean
+  created_at: string
 }
 
 /** An API failure carrying the HTTP status and, when the server gives one, a reason code. */
@@ -271,29 +305,80 @@ export async function getDocument(id: string): Promise<Document> {
   return res.json()
 }
 
+/** Build an ApiError from a failed response, reading the reason code from a `{code, message}` detail. */
+async function apiErrorFrom(res: Response, fallback: string): Promise<ApiError> {
+  let detail: unknown
+  try {
+    detail = (await res.json())?.detail
+  } catch {
+    detail = undefined
+  }
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const { message, code } = detail as { message?: unknown; code?: unknown }
+    return new ApiError(
+      res.status,
+      typeof message === 'string' ? message : fallback,
+      typeof code === 'string' ? code : undefined,
+    )
+  }
+  return new ApiError(res.status, typeof detail === 'string' ? detail : fallback)
+}
+
 export async function confirmBill(documentId: string, body: BillConfirmation): Promise<BillRevision> {
   const res = await authorizedFetch(`${BASE}/documents/${documentId}/bill-revisions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    let detail: unknown
-    try {
-      detail = (await res.json())?.detail
-    } catch {
-      detail = undefined
-    }
-    if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
-      const { message, code } = detail as { message?: unknown; code?: unknown }
-      throw new ApiError(
-        res.status,
-        typeof message === 'string' ? message : 'Could not save the bill',
-        typeof code === 'string' ? code : undefined,
-      )
-    }
-    throw new ApiError(res.status, typeof detail === 'string' ? detail : 'Could not save the bill')
-  }
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not save the bill')
+  return res.json()
+}
+
+export interface Housemate {
+  id: string
+  label: string
+  position: number
+  created_at: string
+}
+
+export async function getHousemates(): Promise<Housemate[]> {
+  const res = await authorizedFetch(`${BASE}/housemates`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load your housemates')
+  return res.json()
+}
+
+export async function addHousemate(label: string): Promise<Housemate> {
+  const res = await authorizedFetch(`${BASE}/housemates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not add that name')
+  return res.json()
+}
+
+export async function removeHousemate(id: string): Promise<void> {
+  const res = await authorizedFetch(`${BASE}/housemates/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not remove that name')
+}
+
+export async function previewBillSplit(documentId: string, body: BillSplitRequest): Promise<BillSplitPreview> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/bill-splits/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not calculate the shares')
+  return res.json()
+}
+
+export async function saveBillSplit(documentId: string, body: BillSplitSave): Promise<BillSplit> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/bill-splits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not save the split')
   return res.json()
 }
 

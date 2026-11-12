@@ -9,7 +9,7 @@ Use the [ticket index](Tickets.md) for delivery order and the [repository snapsh
 | Example request | Intended behaviour | Current evidence |
 | --- | --- | --- |
 | “How much is this bill, and when is it due?” | Identify the owner's bill and return the facts with source passages. Ask which bill if several match. | The detail screen shows read-only candidates and OCR lines. The conversational answer needs validation. |
-| “Split it equally between the four of us.” | Resolve the confirmed bill and ordered housemate labels, then call the calculator. | Planned. |
+| “Split it equally between the four of us.” | Resolve the confirmed bill and ordered housemate labels, then call the calculator. | The split API and panel are implemented on a branch. The assistant tool is planned. |
 | “Remind me two days before it's due.” | Calculate the proposed reminder date, show the exact change and request approval before saving. | Planned. |
 | “Draft a question about this charge.” | Compose editable enquiry text using the charge and its evidence. The owner decides what to do with the draft. | Planned. |
 
@@ -20,6 +20,8 @@ Personalisation comes from the authenticated owner's documents, reviewed facts a
 React uploads the PDF or image to FastAPI. The API stores the original in private S3-compatible storage and queues processing in Redis. The ARQ worker runs local Tesseract OCR and stores the transcript in PostgreSQL. Opening the owner-scoped document detail derives candidates for the amount, billing period and due date. Each candidate retains its labelled source line, including conflicting lines when found. A signed preview lets the owner compare the original file. This read-only review is implemented on the Demo 1 branch. [Rehearsal and evidence](../evaluation/demo-1/README.md)
 
 Owner confirmation is implemented in [PR #13](https://github.com/haydenteh5526/DocVault/pull/13). Confirming appends a `bill_revisions` row with the amount in integer cents, the due date, the billing-period endpoints and a snapshot of the reviewed evidence; earlier revisions are never changed. Each save is bound to the evidence and revision number the owner had when editing started. The server checks both under a row lock on the document and otherwise answers 409 with a reason code and saves nothing. The client then reloads the document before the owner tries again, and an unsaved correction survives switching tabs. Its API, component and browser tests pass in CI, and an API test shows a save waiting for an uncommitted transcript edit.
+
+The equal split is implemented on the `feature/bill-split` branch. The owner's housemate labels live in a `housemates` table, and a split names them by id, so the server only splits among labels it finds in the caller's account. A preview writes nothing. A save appends a `bill_splits` row holding the confirmed revision it used, the rule, the total and a snapshot of the labels and cents. It is bound to the revision number, the latest split number and the shares the owner reviewed, checked under the same document row lock, and otherwise answers 409 with a reason code and saves nothing. A split from an older revision is returned as stale, with its own amount and revision, and is never recalculated. In the browser, cached data is dropped when the account changes and the service worker stores no API responses. Four housemates is the acceptance case, and the calculator and API accept 2 to 12.
 
 ## Design for the next increments
 

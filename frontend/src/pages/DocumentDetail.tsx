@@ -9,8 +9,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type SimilarDocument } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { BillReviewPanel } from '@/components/BillReview'
-import { ApiError, type BillConfirmation } from '@/lib/api'
+import { BillSplitPanel } from '@/components/BillSplit'
+import { ApiError, addHousemate, removeHousemate, previewBillSplit, saveBillSplit, type BillConfirmation } from '@/lib/api'
 import { confirmBillAndRefresh } from '@/lib/billConfirm'
+import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSplit'
+import { useAuth } from '@/lib/auth'
+import { useHousemates } from '@/lib/housemates'
 
 /**
  * Wraps occurrences of meaningful query words (≥4 chars) in <mark> so a document
@@ -48,7 +52,10 @@ export default function DocumentDetail() {
     },
   })
   const doc = docQuery.data ?? null
-  const notFound = docQuery.isError
+  const { accountId } = useAuth()
+  const housemates = useHousemates(!!(doc?.bill_review || doc?.confirmed_bill))
+  // A failed reload keeps the document already loaded; only a document that never loaded is "not found".
+  const notFound = docQuery.isError && !docQuery.data
   // Cache-backed setter so existing optimistic `setDoc({...doc, ...})` calls
   // keep working unchanged.
   const setDoc = (updated: Document) => queryClient.setQueryData(['document', id], updated)
@@ -277,6 +284,30 @@ export default function DocumentDetail() {
               processing={!!isProcessing}
               onViewOriginal={() => setTab('preview')}
               onConfirm={confirmBill}
+            />
+          )}
+          {(doc.bill_review || doc.confirmed_bill) && (
+            <BillSplitPanel
+              key={doc.id}
+              confirmed={doc.confirmed_bill ?? null}
+              split={doc.bill_split ?? null}
+              housemates={housemates.data}
+              housematesFailed={housemates.isError}
+              onAddHousemate={async label => {
+                const created = await addHousemate(label)
+                storeHousemates(queryClient, accountId, list => [...list, created])
+              }}
+              onRemoveHousemate={async removedId => {
+                await removeHousemate(removedId)
+                storeHousemates(queryClient, accountId, list => list.filter(h => h.id !== removedId))
+              }}
+              onPreview={body => previewBillSplit(doc.id, body)}
+              onSave={async body => {
+                const saved = await saveBillSplit(doc.id, body)
+                storeSavedSplit(queryClient, doc.id, saved)
+                return saved
+              }}
+              onRefresh={() => refreshBillData(queryClient, doc.id, accountId)}
             />
           )}
           {isProcessing ? (

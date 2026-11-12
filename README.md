@@ -17,10 +17,11 @@
 - **Hybrid search** — Find documents by exact words or meaning using PostgreSQL full-text search and local embeddings.
 - **Document Q&A** — Retrieve relevant excerpts and get answers with sources when a Q&A provider is configured.
 - **Bill review** — Compare the amount due, due date and billing period with their source lines and the original bill.
+- **Bill split** — Save housemate names in your account, then split the confirmed amount equally in whole cents. Everyone pays the same, and leftover cents go one each to the first people in the order shown (€123.47 among four is €30.87, €30.87, €30.87 and €30.86). You review the exact shares and total before saving, and a saved split is marked out of date, not recalculated, when a newer bill revision is confirmed.
 - **Private accounts** — Sign in to your own vault and use the local inbox for account verification and password recovery.
 
-Demo 1 covers read-only bill review. Confirmed bill records, splitting, enquiry
-drafts and approved reminders are described in the [MVP design](specs/MVP_Technical_Design.md).
+Demo 1 covers read-only bill review. Owner-confirmed bill revisions and the equal bill split are
+implemented. Enquiry drafts and approved reminders are described in the [MVP design](specs/MVP_Technical_Design.md).
 Forecasting is an optional experiment that depends on having enough comparable bills.
 
 ---
@@ -153,6 +154,12 @@ DocVault/
 | GET | `/api/v1/documents` | List your documents |
 | POST | `/api/v1/documents` | Upload a document for processing |
 | GET | `/api/v1/documents/{document_id}` | Get document details and bill candidates when available |
+| POST | `/api/v1/documents/{document_id}/bill-revisions` | Save owner-confirmed bill values as a new revision |
+| GET | `/api/v1/housemates` | List your saved housemate names |
+| POST | `/api/v1/housemates` | Save a housemate name (up to 12, no duplicates) |
+| DELETE | `/api/v1/housemates/{housemate_id}` | Remove a housemate name |
+| POST | `/api/v1/documents/{document_id}/bill-splits/preview` | Calculate an equal split of the confirmed amount without saving |
+| POST | `/api/v1/documents/{document_id}/bill-splits` | Save the split you reviewed, bound to the confirmed revision it used |
 | GET | `/api/v1/search?q=...` | Search your documents |
 | POST | `/api/v1/ai/ask` | Ask a question and retrieve source excerpts |
 

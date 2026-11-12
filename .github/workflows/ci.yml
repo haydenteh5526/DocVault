@@ -187,6 +187,15 @@ jobs:
           E2E_SEED_PASSWORD: TestPass123!
         run: cd backend && python scripts/seed_e2e_user.py
 
+      - name: Seed second verified E2E account
+        env:
+          DATABASE_URL: postgresql+asyncpg://docvault:docvault@localhost:5432/docvault_test
+          JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
+          ALLOW_E2E_SEED: "true"
+          E2E_SEED_EMAIL: e2e-second@example.com
+          E2E_SEED_PASSWORD: TestPass123!
+        run: cd backend && python scripts/seed_e2e_user.py
+
       - name: Start API
         env:
           DATABASE_URL: postgresql+asyncpg://docvault:docvault@localhost:5432/docvault_test
@@ -222,6 +231,8 @@ jobs:
         env:
           E2E_EMAIL: e2e-verified@example.com
           E2E_PASSWORD: TestPass123!
+          E2E_EMAIL_2: e2e-second@example.com
+          E2E_PASSWORD_2: TestPass123!
         run: cd frontend && npx playwright test
 
       - name: Print API log on failure
