@@ -7,6 +7,22 @@
 - Use synthetic or permitted redacted documents and disposable test accounts. Keep secrets, private documents and participant records outside Git. Use the local stack and keep planned additional spend at €0.
 - Update the relevant spec or evidence when behaviour changes. Distinguish proposed work, implementation on a branch and verified results.
 
+## Workflow
+
+Each story moves through four roles. Use a fresh session for each role and task, so one task's context does not leak into the next.
+
+| Role | Does | Must not |
+| --- | --- | --- |
+| Plan | Turns an issue's acceptance checks into a plan in `specs/plans/`: files, names, signatures, exact copy, tests and the decisions for the owner. Waits for the owner's approval. | Change code. |
+| Build | Implements one approved plan, test first, on its own branch or worktree from `origin/main`. Runs the gates and stops at an open PR. | Add scope, change the plan's decisions, or merge. |
+| Review | Reads the PR against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. | Change code, post to GitHub, or merge. |
+| Fix | The Build session applies the approved findings, test first, and pushes to the same PR. | Open a second PR for the same work. |
+
+- The owner approves the plan, decides which findings to fix, and merges.
+- A plan that proves wrong or ambiguous goes back to Plan. Do not improvise around it.
+- Freeze any evaluation protocol in a commit before the first measured run, and keep failed runs in the record.
+- Rename a tool-generated branch to a descriptive project name before opening its PR.
+
 ## Pull requests
 
 - Use a descriptive project branch and the configured Git identity. Submit a pull request to protected `main`, reference the relevant issue and record verification. GitHub Issues holds progress and acceptance criteria. Use a closing keyword only when the PR meets all acceptance checks.
