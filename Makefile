@@ -6,7 +6,7 @@
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-up: ## Start all services (api, db, minio, redis, web)
+up: ## Start all services (api, db, storage, redis, web)
 	docker compose up -d
 
 down: ## Stop all services
