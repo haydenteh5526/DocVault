@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 12 November 2026 as recommended: separate approvals A, B and C, and design decisions 1 to 12. Nothing in this plan is implemented.
+**Status:** approved by the owner on 12 November 2026 as recommended: separate approvals A, B and C, and design decisions 1 to 12. Tasks 1 to 5 are built on this branch and open as PR 21. **Revision 2** (Task 6, at the end) was added on 12 November 2026 after the review of PR 21 and approved by the owner the same day as recommended (R1 to R4); it is not implemented.
 
 **Goal:** Let a document owner see the exact reminder that would be saved for a confirmed bill, approve or cancel it, and have an approved reminder saved in their account exactly once, with a history of what was proposed, approved and saved.
 
@@ -104,7 +104,7 @@ Inputs and conditions most likely to break it. Each has a test in the task named
   - `ReminderEvent`, table `reminder_events`: `id` pk; `proposal_id` (FK `reminder_proposals.id`, CASCADE, not null); `sequence: int`; `event: str` (`String(20)`); `detail: dict` (JSON, not null); `created_at`. Unique constraint `uq_reminder_events_proposal_sequence` on `(proposal_id, sequence)`.
 - Produces, migration `016` (`down_revision = "015"`), in the style of `015_add_housemates_and_bill_splits.py`; `downgrade` drops `reminder_events`, `reminders`, then `reminder_proposals`.
 - Produces, in `schemas/reminder.py`:
-  - `REMINDER_ACTIONS = ("bill_reminder",)`, `MAX_DAYS_BEFORE_DUE = 60`.
+  - `MAX_DAYS_BEFORE_DUE = 60`. (Revision 2 removed `REMINDER_ACTIONS`: the allowlist is the `Literal` on `action`.)
   - `ReminderProposalRequest`, with `model_config = ConfigDict(extra="forbid")`: `action: Literal["bill_reminder"]`; `days_before_due: int = Field(strict=True, ge=0, le=60)`; `bill_revision: int` (`ge=1`; the confirmed revision number on screen); `bill_split: int` (`ge=0`; the number of the split on screen if it is not stale, otherwise `0`); `base_proposal: int` (`ge=0`; the latest proposal number on screen, `0` if none).
   - `ReminderSplit`: `split_number: int`, `total: str`, `shares: list[BillShare]`.
   - `ReminderDetails`: `bill_revision: int`, `amount_due: str`, `due_date: date`, `billing_period_start: date`, `billing_period_end: date`, `days_before_due: int`, `remind_on: date`, `split: ReminderSplit | None`.
@@ -185,7 +185,7 @@ Every conflict path rolls back, so step 6's `stale` mark is kept only when the n
 - Produces, HTTP:
   - `POST /api/v1/documents/{document_id}/reminder-proposals/{proposal_id}/approve` with `ReminderApproval` → 201 `ReminderProposalOut` when this call saved the reminder, 200 with the same body when it was already saved.
   - `POST /api/v1/documents/{document_id}/reminder-proposals/{proposal_id}/cancel` (no body) → 200 `ReminderProposalOut`.
-  - Both: 404 "Reminder proposal not found" for a non-owner's document or a proposal that is not this document's and this user's; 422 invalid body; 409 with `detail == {"code", "message"}`.
+  - Both: 404 "Document not found" (from `_get_doc_or_404`) when the document is not the caller's; 404 "Reminder proposal not found" when the document is the caller's but the proposal is not this document's and this user's; 422 invalid body; 409 with `detail == {"code", "message"}`.
 
 `approve_proposal`, in one transaction, in order:
 
@@ -435,6 +435,86 @@ expect(result.reminders).toEqual([result.first, result.first]);
 - [ ] **Step 4: Update the documents.** In `README.md`, add the three routes to the API table and a `Bill reminder` line to the feature list that says nothing is sent outside the app. In `Repo_Current_State.md`, move reminder approval from "next increments" to the capability text, add a verified-results row with the commit, test counts and coverage, and record the limits (shown only in the document's panel, no delivery, past dates allowed). In `Tickets.md`, update the #3 row. In `MVP_Technical_Design.md`, note in "Architecture and evidence flow" that proposal and approval are implemented, what approval is bound to, that a refused approval is recorded as stale, and the 201 then 200 retry behaviour. State only what was run.
 
 - [ ] **Step 5: Commit, push and open the PR** to `main`. Title: `Approve and save a bill reminder exactly once`. The body maps each of issue #3's five acceptance checks to the test or observation that verifies it, lists what was not run, includes the Reviewer's full report, and starts with `Closes #3` only if all five are verified. Wait for the backend, frontend, mobile and e2e checks. Do not merge.
+
+---
+
+### Task 6 (Revision 2): Keep the saved reminder in view
+
+Added on 12 November 2026 after the Reviewer's report on PR 21. It corrects gaps in this plan, not in the build. Frontend and documents only; no server behaviour changes.
+
+**What was wrong.** Task 4 chose the view from the newest proposal alone. After a reminder is saved, a later proposal that is cancelled or goes out of date replaced the saved view with the form and the line `Proposal <n> was cancelled. No reminder was saved.`, and the saved reminder was left only as history lines. That contradicts approval C (the latest saved reminder is the bill's current one) and Decision 8 (saved data stays visible).
+
+**Decisions, approved by the owner on 12 November 2026**
+
+- **R1. The current saved reminder is always on screen.** *Recommended.* "The current reminder" is the newest proposal whose status is `saved`. It is shown in full whenever it exists, whatever happened to later proposals.
+- **R2. Neutral wording when the proposals changed.** *Recommended.* If a proposal was saved but its answer was lost, trying again was answered with `Another proposal was made while you were setting the reminder.`, although the other proposal was the owner's own. The panel's wording for `proposal_changed` becomes `The proposals for this bill changed while you were setting the reminder.` The server's message and code are unchanged.
+- **R3. Accept the form's heading.** The build added the heading `Propose a reminder` to the form as a focus target. It is accepted as the plan's copy.
+- **R4. Left for a separate issue, not fixed here:** a document deleted while an approval, split or confirmation waits on the lock answers 500 instead of 404 (the same in all three services); history dates are shown in UTC.
+
+**Files:**
+- Modify: `frontend/src/components/BillReminder.tsx`, `frontend/src/components/BillReminder.test.tsx`, `frontend/e2e/app.spec.ts`
+- Modify: `backend/app/schemas/reminder.py` (remove the unused `REMINDER_ACTIONS`)
+- Modify: `specs/Repo_Current_State.md`, `specs/MVP_Technical_Design.md`
+
+**Interfaces:** `BillReminderPanel`'s props do not change. Inside it, after the kept copy is merged into `list`:
+- `current` stays `list[0]`, and `base_proposal` is still its number.
+- `currentReminder` is the first item of `list` whose `status` is `'saved'`, or `undefined`.
+
+The views, replacing the Task 4 rules where they differ. Copy not named here is unchanged.
+
+| Condition | View |
+| --- | --- |
+| `current` is `saved` | The Saved view, as before. |
+| `current` is `cancelled` or `stale`, and there is a `currentReminder` | The status line for `current`, then the Saved view of `currentReminder` with `Propose a different reminder`. The form is not opened until that button is clicked. |
+| `current` is `cancelled` or `stale`, and there is no `currentReminder` | The form, as before. |
+| `current` is `pending` | The Pending view, as before. If there is a `currentReminder`, the saved block follows it. |
+| The form is open | The form, as before. If there is a `currentReminder`, the saved block follows it. |
+
+- **Status line when a `currentReminder` exists:** `cancelled` → `Proposal <n> was cancelled. Your saved reminder is unchanged.`; `stale` → `Proposal <n> is out of date and was not saved. <reason> Your saved reminder is unchanged.` Without one, the Task 4 wording stays (`… No reminder was saved.`).
+- **The saved block:** a group labelled by the heading `Current saved reminder`, containing `Saved · reminder for <remind_on>`, the `inputs_changed` notice if set, the details list of `currentReminder`, and, in the Pending view only, `It stays in place until you approve a different one.` It has no buttons.
+- **History:** the heading of the `currentReminder`'s proposal reads `Proposal <n> · current reminder`. Other proposals keep `Proposal <n>`.
+- **`proposal_changed`** in `WHAT_HAPPENED` becomes `The proposals for this bill changed while you were setting the reminder.`
+
+- [ ] **Step 1: Write the failing tests** in `BillReminder.test.tsx`. Extra fixtures: `second(status, extra?)` = proposal 2, id `p2`, `days_before_due: 5`, `remind_on: '2026-11-18'`, with the given `status`, `reminder: null` and a `proposed` event; `savedBlock()` = the group named `Current saved reminder`.
+
+| Test | Assertions |
+| --- | --- |
+| `a saved reminder stays on screen when a later proposal is cancelled` | `proposals={[second('cancelled'), saved]}`: `Proposal 2 was cancelled. Your saved reminder is unchanged.`, `Saved · reminder for 21 November 2026`, `€123.47 (revision 1)` and `Propose a different reminder` are shown. `No reminder was saved.` is absent, and there is no `Days before the due date` input. |
+| `a saved reminder stays on screen when a later proposal is out of date` | `proposals={[second('stale', { inputs_changed: 'split_changed' }), saved]}`: `Proposal 2 is out of date and was not saved. The saved split changed after it was proposed. Your saved reminder is unchanged.` and `Saved · reminder for 21 November 2026`; no `Approve and save` button. |
+| `the wording is unchanged when nothing was ever saved` | `proposals={[second('cancelled')]}`: `Proposal 2 was cancelled. No reminder was saved.` and the form; no group named `Current saved reminder`. |
+| `the saved reminder is shown under a newer proposal that awaits approval` | `proposals={[second('pending'), saved]}`: `Approve this reminder`, `Proposal 2 · not saved yet` and `18 November 2026` are shown; `savedBlock()` contains `Saved · reminder for 21 November 2026`, `21 November 2026` and `It stays in place until you approve a different one.`, and no button. `Approve and save` → `onApprove` called with proposal 2. |
+| `the saved reminder is shown under the form` | `proposals={[saved]}`; click `Propose a different reminder`: the form is shown and `savedBlock()` contains `Saved · reminder for 21 November 2026` without the `It stays in place` sentence. |
+| `proposing after a cancelled proposal sends the newest proposal number` | `proposals={[second('cancelled'), saved]}`; `Propose a different reminder`, type `3`, `Propose reminder` → `onPropose` called with `base_proposal: 2`. |
+| `cancelling a newer proposal returns to the saved reminder` | `proposals={[second('pending'), saved]}`; `onCancel` resolves `second('cancelled')`. After `Cancel proposal`: `Proposal 2 was cancelled. Your saved reminder is unchanged.` and the Saved view of reminder 1 with `Propose a different reminder`. |
+| `history marks the current reminder` | `proposals={[second('cancelled'), saved]}`: `Proposal 1 · current reminder` is shown and the text `Proposal 2 · current reminder` is absent. With `proposals={[{ ...second('saved'), reminder: <for 2026-11-18> }, saved]}`: `Proposal 2 · current reminder`, and `Proposal 1 · current reminder` is absent. |
+| `a proposal refused because the proposals changed is worded neutrally` | `onPropose` rejects `conflict('proposal_changed')`; `onRefresh` calls `rerender` with `[pending]`. The alert reads `The proposals for this bill changed while you were setting the reminder. No reminder was saved. The latest version is shown here.`, and `Approve this reminder` is shown. |
+
+Also remove the two `expect(text).toBeDefined()` lines and the unused `text` bindings they stand in for.
+
+- [ ] **Step 2: Run to see them fail.** Run: `npm test -- BillReminder` · Expected: the nine new tests fail; the existing ones pass.
+
+- [ ] **Step 3: Implement the view rules, the saved block, the status lines, the history marker and the copy change** in `BillReminder.tsx`. Remove `REMINDER_ACTIONS` from `backend/app/schemas/reminder.py`.
+
+- [ ] **Step 4: Update the browser scenario** `an approved reminder is saved once and a changed bill leaves a proposal unsaved`. Its step 8 (after revision 2 is confirmed, with reminder 1 saved and proposal 2 pending) becomes: expect `Proposal 2 is out of date and was not saved. The confirmed bill changed after it was proposed. Your saved reminder is unchanged.`, `Saved · reminder for 21 November 2026` and `The confirmed bill changed after it was proposed. This reminder still shows the values it was saved with.`; `Approve and save` has count 0. Then click `Propose a different reminder` and expect `Reminder for €125.00, due 23 November 2026 (revision 2)` and the group `Current saved reminder`. Step 9 is unchanged.
+
+- [ ] **Step 5: Run the gates.** Frontend: `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`. Backend: `python -m ruff check app/ tests/` and `python -m pytest tests/ --cov=app --cov-fail-under=65`. Playwright against the local stack. Expected: all pass. Say exactly what was not run.
+
+- [ ] **Step 6: Update the documents.** In `Repo_Current_State.md`, add to the reminder capability text that the current saved reminder stays on screen when a later proposal is cancelled or out of date, add a verified-results row for this revision with the commit and test counts, and record R4's two items under the limits. In `MVP_Technical_Design.md`, add one sentence to the reminder paragraph saying the same.
+
+- [ ] **Step 7: Commit.** `git commit -m "Keep the saved reminder in view when a later proposal is cancelled or out of date"`
+
+- [ ] **Step 8: Have the Reviewer check what it has not seen.** Call the `reviewer` agent with this plan, issue #3's acceptance checks, the base branch `origin/main`, and the note that it reviewed `ab4a34c` already and should concentrate on the commits after it (the review fixes in `0d35950` and this task). Show the owner the full report unedited and apply only what the owner approves.
+
+- [ ] **Step 9: Push and bring the PR description up to date.** Replace the statements that hosted CI has not run with the result of the hosted run on the final commit; add this revision under "What was fixed and what was left"; append the second Reviewer report in full. Use `Closes #3` only if the owner says so and all five checks are verified on the final commit. Do not merge.
+
+**Revision 2 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R1: the current saved reminder is always on screen | The first seven tests above and `history marks the current reminder`; Step 4. |
+| R2: neutral wording | `a proposal refused because the proposals changed is worded neutrally`. |
+| Reviewer N2: the plan's 404 text | Corrected in Task 2's HTTP list; no code change. |
+| Reviewer N4, N5: unused constant and filler test lines | Step 1 (last line) and Step 3. |
 
 ---
 
