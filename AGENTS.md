@@ -9,17 +9,17 @@
 
 ## Workflow
 
-Each story moves through four roles. Use a fresh session for each role and task, so one task's context does not leak into the next.
+One Architect session plans, and each active issue has one Issue session that builds, has the work reviewed and fixes it.
 
-| Role | Does | Must not |
-| --- | --- | --- |
-| Plan | Turns an issue's acceptance checks into a plan in `specs/plans/`: files, names, signatures, exact copy, tests and the decisions for the owner. Waits for the owner's approval. | Change code. |
-| Build | Implements one approved plan, test first, on its own branch or worktree from `origin/main`. Runs the gates and stops at an open PR. | Add scope, change the plan's decisions, or merge. |
-| Review | Reads the PR against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. | Change code, post to GitHub, or merge. |
-| Fix | The Build session applies the approved findings, test first, and pushes to the same PR. | Open a second PR for the same work. |
+| Role | Where | Does | Must not |
+| --- | --- | --- | --- |
+| Architect | The root checkout on `main`. One long-lived session, with its context cleared between unrelated features. | Turns an issue's acceptance checks into a plan in `specs/plans/`: files, names, signatures, exact copy, tests and the decisions for the owner. Commits the plan on the issue's feature branch and waits for the owner's approval. | Change application code or commit to `main`. |
+| Issue | Its own worktree, cut from the feature branch that holds the approved plan. One session per active issue. | Implements the plan test first, runs the gates, has the Reviewer check the result, shows the owner the Reviewer's full report, applies the findings the owner approves and opens the PR. | Add scope, change the plan's decisions, shorten or filter the Reviewer's report, or merge. |
+| Reviewer | Inside the Issue session, started with a fresh context that has not seen the build. Read-only. | Reads the diff against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. | Change code, post to GitHub, or merge. |
 
 - The owner approves the plan, decides which findings to fix, and merges.
-- A plan that proves wrong or ambiguous goes back to Plan. Do not improvise around it.
+- Record the Reviewer's full report in the PR description, with what was fixed and what was left.
+- A plan that proves wrong or ambiguous goes back to the Architect. Do not improvise around it.
 - Freeze any evaluation protocol in a commit before the first measured run, and keep failed runs in the record.
 - Rename a tool-generated branch to a descriptive project name before opening its PR.
 
