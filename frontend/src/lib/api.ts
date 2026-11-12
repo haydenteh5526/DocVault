@@ -297,6 +297,19 @@ export async function confirmBill(documentId: string, body: BillConfirmation): P
   return res.json()
 }
 
+export interface Housemate {
+  id: string
+  label: string
+  position: number
+  created_at: string
+}
+
+export async function getHousemates(): Promise<Housemate[]> {
+  const res = await authorizedFetch(`${BASE}/housemates`)
+  if (!res.ok) throw new Error('Could not load your housemates')
+  return res.json()
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   await authorizedFetch(`${BASE}/documents/${id}`, { method: 'DELETE' })
 }
