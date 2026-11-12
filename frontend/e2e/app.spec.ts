@@ -321,10 +321,20 @@ test.describe('Bill review and split', () => {
     } finally {
       release();
       if (routeInstalled) await page.unroute('**/api/v1/housemates');
-      if (documentB) await deleteDocument(page, documentB);
-      await signIn(page, emailA!, passwordA!);
-      await clearHousemates(page);
-      if (documentA) await deleteDocument(page, documentA);
+      // Clean up as best effort, so a cleanup problem never hides the failure that ended the test.
+      try {
+        if (documentB) await deleteDocument(page, documentB);
+        // The login page redirects a signed-in user, so sign out of whichever account is open first.
+        await page.evaluate(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token');
+        });
+        await signIn(page, emailA!, passwordA!);
+        await clearHousemates(page);
+        if (documentA) await deleteDocument(page, documentA);
+      } catch (error) {
+        console.error('Clean-up after the two-account scenario failed:', error);
+      }
     }
   });
 });
