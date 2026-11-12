@@ -486,6 +486,68 @@ describe('BillSplitPanel', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 
+  it('D6: a double-click on Remove sends one request and shows no error', async () => {
+    let finish: () => void = () => {}
+    const onRemoveHousemate = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
+      .mockImplementation(async () => { throw new ApiError(404, 'Not found', 'not_found') })
+    const { region, rerender, user, click } = setup({ onRemoveHousemate })
+    await click('Split this bill')
+    const remove = within(region()).getByRole('button', { name: 'Remove Ben' })
+    await user.dblClick(remove)
+    expect(onRemoveHousemate).toHaveBeenCalledTimes(1)
+    expect(remove).toBeDisabled()
+    finish()
+    rerender({ housemates: four.filter(h => h.id !== 'h2') })
+    expect(await within(region()).findAllByRole('checkbox')).toHaveLength(3)
+    expect(within(region()).queryByRole('alert')).toBeNull()
+  })
+
+  it('D6: Remove can be tried again after it fails', async () => {
+    const onRemoveHousemate = vi.fn(async () => { throw new ApiError(500, 'error') })
+    const { region, click } = setup({ onRemoveHousemate })
+    await click('Split this bill')
+    await click('Remove Ben')
+    expect(within(region()).getByRole('alert')).toHaveTextContent('Could not remove that name. Try again.')
+    expect(within(region()).getByRole('button', { name: 'Remove Ben' })).toBeEnabled()
+  })
+
+  it('D7: the save sends the people that were previewed, even if the list changed', async () => {
+    const { props, rerender, click } = setup()
+    await click('Split this bill')
+    await click('Calculate shares')
+    rerender({ housemates: four.filter(h => h.id !== 'h2') })
+    await click('Save split')
+    expect(props.onSave).toHaveBeenCalledWith(expect.objectContaining({
+      housemate_ids: ['h1', 'h2', 'h3', 'h4'], reviewed: preview.shares,
+    }))
+  })
+
+  it('D8: Enter in the add field adds the name', async () => {
+    const { props, region, user, click } = setup()
+    await click('Split this bill')
+    await user.type(within(region()).getByLabelText('Add a housemate'), 'Eoin{Enter}')
+    expect(props.onAddHousemate).toHaveBeenCalledWith('Eoin')
+  })
+
+  it('D8: focus moves to the heading of each new step', async () => {
+    const { click } = setup()
+    const focused = () => document.activeElement?.textContent
+    await click('Split this bill')
+    expect(focused()).toBe('Splitting €123.47 from revision 1')
+    await click('Calculate shares')
+    expect(focused()).toBe('Confirm this split')
+    await click('Back')
+    expect(focused()).toBe('Splitting €123.47 from revision 1')
+    await click('Calculate shares')
+    await click('Save split')
+    expect(focused()).toBe('Bill split')
+    await click('Split again')
+    expect(focused()).toBe('Splitting €123.47 from revision 1')
+    await click('Cancel')
+    expect(focused()).toBe('Bill split')
+  })
+
   it('cancel leaves nothing saved', async () => {
     const { props, region, click } = setup()
     await click('Split this bill')
