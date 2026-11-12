@@ -11,6 +11,7 @@ import {
   getDocument,
   getHousemates,
   previewBillSplit,
+  removeHousemate,
   saveBillSplit,
   type BillSplit,
   type BillSplitPreview,
@@ -180,6 +181,35 @@ describe('DocumentDetail bill split', () => {
     expect(within(region()).getByRole('button', { name: 'Load latest' })).toBeInTheDocument()
     expect(within(region()).getByRole('button', { name: 'Save split' })).toBeDisabled()
     expect(screen.queryByText('Document not found')).toBeNull()
+  })
+
+  it('finding 6: removing a name another tab already removed drops it without an error', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getDocument).mockResolvedValue(bill('x', '123.47'))
+    vi.mocked(removeHousemate).mockRejectedValue(new ApiError(404, 'Not found'))
+    renderPage('/app/documents/x')
+    await screen.findByRole('region', { name: 'Bill split' })
+    await click(user, 'Split this bill')
+    await waitFor(() => expect(within(region()).getAllByRole('checkbox')).toHaveLength(4))
+    await click(user, 'Remove Ben')
+    await waitFor(() => expect(within(region()).queryByRole('checkbox', { name: 'Ben' })).toBeNull())
+    expect(within(region()).queryByRole('alert')).toBeNull()
+    expect(removeHousemate).toHaveBeenCalledTimes(1)
+  })
+
+  it('other remove failures still show the error and keep the name', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getDocument).mockResolvedValue(bill('x', '123.47'))
+    vi.mocked(removeHousemate).mockRejectedValue(new ApiError(500, 'Server error'))
+    renderPage('/app/documents/x')
+    await screen.findByRole('region', { name: 'Bill split' })
+    await click(user, 'Split this bill')
+    await waitFor(() => expect(within(region()).getAllByRole('checkbox')).toHaveLength(4))
+    await click(user, 'Remove Ben')
+    await waitFor(() =>
+      expect(within(region()).getByRole('alert')).toHaveTextContent('Could not remove that name. Try again.'),
+    )
+    expect(within(region()).getByRole('checkbox', { name: 'Ben' })).toBeInTheDocument()
   })
 
   it('still shows "Document not found" when the document cannot be loaded at all', async () => {

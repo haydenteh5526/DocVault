@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -62,12 +62,23 @@ export function BillSplitPanel({
   const [newName, setNewName] = useState('')
   const [refreshFailed, setRefreshFailed] = useState(false)
   const [busy, setBusy] = useState<'preview' | 'save' | 'refresh' | 'add' | null>(null)
+  const [removing, setRemoving] = useState<string[]>([])
+  // Focus follows the owner to the heading of each new step instead of dropping to the page.
+  const [focusRequest, setFocusRequest] = useState(0)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (focusRequest > 0) (stepHeadingRef.current ?? headingRef.current)?.focus()
+  }, [focusRequest])
+  const moveFocus = () => setFocusRequest(n => n + 1)
 
   const displayed = savedLocal && (!split || savedLocal.split_number > split.split_number) ? savedLocal : split
 
   // After "Load latest" succeeds the props are fresh: re-base the kept session on them.
   if (blocked?.recapture) {
     setBlocked(null)
+    // The focused "Load latest" button is gone after this re-render.
+    moveFocus()
     if (!confirmed || !session) {
       setSession(null)
       setMessage(`${blocked.what} Nothing was saved. The latest version is shown here.`)
@@ -112,6 +123,7 @@ export function BillSplitPanel({
     setMessage(null)
     setNameMessage(null)
     setRefreshFailed(false)
+    moveFocus()
   }
 
   function cancel() {
@@ -119,6 +131,7 @@ export function BillSplitPanel({
     setBlocked(null)
     setMessage(null)
     setNameMessage(null)
+    moveFocus()
   }
 
   const tickedIds = session && housemates
@@ -131,7 +144,8 @@ export function BillSplitPanel({
     setSession({ ...session, ticked })
   }
 
-  async function addName() {
+  async function addName(event: FormEvent) {
+    event.preventDefault()
     const label = newName.trim()
     if (!label) return setNameMessage('Enter a name.')
     if ([...label].length > MAX_LABEL_LENGTH) return setNameMessage('Use 40 characters or fewer.')
@@ -153,11 +167,17 @@ export function BillSplitPanel({
   }
 
   async function removeName(id: string) {
+    if (removing.includes(id)) return
+    setRemoving(ids => [...ids, id])
     setNameMessage(null)
     try {
       await onRemoveHousemate(id)
+      // The focused Remove button leaves with its row.
+      moveFocus()
     } catch {
       setNameMessage('Could not remove that name. Try again.')
+    } finally {
+      setRemoving(ids => ids.filter(other => other !== id))
     }
   }
 
@@ -169,6 +189,7 @@ export function BillSplitPanel({
       setSession(null)
       setBlocked(null)
       setMessage(`${what} Nothing was saved. The latest version is shown here.`)
+      moveFocus()
     } catch {
       setBlocked({ what, recapture: false })
       setMessage(
@@ -185,9 +206,13 @@ export function BillSplitPanel({
     try {
       const result = await onPreview({ bill_revision: session.revision, rule: 'equal', housemate_ids: tickedIds })
       setSession({ ...session, step: 'review', preview: result })
+      moveFocus()
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) await handleConflict(error)
-      else setMessage('Could not calculate the shares. Try again.')
+      else {
+        setMessage('Could not calculate the shares. Try again.')
+        moveFocus()
+      }
     } finally {
       setBusy(null)
     }
@@ -202,19 +227,24 @@ export function BillSplitPanel({
       result = await onSave({
         bill_revision: session.revision,
         rule: 'equal',
-        housemate_ids: tickedIds,
+        // The people the owner reviewed, in that order, not whatever is ticked now.
+        housemate_ids: session.preview.shares.map(share => share.housemate_id),
         base_split: session.baseSplit,
         reviewed: session.preview.shares,
       })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) await handleConflict(error)
-      else setMessage('Could not save. Try again.')
+      else {
+        setMessage('Could not save. Try again.')
+        moveFocus()
+      }
       setBusy(null)
       return
     }
     setSavedLocal(result)
     setSession(null)
     setRefreshFailed(false)
+    moveFocus()
     try {
       await onRefresh()
     } catch {
@@ -238,6 +268,18 @@ export function BillSplitPanel({
     }
   }
 
+  async function reloadHousemates() {
+    setBusy('refresh')
+    try {
+      await onRefresh()
+      moveFocus()
+    } catch {
+      // The housemates are still missing, so the "could not be loaded" notice stays.
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function refreshSavedView() {
     setBusy('refresh')
     try {
@@ -250,11 +292,12 @@ export function BillSplitPanel({
     }
   }
 
+  const showRefreshNotice = refreshFailed && !session && confirmed !== null && displayed !== null
   let body: ReactNode
   if (session?.step === 'review' && session.preview) {
     body = (
       <>
-        <h4 className="font-medium">Confirm this split</h4>
+        <h4 ref={stepHeadingRef} tabIndex={-1} className="font-medium">Confirm this split</h4>
         <SharesView
           heading={`Equal split of €${session.preview.total} from revision ${session.preview.bill_revision}`}
           shares={session.preview.shares}
@@ -267,7 +310,10 @@ export function BillSplitPanel({
             size="sm"
             variant="outline"
             disabled={busy === 'save'}
-            onClick={() => setSession({ ...session, step: 'people', preview: null })}
+            onClick={() => {
+              setSession({ ...session, step: 'people', preview: null })
+              moveFocus()
+            }}
           >
             Back
           </Button>
@@ -278,7 +324,9 @@ export function BillSplitPanel({
   } else if (session) {
     body = (
       <>
-        <p className="font-medium">Splitting €{session.amount} from revision {session.revision}</p>
+        <h4 ref={stepHeadingRef} tabIndex={-1} className="font-medium">
+          Splitting €{session.amount} from revision {session.revision}
+        </h4>
         <div role="group" aria-label="People sharing this bill" className="space-y-2">
           {housemates === undefined && !housematesFailed && (
             <p className="text-sm text-muted-foreground">Loading your housemates…</p>
@@ -299,7 +347,13 @@ export function BillSplitPanel({
                 />
                 {h.label}
               </label>
-              <Button size="sm" variant="ghost" aria-label={`Remove ${h.label}`} onClick={() => removeName(h.id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={`Remove ${h.label}`}
+                disabled={removing.includes(h.id)}
+                onClick={() => removeName(h.id)}
+              >
                 Remove
               </Button>
             </div>
@@ -307,10 +361,10 @@ export function BillSplitPanel({
         </div>
         <div className="space-y-2">
           <label htmlFor={nameId} className="text-sm text-muted-foreground">Add a housemate</label>
-          <div className="flex gap-2">
+          <form className="flex gap-2" onSubmit={addName}>
             <Input id={nameId} value={newName} onChange={event => setNewName(event.target.value)} />
-            <Button size="sm" variant="outline" onClick={addName} disabled={busy === 'add'}>Add</Button>
-          </div>
+            <Button type="submit" size="sm" variant="outline" disabled={busy === 'add'}>Add</Button>
+          </form>
           {nameMessage && <p role="alert" className="text-sm text-destructive">{nameMessage}</p>}
         </div>
         <p className="text-sm text-muted-foreground">
@@ -330,7 +384,7 @@ export function BillSplitPanel({
               size="sm"
               variant="outline"
               disabled={busy === 'refresh'}
-              onClick={blocked ? loadLatest : () => { void onRefresh().catch(() => {}) }}
+              onClick={blocked ? loadLatest : reloadHousemates}
             >
               Load latest
             </Button>
@@ -358,12 +412,6 @@ export function BillSplitPanel({
           remainder={displayed.remainder_cents}
           totalLine={`Contributions total €${displayed.total}.`}
         />
-        {refreshFailed && (
-          <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
-            <span>The split was saved. The rest of this page could not be refreshed and may be out of date.</span>
-            <Button size="sm" variant="outline" onClick={refreshSavedView} disabled={busy === 'refresh'}>Refresh</Button>
-          </div>
-        )}
         <div>
           <Button size="sm" variant="outline" onClick={startSession}>Split again</Button>
         </div>
@@ -382,11 +430,20 @@ export function BillSplitPanel({
 
   return (
     <section aria-labelledby="bill-split-heading" className="rounded-xl border bg-card p-6 space-y-4">
-      <h3 id="bill-split-heading" className="font-semibold">Bill split</h3>
+      <h3 id="bill-split-heading" ref={headingRef} tabIndex={-1} className="font-semibold">Bill split</h3>
       {message && (
         <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{message}</p>
       )}
       {body}
+      {/* Always on the page, so screen readers announce the notice when its text appears. */}
+      <p role="status" className={showRefreshNotice ? 'text-sm' : 'sr-only'}>
+        {showRefreshNotice && 'The split was saved. The rest of this page could not be refreshed and may be out of date.'}
+      </p>
+      {showRefreshNotice && (
+        <div>
+          <Button size="sm" variant="outline" onClick={refreshSavedView} disabled={busy === 'refresh'}>Refresh</Button>
+        </div>
+      )}
     </section>
   )
 }
