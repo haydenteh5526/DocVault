@@ -10,9 +10,9 @@ The bill review screen displays read-only candidates. Corrections with explicit 
 
 ## Runtime
 
-The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, MinIO for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. See the [README](../README.md#quick-start) for setup, the [technical design](MVP_Technical_Design.md#architecture-and-evidence-flow) for the evidence flow and [verification guide](../AGENTS.md#verification) for test commands.
+The web client uses React and Vite. FastAPI manages account and document access. The Docker stack uses PostgreSQL with pgvector, Redis and ARQ, RustFS as the S3-compatible store for private files, Tesseract for local OCR, Ollama for local embeddings and Mailpit for local account email. Expo is a companion client. See the [README](../README.md#quick-start) for setup, the [technical design](MVP_Technical_Design.md#architecture-and-evidence-flow) for the evidence flow and [verification guide](../AGENTS.md#verification) for test commands.
 
-The assessed demo uses the existing hardware and local stack with **€0 planned additional spend**. Browser CI uses RustFS for its temporary S3-compatible store. The local Compose file still refers to MinIO. The CI runner could not pull `minio/minio:latest` on 9 November, so a fresh local setup without the cached image may hit the same pull failure. The rehearsed stack used the existing image.
+The assessed demo uses the existing hardware and local stack with **€0 planned additional spend**. Local Compose and browser CI both use `rustfs/rustfs:1.0.4` as the S3-compatible store. It replaced MinIO after the CI runner could not pull `minio/minio:latest` on 9 November. The 7 November rehearsal used the earlier MinIO image. Files in an existing local `miniodata` volume are not carried over.
 
 ## Verified results
 

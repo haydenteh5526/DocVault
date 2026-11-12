@@ -137,7 +137,7 @@ async def health_ready():
         checks["database"] = f"error: {type(e).__name__}"
         healthy = False
 
-    # S3 / MinIO
+    # S3-compatible storage
     try:
         get_s3_client().head_bucket(Bucket=settings.S3_BUCKET)
         checks["storage"] = "ok"

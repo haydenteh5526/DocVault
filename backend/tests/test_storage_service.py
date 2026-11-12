@@ -3,7 +3,7 @@ import pytest
 from app.services import storage_service
 
 
-def test_get_s3_client_uses_minio_configuration(monkeypatch):
+def test_get_s3_client_uses_local_endpoint_configuration(monkeypatch):
     captured = {}
     client = object()
 
@@ -13,14 +13,14 @@ def test_get_s3_client_uses_minio_configuration(monkeypatch):
         return client
 
     monkeypatch.setattr(storage_service.boto3, "client", fake_client)
-    monkeypatch.setattr(storage_service.settings, "S3_ENDPOINT", "http://minio:9000")
+    monkeypatch.setattr(storage_service.settings, "S3_ENDPOINT", "http://storage:9000")
     monkeypatch.setattr(storage_service.settings, "S3_ACCESS_KEY", "access")
     monkeypatch.setattr(storage_service.settings, "S3_SECRET_KEY", "secret")
 
     assert storage_service.get_s3_client() is client
     assert captured == {
         "service_name": "s3",
-        "endpoint_url": "http://minio:9000",
+        "endpoint_url": "http://storage:9000",
         "aws_access_key_id": "access",
         "aws_secret_access_key": "secret",
         "config": captured["config"],
