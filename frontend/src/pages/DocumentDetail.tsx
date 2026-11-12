@@ -105,7 +105,10 @@ export default function DocumentDetail() {
       await confirmBillAndRefresh(queryClient, documentId, body)
     } catch (error) {
       // The panel unmounts when the refreshed document has neither candidates nor a confirmed bill.
-      if (error instanceof ApiError && error.code === 'no_bill_review') toast(error.message, 'error')
+      if (error instanceof ApiError && error.code === 'no_bill_review') {
+        const fresh = queryClient.getQueryData<Document>(['document', id])
+        if (!fresh?.bill_review && !fresh?.confirmed_bill) toast(error.message, 'error')
+      }
       throw error
     }
   }
@@ -231,12 +234,13 @@ export default function DocumentDetail() {
       </div>
 
       {/* Main Content Area */}
-      {tab === 'ask' ? (
+      {tab === 'ask' && (
         <div className="flex-1 flex flex-col overflow-hidden">
           <DocumentChat documentId={doc.id} documentTitle={doc.title} initialQuestion={pendingQuestion} />
         </div>
-      ) : (
-      <div className="flex-1 overflow-auto p-4 sm:p-8 relative">
+      )}
+      {/* Stays mounted while hidden so an unsaved bill correction survives a tab switch. */}
+      <div hidden={tab === 'ask'} className="flex-1 overflow-auto p-4 sm:p-8 relative">
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
       {tab === 'preview' && (
@@ -264,13 +268,13 @@ export default function DocumentDetail() {
 
       
 
-      {tab === 'info' && (
-        <div className="animate-fade-in">
+      <div hidden={tab !== 'info'} className="animate-fade-in">
         <div className="animate-slide-up space-y-6">
           {(doc.bill_review || doc.confirmed_bill) && (
             <BillReviewPanel
               review={doc.bill_review ?? null}
               confirmed={doc.confirmed_bill ?? null}
+              processing={!!isProcessing}
               onViewOriginal={() => setTab('preview')}
               onConfirm={confirmBill}
             />
@@ -346,12 +350,10 @@ export default function DocumentDetail() {
             </>
           )}
         </div>
-        </div>
-      )}
+      </div>
 
         </div>
       </div>
-      )}
 
     </div>
   )

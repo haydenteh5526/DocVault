@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ApiError, type BillConfirmation, type BillField, type BillReview, type BillRevision } from '@/lib/api'
 
-const AMOUNT_PATTERN = /^\d{1,7}\.\d{2}$/
+const AMOUNT_PATTERN = /^[0-9]{1,7}\.[0-9]{2}$/
 
 const CONFLICT_MESSAGES: Record<string, string> = {
   transcript_changed:
@@ -29,9 +29,10 @@ interface Session {
   step: 'edit' | 'compare'
 }
 
-export function BillReviewPanel({ review, confirmed, onViewOriginal, onConfirm }: {
+export function BillReviewPanel({ review, confirmed, processing = false, onViewOriginal, onConfirm }: {
   review: BillReview | null
   confirmed: BillRevision | null
+  processing?: boolean
   onViewOriginal: () => void
   onConfirm: (body: BillConfirmation) => Promise<void>
 }) {
@@ -122,7 +123,7 @@ export function BillReviewPanel({ review, confirmed, onViewOriginal, onConfirm }
     )
   } else if (confirmed) {
     status = `Confirmed · revision ${confirmed.revision_number} · ${formatCreatedAt(confirmed.created_at)}`
-    body = <ConfirmedView review={review} confirmed={confirmed} onEdit={startSession} />
+    body = <ConfirmedView review={review} confirmed={confirmed} processing={processing} onEdit={startSession} />
   } else if (review) {
     status = 'Not confirmed yet'
     body = (
@@ -159,9 +160,10 @@ export function BillReviewPanel({ review, confirmed, onViewOriginal, onConfirm }
   )
 }
 
-function ConfirmedView({ review, confirmed, onEdit }: {
+function ConfirmedView({ review, confirmed, processing, onEdit }: {
   review: BillReview | null
   confirmed: BillRevision
+  processing: boolean
   onEdit: () => void
 }) {
   const evidence = confirmed.evidence
@@ -179,7 +181,9 @@ function ConfirmedView({ review, confirmed, onEdit }: {
       </dl>
       {review === null ? (
         <p className="text-sm text-muted-foreground">
-          The current transcript no longer produces bill candidates. These are the values and evidence you confirmed.
+          {processing
+            ? 'This document is being reprocessed. These are the values and evidence you confirmed.'
+            : 'The current transcript no longer produces bill candidates. These are the values and evidence you confirmed.'}
         </p>
       ) : (
         <>
@@ -295,7 +299,11 @@ function formatBillDate(value: string) {
 }
 
 function formatCreatedAt(value: string) {
-  return new Date(value).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })
+  // The API sends UTC timestamps without an offset.
+  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z'
+  return new Date(utc).toLocaleDateString('en-IE', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  })
 }
 
 function Evidence({ sources }: { sources: BillField['sources'] }) {

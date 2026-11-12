@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, within, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApiError, type BillReview, type BillRevision } from '@/lib/api'
 import { BillReviewPanel } from './BillReview'
@@ -147,6 +147,10 @@ describe('BillReviewPanel', () => {
     await userEvent.click(button('Check values'))
     expect(screen.getByRole('alert')).toHaveTextContent('Enter the amount as euros and cents, for example 123.47.')
 
+    await replace('Amount due (€)', '١٢٣.٤٧')
+    await userEvent.click(button('Check values'))
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter the amount as euros and cents, for example 123.47.')
+
     await replace('Amount due (€)', '123.47')
     setDate('Billing period end', '2026-09-30')
     await userEvent.click(button('Check values'))
@@ -246,5 +250,64 @@ describe('BillReviewPanel', () => {
     expect(region()).not.toHaveTextContent('999.99')
     expect(button('Review and confirm')).toBeInTheDocument()
     expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('a confirmed revision reopens during reprocessing with its saved evidence', () => {
+    const { container } = render(panel({ review: null, confirmed: confirmedRevision(2, '125.00'), processing: true }))
+    expect(region()).toHaveTextContent('Confirmed · revision 2')
+    expect(container.querySelectorAll('blockquote')).toHaveLength(3)
+    expect(region()).toHaveTextContent(
+      'This document is being reprocessed. These are the values and evidence you confirmed.',
+    )
+    expect(region()).not.toHaveTextContent(NO_CANDIDATES_NOTICE)
+    expect(screen.queryByRole('button', { name: 'Edit confirmed values' })).not.toBeInTheDocument()
+  })
+
+  it('shows the confirmation date in UTC', () => {
+    render(panel({ confirmed: { ...confirmedRevision(2, '125.00'), created_at: '2026-11-11T23:30:00' } }))
+    expect(region()).toHaveTextContent('Confirmed · revision 2 · 11 November 2026')
+  })
+
+  it('offers to edit a confirmed revision whose evidence matches the transcript', () => {
+    render(panel({ confirmed: confirmedRevision(2, '125.00') }))
+    expect(button('Edit confirmed values')).toBeInTheDocument()
+  })
+
+  it('a document that no longer produces a bill review explains that nothing was saved', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new ApiError(409, 'gone', 'no_bill_review'))
+    render(panel({ onConfirm }))
+    await userEvent.click(button('Review and confirm'))
+    await userEvent.click(button('Check values'))
+    await userEvent.click(button('Confirm and save'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This document no longer produces a bill review. Nothing was saved.',
+    )
+  })
+
+  it('a conflict without a reason code uses the general message', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new ApiError(409, 'changed'))
+    render(panel({ onConfirm }))
+    await userEvent.click(button('Review and confirm'))
+    await userEvent.click(button('Check values'))
+    await userEvent.click(button('Confirm and save'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This bill changed while you were reviewing. Nothing was saved. The latest version is shown below.',
+    )
+    expect(button('Review and confirm')).toBeInTheDocument()
+  })
+
+  it('disables Confirm and save while the save is pending', async () => {
+    let finish: () => void = () => {}
+    const onConfirm = vi.fn(() => new Promise<void>(resolve => { finish = resolve }))
+    render(panel({ onConfirm }))
+    await userEvent.click(button('Review and confirm'))
+    await userEvent.click(button('Check values'))
+    await userEvent.click(button('Confirm and save'))
+
+    expect(button('Confirm and save')).toBeDisabled()
+    expect(onConfirm).toHaveBeenCalledOnce()
+    await act(async () => finish())
   })
 })

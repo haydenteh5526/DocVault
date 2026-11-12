@@ -123,6 +123,9 @@ test.describe('DocVault auth flow', () => {
 
       await review.getByRole('button', { name: 'Review and confirm' }).click();
       await review.getByLabel('Amount due (€)').fill('125.00');
+      await review.getByRole('button', { name: 'View original bill' }).click();
+      await page.getByRole('button', { name: 'Summary', exact: true }).click();
+      await expect(review.getByLabel('Amount due (€)')).toHaveValue('125.00');
       await review.getByRole('button', { name: 'Check values' }).click();
       await expect(review).toContainText('OCR read: €123.47');
       await review.getByRole('button', { name: 'Confirm and save' }).click();
