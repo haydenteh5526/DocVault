@@ -219,6 +219,34 @@ async def test_changed_transcript_is_rejected():
 
 
 @pytest.mark.asyncio
+async def test_a_transcript_edit_in_progress_blocks_the_save():
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=BILL)
+    try:
+        async with _client() as client:
+            review = await _review(client, document_id, owner_id)
+            async with async_session() as editor:
+                await editor.execute(
+                    update(Document)
+                    .where(Document.id == document_id)
+                    .values(raw_text=BILL.replace("EUR 123.47", "EUR 130.00"))
+                )
+                save = asyncio.create_task(_post(client, document_id, owner_id, {**VALUES, "reviewed": review}))
+                try:
+                    await asyncio.sleep(0.5)
+                    assert not save.done()
+                    await editor.commit()
+                finally:
+                    if not save.done():
+                        await editor.rollback()
+                    response = await save
+        assert response.status_code == 409
+        assert _code(response) == "transcript_changed"
+        assert await _row_count(document_id) == 0
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -227,6 +255,7 @@ async def test_changed_transcript_is_rejected():
         ("amount_due", "-5.00"),
         ("amount_due", "€12.00"),
         ("amount_due", ""),
+        ("amount_due", "١٢٣.٤٧"),
         ("billing_period_end", "2026-09-30"),
         ("due_date", "2026-02-31"),
         ("base_revision", -1),

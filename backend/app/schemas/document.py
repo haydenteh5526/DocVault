@@ -62,7 +62,7 @@ class BillReview(BaseModel):
 
 class BillConfirmation(BaseModel):
     # EUR amount as a decimal string with exactly two decimals, stored as integer cents.
-    amount_due: str = Field(pattern=r"^\d{1,7}\.\d{2}$")
+    amount_due: str = Field(pattern=r"^[0-9]{1,7}\.[0-9]{2}$")
     due_date: date
     billing_period_start: date
     billing_period_end: date
