@@ -3,12 +3,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
 import Markdown from 'react-markdown'
-import type { BillField } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type SimilarDocument } from '@/lib/api'
 import { useToast } from '@/components/Toast'
+import { BillReviewPanel } from '@/components/BillReview'
+import { ApiError, type BillConfirmation } from '@/lib/api'
+import { confirmBillAndRefresh } from '@/lib/billConfirm'
 
 /**
  * Wraps occurrences of meaningful query words (≥4 chars) in <mark> so a document
@@ -96,6 +98,20 @@ export default function DocumentDetail() {
 
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
+
+  async function confirmBill(body: BillConfirmation) {
+    const documentId = doc!.id
+    try {
+      await confirmBillAndRefresh(queryClient, documentId, body)
+    } catch (error) {
+      // The panel unmounts when the refreshed document has neither candidates nor a confirmed bill.
+      if (error instanceof ApiError && error.code === 'no_bill_review') {
+        const fresh = queryClient.getQueryData<Document>(['document', id])
+        if (!fresh?.bill_review && !fresh?.confirmed_bill) toast(error.message, 'error')
+      }
+      throw error
+    }
+  }
 
   async function handleDelete() {
     if (!doc || !window.confirm('Are you sure you want to delete this document?')) return
@@ -218,12 +234,13 @@ export default function DocumentDetail() {
       </div>
 
       {/* Main Content Area */}
-      {tab === 'ask' ? (
+      {tab === 'ask' && (
         <div className="flex-1 flex flex-col overflow-hidden">
           <DocumentChat documentId={doc.id} documentTitle={doc.title} initialQuestion={pendingQuestion} />
         </div>
-      ) : (
-      <div className="flex-1 overflow-auto p-4 sm:p-8 relative">
+      )}
+      {/* Stays mounted while hidden so an unsaved bill correction survives a tab switch. */}
+      <div hidden={tab === 'ask'} className="flex-1 overflow-auto p-4 sm:p-8 relative">
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
       {tab === 'preview' && (
@@ -251,9 +268,17 @@ export default function DocumentDetail() {
 
       
 
-      {tab === 'info' && (
-        <div className="animate-fade-in">
+      <div hidden={tab !== 'info'} className="animate-fade-in">
         <div className="animate-slide-up space-y-6">
+          {(doc.bill_review || doc.confirmed_bill) && (
+            <BillReviewPanel
+              review={doc.bill_review ?? null}
+              confirmed={doc.confirmed_bill ?? null}
+              processing={!!isProcessing}
+              onViewOriginal={() => setTab('preview')}
+              onConfirm={confirmBill}
+            />
+          )}
           {isProcessing ? (
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-8">
@@ -266,21 +291,6 @@ export default function DocumentDetail() {
             </Card>
           ) : (
             <>
-              {doc.bill_review && (
-                <section aria-labelledby="bill-review-heading" className="rounded-xl border bg-card p-6 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 id="bill-review-heading" className="font-semibold">Bill review</h3>
-                    <Button variant="outline" size="sm" onClick={() => setTab('preview')}>View original bill</Button>
-                  </div>
-                  <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    <BillReviewField label="Amount due" field={doc.bill_review.amount_due}
-                      display={value => '€' + value} />
-                    <BillReviewField label="Due date" field={doc.bill_review.due_date} display={formatBillDate} />
-                    <BillReviewField label="Billing period" field={doc.bill_review.billing_period}
-                      display={value => value.split('/').map(formatBillDate).join(' – ')} />
-                  </dl>
-                </section>
-              )}
               {/* AI Summary */}
               {doc.summary && (
                 <RichSummary summary={doc.summary} onTopicClick={(topic) => { setPendingQuestion(`Tell me about ${topic} in this document`); setTab('ask') }} />
@@ -340,39 +350,11 @@ export default function DocumentDetail() {
             </>
           )}
         </div>
-        </div>
-      )}
+      </div>
 
         </div>
       </div>
-      )}
 
-    </div>
-  )
-}
-
-function formatBillDate(value: string) {
-  return new Date(value + 'T00:00:00Z').toLocaleDateString('en-IE', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  })
-}
-
-function BillReviewField({ label, field, display }: {
-  label: string; field: BillField; display: (value: string) => string
-}) {
-  return (
-    <div>
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-semibold">{field.value ? display(field.value) : 'Check the original bill'}</dd>
-      <dd className="mt-2 space-y-2 text-sm">
-        {field.sources.length === 0 && <p>No labelled OCR line found.</p>}
-        {field.sources.map(source => (
-          <blockquote key={source.line} className="border-l-2 border-border pl-3">
-            <span className="text-xs text-muted-foreground">OCR line {source.line}</span>
-            <p>{source.text}</p>
-          </blockquote>
-        ))}
-      </dd>
     </div>
   )
 }

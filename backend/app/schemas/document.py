@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class TagOut(BaseModel):
@@ -60,8 +60,39 @@ class BillReview(BaseModel):
     billing_period: BillField
 
 
+class BillConfirmation(BaseModel):
+    # EUR amount as a decimal string with exactly two decimals, stored as integer cents.
+    amount_due: str = Field(pattern=r"^[0-9]{1,7}\.[0-9]{2}$")
+    due_date: date
+    billing_period_start: date
+    billing_period_end: date
+    # The review the owner saw when editing started; the save is bound to it.
+    reviewed: BillReview
+    # 0 means no revision existed when editing started.
+    base_revision: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _period_in_order(self) -> "BillConfirmation":
+        if self.billing_period_end < self.billing_period_start:
+            raise ValueError("The billing period must end on or after it starts.")
+        return self
+
+
+class BillRevisionOut(BaseModel):
+    id: uuid.UUID
+    document_id: uuid.UUID
+    revision_number: int
+    amount_due: str
+    due_date: date
+    billing_period_start: date
+    billing_period_end: date
+    evidence: BillReview
+    created_at: datetime
+
+
 class DocumentDetailOut(DocumentOut):
     bill_review: BillReview | None = None
+    confirmed_bill: BillRevisionOut | None = None
 
 
 class DocumentList(BaseModel):
