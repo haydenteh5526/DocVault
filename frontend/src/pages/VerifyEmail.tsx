@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { verifyEmail } from '@/lib/api'
 
 export default function VerifyEmail() {
   const [params] = useSearchParams()
@@ -12,13 +13,19 @@ export default function VerifyEmail() {
     const token = params.get('token')
     if (!token) { setStatus('error'); setMessage('Invalid verification link.'); return }
 
-    fetch(`/api/v1/auth/verify?token=${token}`)
-      .then(async res => {
-        const data = await res.json()
-        if (res.ok) { setStatus('success'); setMessage(data.message) }
-        else { setStatus('error'); setMessage(data.detail || 'Verification failed') }
+    let current = true
+    verifyEmail(token)
+      .then(result => {
+        if (!current) return
+        setStatus(result.ok ? 'success' : 'error')
+        setMessage(result.message)
       })
-      .catch(() => { setStatus('error'); setMessage('Server unavailable') })
+      .catch(() => {
+        if (!current) return
+        setStatus('error')
+        setMessage('Server unavailable')
+      })
+    return () => { current = false }
   }, [params])
 
   return (

@@ -189,9 +189,61 @@ export async function registerUser(email: string, password: string, displayName?
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Registration failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Registration failed', 'Check your email address and password.') : 'Server unavailable')
   }
   return res.json()
+}
+
+function safeJson(text: string): { detail?: unknown } | undefined {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Turn a FastAPI `detail` into text for the user. String details pass through;
+ * a 422 validation list shows its first item's `msg`, else `listFallback`.
+ */
+export function detailMessage(detail: unknown, fallback: string, listFallback = fallback): string {
+  if (typeof detail === 'string' && detail) return detail
+  if (Array.isArray(detail)) {
+    const msg = (detail[0] as { msg?: unknown } | undefined)?.msg
+    return typeof msg === 'string' && msg ? msg : listFallback
+  }
+  return fallback
+}
+
+// The verification token is single use, so each token is redeemed once per page
+// load. React StrictMode runs effects twice in development; both runs share
+// this promise instead of sending a second request that the server would reject.
+const verifications = new Map<string, Promise<{ ok: boolean; message: string }>>()
+
+/** Redeem an email verification token. Public call: no session is needed. */
+export function verifyEmail(token: string): Promise<{ ok: boolean; message: string }> {
+  let pending = verifications.get(token)
+  if (!pending) {
+    pending = (async () => {
+      const res = await fetch(`${BASE}/auth/verify?token=${encodeURIComponent(token)}`)
+      let data: { message?: unknown; detail?: unknown }
+      try {
+        data = await res.json()
+      } catch {
+        // No JSON body (e.g. a proxy 502): the server never judged the token.
+        throw new Error('Server unavailable')
+      }
+      if (res.status >= 500) throw new Error('Server unavailable')
+      if (res.ok) {
+        return { ok: true, message: typeof data.message === 'string' ? data.message : 'Email verified' }
+      }
+      return { ok: false, message: detailMessage(data.detail, 'Verification failed') }
+    })()
+    verifications.set(token, pending)
+    // A network failure is not a verdict on the token, so let a retry run.
+    pending.catch(() => verifications.delete(token))
+  }
+  return pending
 }
 
 export async function loginUser(email: string, password: string, rememberMe = false): Promise<{ access_token?: string; refresh_token?: string; requires_2fa?: boolean }> {
