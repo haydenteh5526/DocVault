@@ -298,7 +298,12 @@ export default function DocumentDetail() {
                 storeHousemates(queryClient, accountId, list => [...list, created])
               }}
               onRemoveHousemate={async removedId => {
-                await removeHousemate(removedId)
+                try {
+                  await removeHousemate(removedId)
+                } catch (error) {
+                  // Already removed (in another tab, say): the list only needs to catch up.
+                  if (!(error instanceof ApiError && error.status === 404)) throw error
+                }
                 storeHousemates(queryClient, accountId, list => list.filter(h => h.id !== removedId))
               }}
               onPreview={body => previewBillSplit(doc.id, body)}

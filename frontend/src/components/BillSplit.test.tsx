@@ -297,7 +297,7 @@ describe('BillSplitPanel', () => {
     expect(within(region()).getAllByRole('listitem')).toHaveLength(4)
     expect(region()).toHaveTextContent('Contributions total €123.47.')
     expect(props.onRefresh).toHaveBeenCalledTimes(1)
-    expect(within(region()).queryByRole('status')).toBeNull()
+    expect(within(region()).getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('a successful save is shown even when the refresh fails', async () => {
@@ -316,7 +316,7 @@ describe('BillSplitPanel', () => {
 
     onRefresh.mockResolvedValue(undefined)
     await click('Refresh')
-    expect(within(region()).queryByRole('status')).toBeNull()
+    expect(within(region()).getByRole('status')).toBeEmptyDOMElement()
     expect(region()).toHaveTextContent('Saved · split 1')
   })
 
@@ -334,6 +334,7 @@ describe('BillSplitPanel', () => {
     )
     expect(s.region()).toHaveTextContent('Saved · split 1')
     expect(screen.queryByText('Confirm this split')).toBeNull()
+    expect(document.activeElement?.textContent).toBe('Bill split')
   })
 
   it('a changed bill revision reloads and explains', async () => {
@@ -526,8 +527,17 @@ describe('BillSplitPanel', () => {
   it('D8: Enter in the add field adds the name', async () => {
     const { props, region, user, click } = setup()
     await click('Split this bill')
-    await user.type(within(region()).getByLabelText('Add a housemate'), 'Eoin{Enter}')
+    const submits: boolean[] = []
+    const record = (event: Event) => submits.push(event.defaultPrevented)
+    document.addEventListener('submit', record)
+    try {
+      await user.type(within(region()).getByLabelText('Add a housemate'), 'Eoin{Enter}')
+    } finally {
+      document.removeEventListener('submit', record)
+    }
     expect(props.onAddHousemate).toHaveBeenCalledWith('Eoin')
+    // A native submit would reload the page and lose the split in progress.
+    expect(submits).toEqual([true])
   })
 
   it('D8: focus moves to the heading of each new step', async () => {
@@ -546,6 +556,61 @@ describe('BillSplitPanel', () => {
     expect(focused()).toBe('Splitting €123.47 from revision 1')
     await click('Cancel')
     expect(focused()).toBe('Bill split')
+  })
+
+  it('finding 1: focus returns to the step heading after Load latest succeeds', async () => {
+    const { rerender, click, onRefresh } = await reachBlockedReview()
+    onRefresh.mockImplementation(async () => rerender({ confirmed: confirmed2 }))
+    await click('Load latest')
+    expect(document.activeElement?.textContent).toBe('Splitting €126.50 from revision 2')
+  })
+
+  it('finding 1: focus returns to the step heading after reloading housemates that failed', async () => {
+    const holder: { rerender?: (changes: Partial<Props>) => void } = {}
+    const onRefresh = vi.fn(async () => holder.rerender?.({ housemates: four, housematesFailed: false }))
+    const s = setup({ housemates: undefined, housematesFailed: true, onRefresh })
+    holder.rerender = s.rerender
+    await s.click('Split this bill')
+    await s.click('Load latest')
+    expect(within(s.region()).queryByRole('button', { name: 'Load latest' })).toBeNull()
+    expect(document.activeElement?.textContent).toBe('Splitting €123.47 from revision 1')
+  })
+
+  it('finding 1: focus returns to the step heading after a name is removed', async () => {
+    const { region, rerender, click } = setup()
+    await click('Split this bill')
+    await click('Remove Ben')
+    rerender({ housemates: four.filter(h => h.id !== 'h2') })
+    expect(within(region()).queryByRole('button', { name: 'Remove Ben' })).toBeNull()
+    expect(document.activeElement?.textContent).toBe('Splitting €123.47 from revision 1')
+  })
+
+  it('finding 1: focus returns to the step heading after other errors', async () => {
+    const calc = setup({ onPreview: vi.fn().mockRejectedValue(new Error('network')) })
+    await calc.click('Split this bill')
+    await calc.click('Calculate shares')
+    expect(document.activeElement?.textContent).toBe('Splitting €123.47 from revision 1')
+    cleanup()
+
+    const save = setup({ onSave: vi.fn().mockRejectedValue(new Error('network')) })
+    await save.click('Split this bill')
+    await save.click('Calculate shares')
+    await save.click('Save split')
+    expect(document.activeElement?.textContent).toBe('Confirm this split')
+  })
+
+  it('finding 2: the refresh notice is announced in a status region that was already on the page', async () => {
+    const onRefresh = vi.fn().mockRejectedValue(new Error('down'))
+    const { region, click } = setup({ onRefresh })
+    const status = within(region()).getByRole('status')
+    expect(status).toBeEmptyDOMElement()
+    await click('Split this bill')
+    await click('Calculate shares')
+    await click('Save split')
+    expect(within(region()).getByRole('status')).toBe(status)
+    expect(status).toHaveTextContent(
+      'The split was saved. The rest of this page could not be refreshed and may be out of date.',
+    )
   })
 
   it('cancel leaves nothing saved', async () => {
