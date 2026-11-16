@@ -322,7 +322,7 @@ async def test_a_proposal_waits_for_the_document_lock(bill):
             await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             proposal = asyncio.create_task(_propose(client, document_id, owner_id))
             try:
-                assert await wait_until_blocked(proposal)
+                assert await wait_until_blocked(proposal, locker)
                 assert not proposal.done()
                 await locker.commit()
             finally:
@@ -668,7 +668,7 @@ async def test_an_approval_waits_for_the_document_lock(bill):
             await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             approval = asyncio.create_task(_approve(client, document_id, owner_id, proposal))
             try:
-                assert await wait_until_blocked(approval)
+                assert await wait_until_blocked(approval, locker)
                 assert not approval.done()
                 await locker.commit()
             finally:

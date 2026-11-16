@@ -443,6 +443,43 @@ describe('BillReminderPanel', () => {
     expect(within(region()).queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
   })
 
+  it('does not call a failed approval saved after an earlier failed refresh', async () => {
+    const { props, region, click, days } = setup({
+      onRefresh: vi.fn(async () => {
+        throw new Error('offline')
+      }),
+      onApprove: vi.fn(async () => {
+        throw new Error('network')
+      }),
+    })
+    await days('2')
+    await click('Propose reminder')
+    expect(within(region()).getByRole('status')).toHaveTextContent('Your change was saved.')
+    await click('Approve and save')
+    expect(within(region()).getByRole('alert')).toHaveTextContent('Could not confirm that the reminder was saved.')
+    expect(within(region()).getByRole('status')).toHaveTextContent('')
+    expect(within(region()).queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+    expect(props.onApprove).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows only the load-latest button when a refused change and its reload both fail', async () => {
+    const { region, click, days } = setup({
+      onRefresh: vi.fn(async () => {
+        throw new Error('offline')
+      }),
+      onApprove: vi.fn(async () => {
+        throw conflict('proposal_stale')
+      }),
+    })
+    await days('2')
+    await click('Propose reminder')
+    await click('Approve and save')
+    expect(within(region()).getByRole('alert')).toHaveTextContent('The latest version could not be loaded.')
+    expect(within(region()).getByRole('status')).toHaveTextContent('')
+    expect(within(region()).queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+    expect(within(region()).getByRole('button', { name: 'Load latest' })).toBeInTheDocument()
+  })
+
   it('stops offering a kept proposal that the page data now says is out of date', async () => {
     const { rerender, region, click, days } = setup({
       onRefresh: vi.fn(async () => {

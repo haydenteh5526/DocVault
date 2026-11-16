@@ -142,6 +142,8 @@ export function BillReminderPanel({
     otherError: string,
   ) {
     setBusy(action)
+    // The note about an earlier failed refresh is about that earlier change, not the one starting now.
+    setRefreshFailed(false)
     let result: ReminderProposal
     try {
       result = await call()

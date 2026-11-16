@@ -443,7 +443,7 @@ async def test_a_split_save_waits_for_the_document_lock(bill):
             await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
             save = asyncio.create_task(_save(client, document_id, owner_id, _full_save(ids, preview)))
             try:
-                assert await wait_until_blocked(save)
+                assert await wait_until_blocked(save, locker)
                 assert not save.done()
                 await locker.commit()
             finally:
