@@ -9,9 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
-from app.models.base import Conversation, ConversationMessage
-from app.services.rag_service import ChatTurn as RAGChatTurn
-from app.services.rag_service import generate_rag_answer
+from app.models.base import Conversation, ConversationMessage, Document
+from app.services.assistant.turn import run_turn
 
 router = APIRouter()
 
@@ -42,6 +41,7 @@ class MessageOut(BaseModel):
     role: str
     content: str
     sources: list[dict] | None = None
+    action: dict | None = None
     created_at: datetime
 
 
@@ -55,7 +55,7 @@ class ConversationDetail(BaseModel):
 
 class SendMessageRequest(BaseModel):
     question: str
-    document_id: str | None = None
+    document_id: uuid.UUID | None = None
 
 
 class SendMessageResponse(BaseModel):
@@ -166,6 +166,7 @@ async def get_conversation(
                 role=m.role,
                 content=m.content,
                 sources=m.sources,
+                action=m.action,
                 created_at=m.created_at,
             )
             for m in conversation.messages
@@ -256,15 +257,29 @@ async def send_message(
     msg_stmt = (
         select(ConversationMessage)
         .where(ConversationMessage.conversation_id == conversation_id)
-        .order_by(ConversationMessage.created_at)
+        .order_by(ConversationMessage.created_at, ConversationMessage.role.desc())
     )
     msg_result = await db.execute(msg_stmt)
     existing_messages = msg_result.scalars().all()
 
-    # Build history from existing messages
-    history = [RAGChatTurn(role=m.role, content=m.content) for m in existing_messages]
+    # The conversation can be scoped to one of the caller's documents; anyone else's is a 404.
+    scope_id = None
+    if body.document_id is not None:
+        scope_id = (
+            await db.execute(
+                select(Document.id).where(Document.id == body.document_id, Document.user_id == user_id)
+            )
+        ).scalar_one_or_none()
+        if scope_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    # Save user message
+    # Read what is needed after the turn now: the turn may commit or roll back this session.
+    is_first_message = not existing_messages
+    keeps_title = conversation.title.startswith("[")
+
+    # Run the turn before adding either message: the reminder service commits or rolls back the session.
+    result = await run_turn(db, user_id, body.question, scope_id, list(existing_messages))
+
     user_msg = ConversationMessage(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
@@ -273,28 +288,18 @@ async def send_message(
     )
     db.add(user_msg)
 
-    # Generate AI response using shared RAG logic
-    rag_result = await generate_rag_answer(
-        question=body.question,
-        user_id=user_id,
-        db=db,
-        document_id=body.document_id,
-        history=history,
-    )
-
-    # Save assistant message with sources
-    sources_data = [s.to_dict() for s in rag_result.sources] if rag_result.sources else None
     assistant_msg = ConversationMessage(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         role="assistant",
-        content=rag_result.answer,
-        sources=sources_data,
+        content=result.content,
+        sources=result.sources or None,
+        action=result.action.model_dump(mode="json"),
     )
     db.add(assistant_msg)
 
     # Update conversation title if it's the first message (auto-generate from question)
-    if not existing_messages and not conversation.title.startswith("["):
+    if is_first_message and not keeps_title:
         title = body.question[:100].strip()
         if len(body.question) > 100:
             title += "..."
@@ -328,6 +333,7 @@ async def send_message(
             role=assistant_msg.role,
             content=assistant_msg.content,
             sources=assistant_msg.sources,
+            action=assistant_msg.action,
             created_at=assistant_msg.created_at,
         ),
     )

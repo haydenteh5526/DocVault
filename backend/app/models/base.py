@@ -285,7 +285,7 @@ class Conversation(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     messages: Mapped[list["ConversationMessage"]] = relationship(
-        back_populates="conversation", cascade="all, delete-orphan", order_by="ConversationMessage.created_at"
+        back_populates="conversation", cascade="all, delete-orphan", order_by="(ConversationMessage.created_at, ConversationMessage.role.desc())"
     )
 
     __table_args__ = (
@@ -302,6 +302,8 @@ class ConversationMessage(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" or "assistant"
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # What the assistant did for this message (issue #5). None for user messages and for older messages.
+    action: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
