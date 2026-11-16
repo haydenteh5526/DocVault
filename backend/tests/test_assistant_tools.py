@@ -425,3 +425,43 @@ async def test_general_questions_use_retrieval(bill):
     assert result.content == "It is a fixed daily charge."
     assert result.sources == [source.to_dict()]
     assert stub.await_args.kwargs["user_id"] == owner_id
+
+
+@pytest.mark.asyncio
+async def test_one_saved_housemate_is_not_asked_about_forever(bill):
+    owner_id, _, document_id = bill
+    await _confirmed(document_id)
+    await _roster(owner_id, "Aoife")
+    result = await _run(owner_id, tool="split_bill", count=2)
+    assert result.action.kind == "notice" and result.action.reason == "no_housemates"
+    assert result.content == (
+        "A split needs at least two people and you have saved only one housemate. "
+        "Open the bill and add them in the Bill split panel."
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_bill_that_changes_mid_request_writes_nothing(bill, monkeypatch):
+    owner_id, _, document_id = bill
+    await _confirmed(document_id)
+    await _confirmed(document_id, amount="125.00", base=1)
+    await _roster(owner_id, *FOUR)
+
+    async def stale_numbers(db, document_id):
+        return (1, 0, 0)  # the revision the owner saw, before revision 2 was confirmed
+
+    monkeypatch.setattr("app.services.assistant.tools.current_request_numbers", stale_numbers)
+    result = await _run(owner_id, tool="propose_reminder", days_before_due=2)
+    assert result.action.kind == "notice" and result.action.reason == "changed"
+    assert result.content == "The bill changed while I was preparing that. Ask again."
+    assert await _count(ReminderProposal, document_id) == 0
+
+    from app.services.bill_split import BillSplitConflict
+
+    async def conflicting(*args, **kwargs):
+        raise BillSplitConflict("revision_changed", "changed")
+
+    monkeypatch.setattr("app.services.assistant.tools.preview_split", conflicting)
+    result = await _run(owner_id, tool="split_bill", people=[], count=4)
+    assert result.action.kind == "notice" and result.action.reason == "changed"
+    assert await _count(BillSplit, document_id) == 0

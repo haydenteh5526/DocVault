@@ -29,6 +29,10 @@ from app.services.reminders import ReminderConflict, current_request_numbers, pr
 
 NO_BILLS = "I can't find a bill in your documents yet. Upload one, then open it and confirm its values."
 NO_HOUSEMATES = "You have no saved housemates yet. Open the bill and add them in the Bill split panel."
+ONE_HOUSEMATE = (
+    "A split needs at least two people and you have saved only one housemate. "
+    "Open the bill and add them in the Bill split panel."
+)
 CHANGED = "The bill changed while I was preparing that. Ask again."
 PENDING = (
     "A reminder proposal is already waiting for your decision on this bill. Open the bill to approve or cancel it."
@@ -198,6 +202,8 @@ async def run_selection(
         saved = await list_housemates(db, user_id)
         if not saved:
             return reply(NO_HOUSEMATES, "notice", bill, reason="no_housemates")
+        if len(saved) < 2:
+            return reply(ONE_HOUSEMATE, "notice", bill, reason="no_housemates")
         by_key = {person.label.casefold(): person for person in saved}
         names = [person.label for person in saved]
         chosen = []

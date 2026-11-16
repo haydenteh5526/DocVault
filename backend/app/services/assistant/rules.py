@@ -117,14 +117,20 @@ def read_bill(text: str, bills: list[BillRef]) -> str | None:
     by_month = [bill for bill in bills if any(month in bill.title.casefold() for month in months)]
     if months and len(by_month) == 1:
         return by_month[0].ref
-    names = "|".join([*_NUMBERS, *_ORDINALS])
-    match = re.fullmatch(rf"\s*(?:the )?(\d{{1,3}}|{names})(?: one)?\s*[.)]?\s*", folded)
-    if match:
-        token = match[1]
-        index = _ORDINALS.get(token) or _number(token)
-        if index is not None and 1 <= index <= len(bills):
-            return bills[index - 1].ref
+    index = read_list_number(text)
+    if index is not None and 1 <= index <= len(bills):
+        return bills[index - 1].ref
     return None
+
+
+def read_list_number(text: str) -> int | None:
+    """A whole reply that is only a list number: `2`, `2.`, `the second`, `the first one`."""
+    names = "|".join([*_NUMBERS, *_ORDINALS])
+    match = re.fullmatch(rf"\s*(?:the )?(\d{{1,3}}|{names})(?: one)?\s*[.)]?\s*", _fold(text))
+    if not match:
+        return None
+    token = match[1]
+    return _ORDINALS.get(token) or _number(token)
 
 
 def _clean(text: str) -> str:

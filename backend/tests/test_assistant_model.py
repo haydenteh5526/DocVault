@@ -169,3 +169,11 @@ async def test_an_unreadable_body_falls_back(configured):
     async with _client(handler) as client:
         selection, reason = await select_by_model(_input(), client)
     assert selection is None and reason.startswith("error: ")
+
+
+@pytest.mark.asyncio
+async def test_a_malformed_model_address_falls_back(monkeypatch):
+    monkeypatch.setattr(settings, "ASSISTANT_MODEL", "test-model")
+    monkeypatch.setattr(settings, "OLLAMA_URL", "http://[::1")
+    selection, reason = await select_by_model(_input())
+    assert selection is None and reason.startswith("error: ")

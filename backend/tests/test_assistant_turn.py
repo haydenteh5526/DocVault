@@ -429,3 +429,31 @@ async def test_status_reports_the_selector(monkeypatch):
         model = (await client.get("/api/v1/ai/status")).json()
     assert none["assistant_selector"] == "rules" and none["assistant_model"] is None
     assert model["assistant_selector"] == "model" and model["assistant_model"] == "test-model"
+
+
+@pytest.mark.asyncio
+async def test_a_list_number_means_the_list_the_owner_was_shown(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        september, conversation = await _two_bills(client, owner_id, document_id)
+        question = await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        assert question["action"]["options"] == ["September electricity bill", "October electricity bill"]
+        newer = await _add_document(owner_id, "November electricity bill", minutes=5)
+        await _confirm(client, newer, owner_id)
+        answer = await _say(client, owner_id, conversation, "2")
+    assert answer["action"]["kind"] == "reminder_proposal"
+    assert answer["action"]["document_id"] == str(document_id)
+    assert await _count(ReminderProposal, document_id) == 1
+    assert await _count(ReminderProposal, september) == 0 and await _count(ReminderProposal, newer) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_list_number_for_a_bill_that_is_gone_is_not_guessed(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        september, conversation = await _two_bills(client, owner_id, document_id)
+        await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        await _rename(september, "Renamed bill")
+        answer = await _say(client, owner_id, conversation, "1")
+    assert answer["action"]["kind"] != "reminder_proposal"
+    assert await _count(ReminderProposal, september) == 0 and await _count(ReminderProposal, document_id) == 0

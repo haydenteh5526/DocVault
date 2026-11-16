@@ -153,9 +153,7 @@ async def select_by_model(
         body = response.json()
     except httpx.TimeoutException:
         return None, "timeout"
-    except httpx.HTTPError as error:
-        return None, f"error: {type(error).__name__}"
-    except ValueError as error:
+    except Exception as error:  # noqa: BLE001 - a selector failure of any kind must fall back, never fail the request
         return None, f"error: {type(error).__name__}"
     finally:
         if owned:

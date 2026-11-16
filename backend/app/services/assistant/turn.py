@@ -8,7 +8,7 @@ from app.models.base import ConversationMessage
 from app.schemas.assistant import Selection, SelectorMeta, TurnResult
 from app.services.assistant.bills import owner_bills
 from app.services.assistant.model import SelectorInput, select_by_model
-from app.services.assistant.rules import fill_pending, select_by_rules
+from app.services.assistant.rules import fill_pending, read_list_number, select_by_rules
 from app.services.assistant.tools import run_selection
 from app.services.housemates import list_housemates
 from app.services.rag_service import ChatTurn
@@ -48,7 +48,20 @@ async def run_turn(
         if action.get("kind") == "question" and action.get("pending"):
             try:
                 pending = Selection.model_validate(action["pending"])
-                filled = fill_pending(pending, action.get("missing"), question, bills, housemates)
+                number = read_list_number(question) if action.get("missing") == "which_bill" else None
+                if number is not None:
+                    # A list number means the list the owner was shown, not today's list of bills.
+                    shown = action.get("options") or []
+                    matches = (
+                        [bill for bill in bills if bill.title == shown[number - 1]]
+                        if 1 <= number <= len(shown)
+                        else []
+                    )
+                    filled = (
+                        pending.model_copy(update={"document_ref": matches[0].ref}) if len(matches) == 1 else None
+                    )
+                else:
+                    filled = fill_pending(pending, action.get("missing"), question, bills, housemates)
             except Exception:  # noqa: BLE001 - an unreadable stored question is treated as a new request
                 filled = None
             if filled is not None:
@@ -72,7 +85,10 @@ async def run_turn(
         focus_ref=ref_by_document.get(focus_id),
         housemates=housemates,
     )
-    selection, reason = await select_by_model(data)
+    try:
+        selection, reason = await select_by_model(data)
+    except Exception as error:  # noqa: BLE001 - a selector failure of any kind falls back to the router
+        selection, reason = None, f"error: {type(error).__name__}"
     if selection is None:
         selection = select_by_rules(question, bills, housemates)
         meta = SelectorMeta(
