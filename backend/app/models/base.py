@@ -202,6 +202,64 @@ class BillSplit(Base):
     )
 
 
+class ReminderProposal(Base):
+    __tablename__ = "reminder_proposals"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    proposal_number: Mapped[int] = mapped_column(nullable=False)
+    action: Mapped[str] = mapped_column(String(30), nullable=False)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    bill_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill_revisions.id", ondelete="CASCADE"), nullable=False
+    )
+    bill_split_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("bill_splits.id", ondelete="CASCADE"))
+    # A ReminderDetails dump with dates as ISO strings; never changed after the proposal is made.
+    details: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column()
+
+    __table_args__ = (
+        UniqueConstraint("document_id", "proposal_number", name="uq_reminder_proposals_document_number"),
+    )
+
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    proposal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reminder_proposals.id", ondelete="CASCADE"), nullable=False
+    )
+    remind_on: Mapped[date] = mapped_column(nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("proposal_id", name="uq_reminders_proposal"),)
+
+
+class ReminderEvent(Base):
+    __tablename__ = "reminder_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    proposal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reminder_proposals.id", ondelete="CASCADE"), nullable=False
+    )
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    event: Mapped[str] = mapped_column(String(20), nullable=False)
+    detail: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("proposal_id", "sequence", name="uq_reminder_events_proposal_sequence"),
+    )
+
+
 class PushToken(Base):
     __tablename__ = "push_tokens"
 

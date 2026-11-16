@@ -292,7 +292,7 @@ function formatPeriod(value: string) {
   return value.split('/').map(formatBillDate).join(' – ')
 }
 
-function formatBillDate(value: string) {
+export function formatBillDate(value: string) {
   return new Date(value + 'T00:00:00Z').toLocaleDateString('en-IE', {
     day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   })

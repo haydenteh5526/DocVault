@@ -18,6 +18,7 @@ from app.schemas.document import (
     DocumentOut,
     DocumentUpdate,
 )
+from app.schemas.reminder import ReminderApproval, ReminderProposalOut, ReminderProposalRequest
 from app.services import (
     document_processor,
     storage_service,
@@ -26,6 +27,14 @@ from app.services import (
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import BillReviewConflict, latest_revision, save_revision
 from app.services.bill_split import BillSplitConflict, latest_split, preview_split, save_split
+from app.services.reminders import (
+    ReminderConflict,
+    ReminderNotFound,
+    approve_proposal,
+    cancel_proposal,
+    list_proposals,
+    propose_reminder,
+)
 
 router = APIRouter()
 
@@ -236,8 +245,13 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     review = extract_bill_review(doc.raw_text) if doc.processing_status == "complete" else None
     confirmed = await latest_revision(db, doc.id)
     split = await latest_split(db, doc.id)
+    proposals = await list_proposals(db, doc.id)
     return DocumentDetailOut(
-        **_to_response(doc).model_dump(), bill_review=review, confirmed_bill=confirmed, bill_split=split
+        **_to_response(doc).model_dump(),
+        bill_review=review,
+        confirmed_bill=confirmed,
+        bill_split=split,
+        reminder_proposals=proposals,
     )
 
 
@@ -283,6 +297,59 @@ async def save_bill_split(
     try:
         return await save_split(db, doc, user_id, request)
     except BillSplitConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
+
+
+@router.post("/{document_id}/reminder-proposals", response_model=ReminderProposalOut, status_code=201)
+async def create_reminder_proposal(
+    document_id: uuid.UUID,
+    request: ReminderProposalRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Store a pending reminder built from the confirmed bill; nothing is saved until the owner approves."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        return await propose_reminder(db, doc, user_id, request, source="owner")
+    except ReminderConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
+
+
+@router.post("/{document_id}/reminder-proposals/{proposal_id}/approve", response_model=ReminderProposalOut)
+async def approve_reminder_proposal(
+    document_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    approval: ReminderApproval,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Save the reminder the owner reviewed, once. A repeat returns the recorded outcome with 200."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        out, saved_now = await approve_proposal(db, doc, user_id, proposal_id, approval)
+    except ReminderNotFound:
+        raise HTTPException(404, "Reminder proposal not found")
+    except ReminderConflict as exc:
+        raise HTTPException(409, {"code": exc.code, "message": exc.message})
+    response.status_code = 201 if saved_now else 200
+    return out
+
+
+@router.post("/{document_id}/reminder-proposals/{proposal_id}/cancel", response_model=ReminderProposalOut)
+async def cancel_reminder_proposal(
+    document_id: uuid.UUID,
+    proposal_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Cancel a pending proposal. Cancelling twice returns the same outcome."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    try:
+        return await cancel_proposal(db, doc, user_id, proposal_id)
+    except ReminderNotFound:
+        raise HTTPException(404, "Reminder proposal not found")
+    except ReminderConflict as exc:
         raise HTTPException(409, {"code": exc.code, "message": exc.message})
 
 

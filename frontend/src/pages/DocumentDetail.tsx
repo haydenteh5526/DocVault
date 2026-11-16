@@ -10,8 +10,10 @@ import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags,
 import { useToast } from '@/components/Toast'
 import { BillReviewPanel } from '@/components/BillReview'
 import { BillSplitPanel } from '@/components/BillSplit'
-import { ApiError, addHousemate, removeHousemate, previewBillSplit, saveBillSplit, type BillConfirmation } from '@/lib/api'
+import { BillReminderPanel } from '@/components/BillReminder'
+import { ApiError, addHousemate, removeHousemate, previewBillSplit, saveBillSplit, proposeReminder, approveReminder, cancelReminder, type BillConfirmation } from '@/lib/api'
 import { confirmBillAndRefresh } from '@/lib/billConfirm'
+import { storeReminderProposal } from '@/lib/billReminder'
 import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSplit'
 import { useAuth } from '@/lib/auth'
 import { useHousemates } from '@/lib/housemates'
@@ -311,6 +313,32 @@ export default function DocumentDetail() {
                 const saved = await saveBillSplit(doc.id, body)
                 storeSavedSplit(queryClient, doc.id, saved)
                 return saved
+              }}
+              onRefresh={() => refreshBillData(queryClient, doc.id, accountId)}
+            />
+          )}
+          {(doc.bill_review || doc.confirmed_bill) && (
+            <BillReminderPanel
+              key={`reminder-${doc.id}`}
+              title={doc.title}
+              confirmed={doc.confirmed_bill ?? null}
+              split={doc.bill_split ?? null}
+              proposals={doc.reminder_proposals ?? []}
+              today={new Date().toLocaleDateString('en-CA')}
+              onPropose={async body => {
+                const result = await proposeReminder(doc.id, body)
+                storeReminderProposal(queryClient, doc.id, result)
+                return result
+              }}
+              onApprove={async proposal => {
+                const result = await approveReminder(doc.id, proposal.id, proposal.details)
+                storeReminderProposal(queryClient, doc.id, result)
+                return result
+              }}
+              onCancel={async proposal => {
+                const result = await cancelReminder(doc.id, proposal.id)
+                storeReminderProposal(queryClient, doc.id, result)
+                return result
               }}
               onRefresh={() => refreshBillData(queryClient, doc.id, accountId)}
             />
