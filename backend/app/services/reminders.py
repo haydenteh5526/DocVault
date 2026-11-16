@@ -70,6 +70,18 @@ async def _current_proposal_number(db: AsyncSession, document_id: uuid.UUID) -> 
     return (await db.execute(query)).scalar_one()
 
 
+async def current_request_numbers(db: AsyncSession, document_id: uuid.UUID) -> tuple[int, int, int] | None:
+    """The revision, usable split and latest proposal numbers a proposal request must carry, or None if unconfirmed."""
+    revision, split = await _current_inputs(db, document_id)
+    if revision is None:
+        return None
+    return (
+        revision.revision_number,
+        split.split_number if split else 0,
+        await _current_proposal_number(db, document_id),
+    )
+
+
 def _changed(row: ReminderProposal, revision: BillRevisionOut | None, split: BillSplitOut | None) -> str | None:
     if revision is None or revision.id != row.bill_revision_id:
         return "revision_changed"
