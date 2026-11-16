@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
     OLLAMA_URL: str = ""
+    ASSISTANT_MODEL: str = ""  # empty: chat requests use the keyword router
+    ASSISTANT_TIMEOUT_S: float = 20.0
     EMBEDDING_PROVIDER: str = "auto"  # auto | ollama | gemini — pin to keep vectors comparable
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""
