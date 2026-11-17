@@ -136,6 +136,39 @@ def test_a_reply_that_is_not_an_answer_is_not_forced_in():
     assert fill_pending(_pending("draft_enquiry"), "what_topic", "Pay this bill for me", BILLS, FOUR) is None
 
 
+@pytest.mark.parametrize(
+    "pending, missing, reply",
+    [
+        (_pending("propose_reminder"), "which_bill", "Actually, how much is the October bill?"),
+        (_pending("propose_reminder"), "which_bill", "Pay the October bill for me"),
+        (_pending("propose_reminder"), "which_bill", "Split the October bill between Aoife and Ben"),
+        (_pending("split_bill"), "which_people", "Remind Aoife and Ben two days before"),
+        (_pending("propose_reminder"), "how_many_days", "Split it 4 ways"),
+    ],
+)
+def test_a_different_request_is_not_an_answer(pending, missing, reply):
+    assert fill_pending(pending, missing, reply, BILLS, FOUR) is None
+
+
+def test_the_same_request_restated_still_answers():
+    reminder = _pending("propose_reminder")
+    restated = fill_pending(reminder, "which_bill", "Remind me about the September one", BILLS, FOUR)
+    assert restated.document_ref == "bill-2"
+    facts = _pending("get_bill_facts")
+    assert fill_pending(facts, "which_bill", "How much is the October bill?", BILLS, FOUR).document_ref == "bill-1"
+    assert fill_pending(reminder, "how_many_days", "Remind me 3 days before", BILLS, FOUR).days_before_due == 3
+    assert fill_pending(reminder, "which_bill", "the October one", BILLS, FOUR).document_ref == "bill-1"
+    assert fill_pending(reminder, "which_bill", "2", BILLS, FOUR).document_ref == "bill-2"
+    people = fill_pending(_pending("split_bill"), "which_people", "Aoife and Ben", BILLS, FOUR)
+    assert people.people == ["Aoife", "Ben"]
+    assert fill_pending(reminder, "how_many_days", "two days", BILLS, FOUR).days_before_due == 2
+
+
+def test_a_topic_reply_starting_with_about_is_not_doubled():
+    filled = fill_pending(_pending("draft_enquiry"), "what_topic", "about the standing charge", BILLS, FOUR)
+    assert filled.topic == "the standing charge"
+
+
 @pytest.mark.parametrize("text", ["", "x" * 5000, "hi 😀 \x00\x07   'quote’ “q”"])
 def test_the_router_never_raises(text):
     assert isinstance(select_by_rules(text, BILLS, FOUR), Selection)

@@ -162,6 +162,36 @@ async def test_bill_resolution_order(bill):
 
 
 @pytest.mark.asyncio
+async def test_resolution_stops_at_a_scope_outside_the_bills(bill):
+    owner_id, _, first = bill
+    lease = await _add_document(owner_id, "Tenancy lease", raw_text="Tenancy agreement")
+    async with async_session() as db:
+        bills = await owner_bills(db, owner_id)
+    assert [b.document.id for b in bills] == [first]
+    assert resolve_bill(bills, None, lease, first) is None
+    second = await _add_document(owner_id, "Second bill", created_at=datetime.utcnow() + timedelta(minutes=5))
+    async with async_session() as db:
+        bills = await owner_bills(db, owner_id)
+    assert len(bills) == 2 and second in [b.document.id for b in bills]
+    assert resolve_bill(bills, None, lease, first) is None
+
+
+@pytest.mark.asyncio
+async def test_unconfirmed_facts_name_the_bill(bill):
+    owner_id, _, document_id = bill
+    result = await _run(owner_id, tool="get_bill_facts")
+    assert result.content.startswith("Owner only reads: amount due €123.47;")
+    async with async_session() as db:
+        doc = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one()
+        doc.raw_text = "Electricity bill\nTotal amount due: soon\nBilling period: later\nPayment due date: soon"
+        await db.commit()
+    result = await _run(owner_id, tool="get_bill_facts")
+    assert result.content.startswith(
+        "I could not read the amount, due date or billing period from Owner only."
+    )
+
+
+@pytest.mark.asyncio
 async def test_confirmed_facts_come_from_the_revision(bill):
     owner_id, _, document_id = bill
     await _confirmed(document_id, "125.00")
@@ -188,7 +218,7 @@ async def test_unconfirmed_facts_are_labelled(bill):
     assert result.content.endswith(
         "These have not been confirmed. Open the bill and check them against the original."
     )
-    assert result.content.startswith("The bill reads: amount due €123.47; due date 23 November 2026;")
+    assert result.content.startswith("Owner only reads: amount due €123.47; due date 23 November 2026;")
 
     async with async_session() as db:
         doc = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one()

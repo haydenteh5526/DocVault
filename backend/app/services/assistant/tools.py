@@ -89,6 +89,7 @@ async def run_selection(
     question: str,
     history: list[ChatTurn],
     meta: SelectorMeta,
+    scope_title: str | None = None,
 ) -> TurnResult:
     # A service conflict rolls the session back and expires loaded rows, so read the ids now.
     ids = {b.ref: b.document.id for b in bills}
@@ -112,6 +113,25 @@ async def run_selection(
     if tool in NEEDS_BILL and not bills:
         return reply(NO_BILLS, "notice", reason="no_bills")
 
+    if (
+        tool in NEEDS_BILL
+        and selection.document_ref is None
+        and scope_id is not None
+        and scope_id not in ids.values()
+    ):
+        action = AssistantAction(
+            kind="notice",
+            meta=meta,
+            document_id=scope_id,
+            document_title=scope_title,
+            reason="not_a_bill",
+        )
+        content = (
+            f"{scope_title} is not one of the bills I can work with. "
+            "Ask about a bill by its name, or open the bill first."
+        )
+        return TurnResult(content=content, action=action, sources=[])
+
     bill = resolve_bill(bills, selection.document_ref, scope_id, focus_id)
     if bill is None and tool in NEEDS_BILL:
         titles = [b.title for b in bills]
@@ -125,16 +145,23 @@ async def run_selection(
         )
 
     if tool == "answer_from_documents":
+        # Search all the owner's documents unless the owner scoped the request or the message names a bill.
+        named = next((b for b in bills if selection.document_ref and b.ref == selection.document_ref), None)
+        searched = scope_id if scope_id else (ids[named.ref] if named else None)
         result = await generate_rag_answer(
             question=question,
             user_id=user_id,
             db=db,
-            document_id=str(ids[bill.ref]) if bill else (str(scope_id) if scope_id else None),
+            document_id=str(searched) if searched else None,
             history=history,
         )
-        return reply(
-            result.answer, "answer", bill, sources=[source.to_dict() for source in result.sources]
-        )
+        sources = [source.to_dict() for source in result.sources]
+        if scope_id:
+            action = AssistantAction(
+                kind="answer", meta=meta, document_id=scope_id, document_title=scope_title
+            )
+            return TurnResult(content=result.answer, action=action, sources=sources)
+        return reply(result.answer, "answer", named, sources=sources)
 
     document = bill.document
     document_id, title, raw_text = ids[bill.ref], bill.title, document.raw_text
@@ -189,9 +216,9 @@ async def run_selection(
         if start and end:
             parts.append(f"billing period {fmt_date(start)} to {fmt_date(end)}")
         read = (
-            f"The bill reads: {'; '.join(parts)}."
+            f"{title} reads: {'; '.join(parts)}."
             if parts
-            else "I could not read the amount, due date or billing period from this bill."
+            else f"I could not read the amount, due date or billing period from {title}."
         )
         content = f"{read} These have not been confirmed. Open the bill and check them against the original."
         return reply(content, "bill_facts", bill, facts=facts)

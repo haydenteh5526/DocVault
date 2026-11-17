@@ -264,21 +264,27 @@ async def send_message(
 
     # The conversation can be scoped to one of the caller's documents; anyone else's is a 404.
     scope_id = None
+    scope_title = None
     if body.document_id is not None:
-        scope_id = (
+        scope = (
             await db.execute(
-                select(Document.id).where(Document.id == body.document_id, Document.user_id == user_id)
+                select(Document.id, Document.title).where(
+                    Document.id == body.document_id, Document.user_id == user_id
+                )
             )
-        ).scalar_one_or_none()
-        if scope_id is None:
+        ).one_or_none()
+        if scope is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        scope_id, scope_title = scope.id, scope.title
 
     # Read what is needed after the turn now: the turn may commit or roll back this session.
     is_first_message = not existing_messages
     keeps_title = conversation.title.startswith("[")
 
     # Run the turn before adding either message: the reminder service commits or rolls back the session.
-    result = await run_turn(db, user_id, body.question, scope_id, list(existing_messages))
+    result = await run_turn(
+        db, user_id, body.question, scope_id, list(existing_messages), scope_title=scope_title
+    )
 
     user_msg = ConversationMessage(
         id=uuid.uuid4(),

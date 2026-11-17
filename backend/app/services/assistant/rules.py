@@ -171,6 +171,11 @@ def select_by_rules(question: str, bills: list[BillRef], housemates: list[str]) 
 def fill_pending(
     pending: Selection, missing: str, reply: str, bills: list[BillRef], housemates: list[str]
 ) -> Selection | None:
+    if missing in ("which_bill", "which_people", "how_many_days"):
+        # A reply that is itself a different request is a new request, not the answer.
+        other = select_by_rules(reply, bills, housemates).tool
+        if other != "answer_from_documents" and other != pending.tool:
+            return None
     if missing == "which_bill":
         ref = read_bill(reply, bills)
         return pending.model_copy(update={"document_ref": ref}) if ref else None
@@ -184,7 +189,7 @@ def fill_pending(
             days = int(bare[1]) if bare and int(bare[1]) <= 60 else None
         return pending.model_copy(update={"days_before_due": days}) if days is not None else None
     if missing == "what_topic":
-        topic = _clean(_straight(reply))[:80].strip()
+        topic = read_topic(reply) or _clean(_straight(reply))[:80].strip()
         if not topic:
             return None
         if select_by_rules(reply, bills, housemates).tool in (

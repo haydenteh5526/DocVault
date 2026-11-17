@@ -27,6 +27,7 @@ async def run_turn(
     question: str,
     scope_id: uuid.UUID | None,
     earlier: list[ConversationMessage],
+    scope_title: str | None = None,
 ) -> TurnResult:
     # Read the earlier messages first: the tools may commit or roll back this session.
     past = [(m.role, m.content, m.action) for m in earlier]
@@ -66,7 +67,7 @@ async def run_turn(
                 filled = None
             if filled is not None:
                 meta = SelectorMeta(selector="pending", model=None, fallback_reason=None)
-                return await run_selection(db, user_id, filled, bills, scope_id, focus_id, question, rag_history, meta)
+                return await run_selection(db, user_id, filled, bills, scope_id, focus_id, question, rag_history, meta, scope_title)
 
     history: list[tuple[str, str]] = []
     for role, content, action in past[-6:]:
@@ -98,4 +99,4 @@ async def run_turn(
         )
     else:
         meta = SelectorMeta(selector="model", model=settings.ASSISTANT_MODEL, fallback_reason=None)
-    return await run_selection(db, user_id, selection, bills, scope_id, focus_id, question, rag_history, meta)
+    return await run_selection(db, user_id, selection, bills, scope_id, focus_id, question, rag_history, meta, scope_title)

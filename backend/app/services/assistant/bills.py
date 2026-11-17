@@ -52,6 +52,9 @@ def resolve_bill(
     """A reference that is not one of the owner's bills is never guessed at."""
     if document_ref is not None:
         return next((bill for bill in bills if bill.ref == document_ref), None)
+    if scope_id is not None and not any(bill.document.id == scope_id for bill in bills):
+        # The request is scoped to a document that is not one of the offered bills: never fall through to another.
+        return None
     for wanted in (scope_id, focus_id):
         if wanted is not None:
             match = next((bill for bill in bills if bill.document.id == wanted), None)
