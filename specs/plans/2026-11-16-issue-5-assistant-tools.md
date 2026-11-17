@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is not implemented. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is built in `53df7c5`. **Revision 5** (Task 5e) was added on 17 November 2026 after the fifth review (head `53df7c5`) and approved by the owner the same day as recommended (R12, R13); it is not implemented. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -555,6 +555,46 @@ All other existing tests stay unchanged.
 | R10 (fourth report L2) | `test_a_follow_up_about_a_bill_that_is_gone_is_a_new_request`. |
 | R11 (fourth report L3) | `test_a_blank_title_names_no_bill`. |
 | Stale Status line | The Status line at the top of this plan. |
+
+---
+
+### Task 5e (Revision 5): Record the limits of reading replies by keyword
+
+Added on 17 November 2026 after the fifth Reviewer's report on PR 22 (head `53df7c5`). Its L1 and L2 both come from R9 and pull in opposite directions. The report says any rule based on leading words will leave cases on both sides. This revision stops patching the rule: it records the limits, adds one missing test row and corrects the Status line. No application code changes.
+
+**Decisions, approved by the owner on 17 November 2026 as recommended (R12, R13)**
+
+- **R12. Accept both findings as limits of the keyword reading of replies, and leave `fill_pending` as built in `53df7c5`.** *Recommended.*
+  - After "How many days before the due date?", some answers phrased as a question or a request are read as a new request, and the reminder request is dropped. Examples: `How about 2 days before the due date?`, `Can you make it 2 days before the due date?`, `Do it two days before the due date`, `Is 2 days before the due date ok?`.
+  - Some questions that do not open with a listed word are read as answers. After "How many days?": `Sorry, how much will I owe in two weeks?`, `In a week, what will I owe?`, `What happens if I pay 3 days late?`. After "Who is sharing?": `Sorry, how much does Aoife owe?`, `Who owes most, Aoife or Ben?`.
+
+  Both outcomes stay inside Decision 6. In the first case nothing is written, and the owner asks again. In the second, the worst result is a pending, unsaved proposal (which blocks a new one until the owner cancels it) or an unsaved split preview. Nothing is approved or saved from chat.
+
+  Replies to the assistant's questions are always read by the keyword readers, whatever the selector. Task 8 measures the selector on first messages, so it does not measure these replies, and they are not added to its cases.
+
+  *Alternative:* patch R9 again, with "how about", "what about", "can/could you (make|do|set) it" and "do it" as answer openers, and the question test applied to every tool. The report expects this to leave other cases on both sides.
+- **R13. Test R11's trim.** *Recommended.* The two-space title case in `test_a_blank_title_names_no_bill` passes without the `.strip()`, because no test message contains two consecutive spaces. Add the row `read_bill("how much  do I owe", bills) is None` (two spaces between `much` and `do`) for the two-space title.
+
+**Files:**
+- Test: `backend/tests/test_assistant_rules.py`
+- Modify: `specs/Repo_Current_State.md`
+
+- [ ] **Step 1: Add the R13 row** to `test_a_blank_title_names_no_bill`. Check that it fails with the `.strip()` removed from `read_bill`'s blank-title check and passes with it restored. Record both runs.
+- [ ] **Step 2: Run the backend gate.** Expected: ruff clean; all tests pass; coverage at or above 65%.
+- [ ] **Step 3: Update the documents.**
+  - In `specs/Repo_Current_State.md`, under "Remaining evidence and limits", add one limit in plain words: replies to the assistant's questions are read by keyword. Some answers phrased as a question or a request are treated as a new request, and some questions are treated as answers. Give two examples of each from R12, and say that nothing is saved from chat in either case.
+  - Add a verified-results row for this commit.
+  - In the PR 22 description, record the fifth report's L1 and L2 as left by the owner's decision (R12), the R13 row, and the fixed empty code span in the third-report note (it should read `\b`).
+- [ ] **Step 4: Commit.** `git commit -m "Record the limits of reading replies by keyword and test the blank-title trim"`
+- [ ] **Step 5: Review.** Push, wait for the backend, frontend, mobile and e2e checks, then call the `reviewer` agent on PR 22. Tell it that it reviewed `53df7c5` already, that this commit changes only one test row and documents, and that the fifth report's L1 and L2 are left by the owner's decision (R12). Show the owner the full report unedited. The Reviewer merges only under the rule in `AGENTS.md`; otherwise the owner decides.
+
+**Revision 5 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R12 (fifth report L1, L2) | The limit in `specs/Repo_Current_State.md` and the PR 22 description. No code change. |
+| R13 (fifth report nit) | The new row in `test_a_blank_title_names_no_bill`, failing without the trim (Step 1). |
+| Stale Status line (nit) | The Status line at the top of this plan. |
 
 ---
 
