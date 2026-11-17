@@ -188,6 +188,7 @@ def test_a_blank_title_names_no_bill(blank):
     assert named_bill("When is it due, roughly?", bills) is None
     assert named_bill("What does the October electricity bill say?", bills) == "bill-1"
     assert read_bill("how much do I owe", bills) is None
+    assert read_bill("how much  do I owe", bills) is None
     assert read_bill("the October one", bills) == "bill-1"
     assert select_by_rules("What is in my lease?", bills, FOUR).document_ref is None
 
