@@ -193,6 +193,19 @@ def test_a_blank_title_names_no_bill(blank):
     assert select_by_rules("What is in my lease?", bills, FOUR).document_ref is None
 
 
+def test_a_short_title_does_not_capture_other_words():
+    oct_bill = _bill("bill-1", "October electricity bill")
+    bills = [oct_bill, _bill("bill-2", "Eir")]
+    assert read_bill("their October one", bills) == "bill-1"
+    assert select_by_rules("Remind me two days before their due date", bills, []).document_ref is None
+    assert read_bill("the Eir bill", bills) == "bill-2"
+    bills = [oct_bill, _bill("bill-2", "Rent")]
+    assert read_bill("How much is the current bill?", bills) is None
+    bills = [oct_bill, _bill("bill-2", "A")]
+    assert read_bill("Remind me a day before it's due", bills) is None
+    assert named_bill("What is a standing charge?", bills) is None
+
+
 def test_a_bill_is_named_only_by_its_whole_title():
     assert named_bill("What does my lease say about rent in September?", BILLS) is None
     assert named_bill("What does the September electricity bill say about rent?", BILLS) == "bill-2"

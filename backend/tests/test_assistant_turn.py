@@ -729,3 +729,17 @@ async def test_a_follow_up_about_a_bill_that_is_gone_is_a_new_request(bill):
         second = await _say(client, owner_id, conversation, "3")
     assert second["action"]["kind"] != "reminder_proposal"
     assert await _count(ReminderProposal, september) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_short_title_does_not_take_a_scoped_request(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        eir, conversation = await _two_bills(client, owner_id, document_id)
+        await _rename(eir, "Eir")
+        message = await _say(
+            client, owner_id, conversation, "Remind me two days before their due date", document_id
+        )
+    assert message["action"]["kind"] == "reminder_proposal"
+    assert message["action"]["document_id"] == str(document_id)
+    assert await _count(ReminderProposal, document_id) == 1 and await _count(ReminderProposal, eir) == 0

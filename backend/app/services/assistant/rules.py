@@ -112,9 +112,17 @@ def read_people(text: str, housemates: list[str]) -> list[str]:
     return [label for _, label in sorted(found)]
 
 
+def _title_in(folded: str, title: str) -> bool:
+    """Whether the title appears in the folded text as whole words. A title with fewer than two letters or
+    digits is never matched by title: it would capture messages that do not name it."""
+    if sum(ch.isalnum() for ch in _fold(title).strip()) < 2:
+        return False
+    return re.search(rf"(?<!\w){re.escape(_fold(title))}(?!\w)", folded) is not None
+
+
 def read_bill(text: str, bills: list[BillRef]) -> str | None:
     folded = _fold(text)
-    whole = [bill for bill in bills if _fold(bill.title).strip() and bill.title.casefold() in folded]
+    whole = [bill for bill in bills if _title_in(folded, bill.title)]
     if len(whole) == 1:
         return whole[0].ref
     months = [month for month in _MONTHS if re.search(rf"\b{month}\b", folded)]
@@ -130,11 +138,7 @@ def read_bill(text: str, bills: list[BillRef]) -> str | None:
 def named_bill(text: str, bills: list[BillRef]) -> str | None:
     """The ref of the bill whose whole title appears in the text as whole words; the longest wins, a tie is None."""
     folded = _fold(text)
-    found = [
-        bill
-        for bill in bills
-        if _fold(bill.title).strip() and re.search(rf"(?<!\w){re.escape(_fold(bill.title))}(?!\w)", folded)
-    ]
+    found = [bill for bill in bills if _title_in(folded, bill.title)]
     if not found:
         return None
     longest = max(len(bill.title) for bill in found)
