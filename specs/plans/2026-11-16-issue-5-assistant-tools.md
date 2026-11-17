@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is built in `53df7c5`. **Revision 5** (Task 5e) was added on 17 November 2026 after the fifth review (head `53df7c5`) and approved by the owner the same day as recommended (R12, R13); it is not implemented. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is built in `53df7c5`. **Revision 5** (Task 5e) was added on 17 November 2026 after the fifth review (head `53df7c5`) and approved by the owner the same day as recommended (R12, R13); it is built in `2764eb9`. **Revision 6** (Task 5f) was added on 17 November 2026 after the sixth review (head `2764eb9`) and approved by the owner the same day as recommended (R14, R15); it is not implemented. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -594,6 +594,65 @@ Added on 17 November 2026 after the fifth Reviewer's report on PR 22 (head `53df
 | --- | --- |
 | R12 (fifth report L1, L2) | The limit in `specs/Repo_Current_State.md` and the PR 22 description. No code change. |
 | R13 (fifth report nit) | The new row in `test_a_blank_title_names_no_bill`, failing without the trim (Step 1). |
+| Stale Status line (nit) | The Status line at the top of this plan. |
+
+---
+
+### Task 5f (Revision 6): Match a bill's title as whole words everywhere
+
+Added on 17 November 2026 after the sixth Reviewer's report on PR 22 (head `2764eb9`). It fixes that report's one low finding, and settles the one-character-title item that the fifth report raised. Server and documents only. It is built on this branch and lands in PR 22.
+
+**Decisions, approved by the owner on 17 November 2026 as recommended (R14, R15)**
+
+- **R14. `read_bill` matches a title as whole words, like `named_bill`, and titles with fewer than two letters or digits never match by title.** *Recommended.*
+  - Task 2 says "the only bill whose whole title appears in the text" but does not say "as whole words", and the build uses a plain substring test.
+  - A short title therefore captures messages that never name it. With bills `October electricity bill` and `Eir`, the reply `their October one` chose Eir, and a request scoped to the October bill went to Eir too, because a selector reference beats the scope. A bill titled `Rent` was picked by `How much is the current bill?`.
+  - The web rename accepts any non-empty name, so you can set such a title in the app.
+  - Under R14, the whole-title step of `read_bill` uses the same whole-word match as `named_bill`. Both skip a title with fewer than two letters or digits, so `A` and `-` are never matched by title. They can still be chosen by month or by list number.
+  - This replaces the wording of Task 2's `read_bill` rule. The rule that exactly one title must match is unchanged.
+- **R15. Record what is left as a limit.** *Recommended.* A title that is itself an everyday word, such as `Rent` or `Bill`, is still matched when you write that word on its own (`How much is the rent?`). Nothing is approved or saved from chat, and no other account is affected.
+
+**Files:**
+- Modify: `backend/app/services/assistant/rules.py`
+- Test: `backend/tests/test_assistant_rules.py`, `test_assistant_turn.py`
+- Modify: `specs/Repo_Current_State.md`
+
+**Interfaces:**
+- In `rules.py`: `def _title_in(folded: str, title: str) -> bool`. It returns `False` when `_fold(title).strip()` holds fewer than two characters for which `str.isalnum()` is true. Otherwise it returns whether `re.search(rf"(?<!\w){re.escape(_fold(title))}(?!\w)", folded)` matches.
+- `read_bill`'s whole-title step becomes `[bill for bill in bills if _title_in(folded, bill.title)]`, and `named_bill` uses `_title_in` in place of its own test. Nothing else in either function changes.
+
+- [ ] **Step 1: Write the failing tests.**
+
+In `test_assistant_rules.py` (`OCT` is `_bill("bill-1", "October electricity bill")`):
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_short_title_does_not_capture_other_words` | With `[OCT, _bill("bill-2", "Eir")]`: `read_bill("their October one", bills) == "bill-1"`; `select_by_rules("Remind me two days before their due date", bills, []).document_ref is None`; `read_bill("the Eir bill", bills) == "bill-2"`. With `[OCT, _bill("bill-2", "Rent")]`: `read_bill("How much is the current bill?", bills) is None`. With `[OCT, _bill("bill-2", "A")]`: `read_bill("Remind me a day before it's due", bills) is None` and `named_bill("What is a standing charge?", bills) is None`. |
+
+In `test_assistant_turn.py`:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_short_title_does_not_take_a_scoped_request` | Two confirmed bills, `October electricity bill` and one renamed `Eir`. With every message scoped to the October bill, `Remind me two days before their due date` → `reminder_proposal` whose `document_id` is the October bill. One proposal row, on the October bill; zero on Eir. |
+
+All other existing tests stay unchanged.
+
+- [ ] **Step 2: Run to see them fail.** Run: `python -m pytest tests/test_assistant_rules.py tests/test_assistant_turn.py -v` · Expected: the new tests fail.
+- [ ] **Step 3: Implement the change listed under Interfaces.** `git grep -nP '\x08' -- backend` must print nothing.
+- [ ] **Step 4: Run the backend gate.** Expected: ruff clean; all tests pass; coverage at or above 65%.
+- [ ] **Step 5: Update the documents.**
+  - In `specs/Repo_Current_State.md`, add a verified-results row for this commit, and add the R15 limit with its example.
+  - In the PR 22 description, record the sixth report's finding as fixed (R14), the one-character-title item as fixed by R14, and R15 as left by the owner's decision.
+  - State only what was run.
+- [ ] **Step 6: Commit.** `git commit -m "Match bill titles as whole words and ignore one-character titles"`
+- [ ] **Step 7: Review.** As in Task 5e Step 5, with the note to the Reviewer that it reviewed `2764eb9` already, that this commit changes only `read_bill`, `named_bill` and their tests and documents, and that R12 and R15 are left by the owner's decision.
+
+**Revision 6 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R14 (sixth report finding; fifth report one-character-title item) | `test_a_short_title_does_not_capture_other_words`, `test_a_short_title_does_not_take_a_scoped_request`. |
+| R15 | The limit in `specs/Repo_Current_State.md` and the PR 22 description. |
 | Stale Status line (nit) | The Status line at the top of this plan. |
 
 ---
