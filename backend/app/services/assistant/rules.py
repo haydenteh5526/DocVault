@@ -20,7 +20,7 @@ _ORDINALS = {
     "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
 }  # fmt: skip
 _NUMBER_WORDS = "|".join(_NUMBERS)
-_ASKS = re.compile(r"(how|what|when)|\?\s*$")
+_ASKS = re.compile(r"\b(how|what|when)\b|\?\s*$")
 
 _RULES = (
     (re.compile(r"\b(remind|reminder|nudge|alert me|notify me)\b"), "propose_reminder", None),

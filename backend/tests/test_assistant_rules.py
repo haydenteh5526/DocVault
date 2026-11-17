@@ -147,6 +147,8 @@ def test_a_reply_that_is_not_an_answer_is_not_forced_in():
         (_pending("propose_reminder"), "how_many_days", "Split it 4 ways"),
         (_pending("propose_reminder"), "which_bill", "When is the October bill due?"),
         (_pending("propose_reminder"), "how_many_days", "How much do I owe?"),
+        (_pending("propose_reminder"), "which_bill", "Actually, how much is the October bill"),
+        (_pending("propose_reminder"), "which_bill", "when is the October bill due"),
     ],
 )
 def test_a_different_request_is_not_an_answer(pending, missing, reply):
