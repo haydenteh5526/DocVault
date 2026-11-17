@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Nothing in this plan is implemented.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is not implemented. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -344,6 +344,74 @@ Pass document_ref only when the user clearly means one of the listed bills. Neve
 - [ ] **Step 2: Commit.** `git commit -m "Record the assistant server evidence for issue 5"`
 - [ ] **Step 3: Review.** Call the `reviewer` agent with this plan, issue #5's six acceptance checks, the base branch `origin/main`, and the note that this PR covers Tasks 1 to 5 only. Show the owner the full report unedited and apply only what the owner approves.
 - [ ] **Step 4: Push and open PR 1** to `main`. Title: `Answer chat requests about a bill from checked records`. The body starts with `Part of #5`, maps the acceptance checks to the tests so far, says which checks wait for Phase 2, lists what was not run and includes the Reviewer's full report. Do not merge.
+
+---
+
+### Task 5b (Revision 2): Keep general questions wide and questions answerable
+
+Added on 16 November 2026 after the Reviewer's report on PR 22. It corrects defects in this plan that the build followed faithfully (the report's H1, M1 and L2), and takes in its smaller leftovers. Server and documents only. It is built on this branch and lands in PR 22.
+
+**Decisions, approved by the owner on 17 November 2026**
+
+- **R1. A general question searches all the owner's documents unless the owner narrowed it.** *Recommended.* Task 1 passed "the resolved bill" to retrieval, so after any bill reply, or for an owner with exactly one bill, every general question was searched in that bill only, and an explicit scope on another document was ignored. For `answer_from_documents`, retrieval is now limited to the request's scope if there is one, otherwise to a bill the message itself names, otherwise to nothing. The conversation's last bill and the only-bill rule no longer apply to general questions. This replaces Task 1's `answer_from_documents` row.
+- **R2. A reply that is itself a different request is never taken as the answer to a question.** *Recommended.* After "Which bill do you mean?", the reply `Actually, how much is the October bill?` was read as the answer and created a reminder proposal. Now, for every kind of question, a reply that the keyword router reads as a bill tool or a refusal different from the pending one is a new request. This narrows Decision 10.
+- **R3. A scope that is not one of the offered bills is said, not worked around.** *Recommended.* When the request is scoped to a document that is not among the owner's offered bills and the message names no bill, the bill tools answer with a notice in place of falling through to another bill. The unconfirmed-facts reply now names the bill. This narrows Decision 8.
+- **R4. Accepted as built:** the one-housemate notice added for L3 (`A split needs at least two people and you have saved only one housemate. Open the bill and add them in the Bill split panel.`), the list-number rule added for M2, and the message-ordering tie-break (user message first within a turn).
+
+**Files:**
+- Modify: `backend/app/services/assistant/bills.py`, `tools.py`, `rules.py`, `turn.py`, `backend/app/routers/conversations.py`
+- Test: `backend/tests/test_assistant_tools.py`, `test_assistant_rules.py`, `test_assistant_turn.py`
+- Modify: `README.md`, `specs/Repo_Current_State.md`, `specs/MVP_Technical_Design.md`, `specs/Tickets.md`
+
+**Interfaces:**
+- `resolve_bill(bills, document_ref, scope_id, focus_id) -> BillRef | None` gains one rule: when `document_ref` is `None` and `scope_id` is set but is not the id of any item in `bills`, it returns `None` without trying the focus or the only bill.
+- `run_selection(...)` gains the keyword argument `scope_title: str | None = None`. `run_turn` gains the same argument and passes it on; `send_message` passes the title of the scope document it already loads.
+- In `run_selection`, before the "which bill" question, for every tool except `answer_from_documents` and `decline`: if `selection.document_ref is None`, `scope_id` is set and it is not one of `bills`, return `notice`, reason `not_a_bill`, with `document_id=scope_id` and `document_title=scope_title`: `<scope title> is not one of the bills I can work with. Ask about a bill by its name, or open the bill first.`
+- `answer_from_documents`: `document_id` passed to `generate_rag_answer` is `scope_id` if set; otherwise the document of the bill whose `ref` equals `selection.document_ref`, when that is a valid ref; otherwise `None`. The action's `document_id` and `document_title` are set only in those two cases. It never asks "which bill".
+- Unconfirmed facts copy: `<title> reads: amount due €<amount>; due date <date>; billing period <start> to <end>.` and `I could not read the amount, due date or billing period from <title>.` The closing sentence is unchanged.
+- `fill_pending(...)`: before filling `which_bill`, `which_people` or `how_many_days`, compute `other = select_by_rules(reply, bills, housemates).tool`. If `other` is not `answer_from_documents` and is not `pending.tool`, return `None`. For `what_topic`, the topic is `read_topic(reply)` when that is not `None`, otherwise the trimmed reply; its existing guard is unchanged.
+
+- [ ] **Step 1: Write the failing tests.**
+
+In `test_assistant_tools.py` and `test_assistant_turn.py` (the "lease" is a second document of the owner titled `Tenancy lease` with no bill text; `searched()` is the `document_id` the patched `generate_rag_answer` received):
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_general_question_searches_all_documents_for_an_owner_with_one_bill` | One bill and the lease. `What does my lease say about pets?` → `answer`; `searched() is None`; `action.document_id is None`. |
+| `test_a_general_question_keeps_the_owners_scope` | The same message with `document_id` = the lease → `searched()` is the lease's id; `action.document_id` is the lease's id and `action.document_title == "Tenancy lease"`. |
+| `test_a_general_question_after_a_bill_reply_is_not_narrowed_to_that_bill` | `How much do I owe?` (facts), then `What does my lease say about pets?` → `searched() is None`. The selector history for a third message holds `[answer]`, not `[answer for bill-1]`. |
+| `test_a_general_question_that_names_a_bill_searches_that_bill` | Two bills. With `_fake_model` returning `answer_from_documents` with `document_ref="bill-2"` → `searched()` is that bill's id. With `document_ref="bill-9"` → `searched() is None`, and no question is asked. |
+| `test_a_scope_that_is_not_a_bill_is_said_not_worked_around` | One bill and the lease; scope = the lease. `How much does it cost?` → `notice`, reason `not_a_bill`, `content == "Tenancy lease is not one of the bills I can work with. Ask about a bill by its name, or open the bill first."`; `facts is None`. `Remind me two days before it's due.` → the same notice; zero proposal rows. `How much is the Owner only bill?` (naming the bill by its title) → `bill_facts` for the bill. |
+| `test_resolution_stops_at_a_scope_outside_the_bills` | `resolve_bill(bills, None, <lease id>, <bill id>)` is `None`, for one bill and for two. |
+| `test_unconfirmed_facts_name_the_bill` | `content` starts `Owner only reads: amount due €123.47;`. With nothing readable: `I could not read the amount, due date or billing period from Owner only.` |
+
+Update `test_assistant_prose_is_not_fed_back_to_the_selector` to expect the history item `[answer]`, and `test_unconfirmed_facts_are_labelled` for the new opening words.
+
+In `test_assistant_rules.py` and `test_assistant_turn.py`:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_different_request_is_not_an_answer` (parametrised, rules) | Pending `propose_reminder`, `which_bill`: `Actually, how much is the October bill?`, `Pay the October bill for me`, `Split the October bill between Aoife and Ben` → `None`. Pending `split_bill`, `which_people`: `Remind Aoife and Ben two days before` → `None`. Pending `propose_reminder`, `how_many_days`: `Split it 4 ways` → `None`. |
+| `test_the_same_request_restated_still_answers` (rules) | Pending `propose_reminder`, `which_bill`: `Remind me about the September one` → `document_ref == "bill-2"`. Pending `get_bill_facts`, `which_bill`: `How much is the October bill?` → `bill-1`. Pending `propose_reminder`, `how_many_days`: `Remind me 3 days before` → 3. `the October one`, `2`, `Aoife and Ben` and `two days` still fill as before. |
+| `test_a_new_request_after_which_bill_creates_nothing_unasked` (turn) | Two confirmed bills. `Remind me two days before it's due.` → `which_bill`. Then `Actually, how much is the October bill?` → `bill_facts` for October with `meta.selector == "rules"`; zero proposal rows. |
+| `test_a_topic_reply_starting_with_about_is_not_doubled` (rules) | `what_topic` with `about the standing charge` → `topic == "the standing charge"`. |
+| `test_messages_of_one_turn_are_returned_user_first` (turn) | Insert an assistant row and then a user row with the same `created_at`. `GET` the conversation → the user message comes first. |
+
+- [ ] **Step 2: Run to see them fail.** Run: `python -m pytest tests/test_assistant_tools.py tests/test_assistant_rules.py tests/test_assistant_turn.py -v` · Expected: the new tests fail.
+- [ ] **Step 3: Implement the changes listed under Interfaces.**
+- [ ] **Step 4: Run the backend gate.** Expected: ruff clean; all tests pass; coverage at or above 65%.
+- [ ] **Step 5: Update the documents.** In `specs/Repo_Current_State.md`, add a verified-results row for this revision with the commit and test counts, and state that general questions search all the owner's documents unless scoped. In `specs/MVP_Technical_Design.md`, `specs/Tickets.md` and `specs/Repo_Current_State.md`, correct the paragraphs that still describe issue #3 as unmerged: it was merged in PR 21 as `3ec5918` on 16 November 2026 and the issue is closed. State only what was run.
+- [ ] **Step 6: Commit.** `git commit -m "Keep general questions wide and treat a new request as new"`
+- [ ] **Step 7: Review and, on a clean verdict, merge.** Push, wait for the backend, frontend, mobile and e2e checks on the pushed commit, and bring the PR 22 description up to date (the hosted CI result, this revision under "What was fixed and what was left"). Then call the `reviewer` agent with this plan, issue #5's six acceptance checks, the base branch `origin/main`, the pull request number 22, and the note that it reviewed `d05b61f` already and should concentrate on the commits after it. Show the owner the full report unedited. The Reviewer merges the pull request itself only under the rule in `AGENTS.md`; otherwise apply only the findings the owner approves and repeat this step.
+
+**Revision 2 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R1 (report H1) | The first four tests in the first table, and the updated history test. |
+| R2 (report M1) | `test_a_different_request_is_not_an_answer`, `test_the_same_request_restated_still_answers`, `test_a_new_request_after_which_bill_creates_nothing_unasked`. |
+| R3 (report L2) | `test_a_scope_that_is_not_a_bill_is_said_not_worked_around`, `test_resolution_stops_at_a_scope_outside_the_bills`, `test_unconfirmed_facts_name_the_bill`. |
+| Leftovers: "about about", ordering tie-break untested, stale issue #3 paragraphs | `test_a_topic_reply_starting_with_about_is_not_doubled`, `test_messages_of_one_turn_are_returned_user_first`, Step 5. |
 
 ---
 
