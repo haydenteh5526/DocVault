@@ -463,7 +463,14 @@ In `test_assistant_turn.py` (the lease and `searched()` as in Task 5b):
 | `test_two_bills_with_the_same_title_are_chosen_by_list_number` | Two confirmed bills, both titled `Electricity bill`. `Remind me two days before it's due.` → `which_bill`; `options` holds both titles, and `option_ids` holds both document ids in list order. Then `2` → `reminder_proposal` whose `document_id` equals `option_ids[1]`. One proposal row. |
 | `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request` | Two confirmed bills. After `which_bill`, delete the document at `option_ids[1]`, then send `2` → `kind != "reminder_proposal"`. Zero proposal rows. |
 
-The existing tests stay unchanged, apart from the rewrite above. In particular, `test_a_new_request_after_which_bill_creates_nothing_unasked` and the stored-title list-number test from M2 must still pass.
+The existing tests stay unchanged, apart from the rewrite above and the M2 test below. In particular, `test_a_new_request_after_which_bill_creates_nothing_unasked` must still pass.
+
+Clarification added on 17 November 2026 during the build. The M2 test `test_a_list_number_for_a_bill_that_is_gone_is_not_guessed` renames the offered bill and expects no proposal. Under R8 that expectation is wrong when `option_ids` are stored: the renamed bill is still the same offered document, so the number chooses it. The test is replaced by these two:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_list_number_in_an_older_question_uses_the_title_rule` (replaces the M2 test) | Two confirmed bills. After `which_bill`, set the stored question's `action["option_ids"]` to `None`, as for a message stored before this change. Rename the September bill to `Renamed bill`, then send `1` → `kind != "reminder_proposal"`. Zero proposal rows on either bill. |
+| `test_a_list_number_follows_the_offered_bill_after_a_rename` | The same steps without removing `option_ids` → `reminder_proposal` whose `document_id` is the September bill (`option_ids[0]`). One proposal row, on the September bill. |
 
 - [ ] **Step 2: Run to see them fail.** Run: `python -m pytest tests/test_assistant_tools.py tests/test_assistant_rules.py tests/test_assistant_turn.py -v` · Expected: the new and rewritten tests fail.
 - [ ] **Step 3: Implement the changes listed under Interfaces.**
@@ -479,7 +486,7 @@ The existing tests stay unchanged, apart from the rewrite above. In particular, 
 | R5 (second report M1) | `test_a_natural_answer_with_a_bill_word_still_answers`, the extended `test_a_different_request_is_not_an_answer`, `test_a_reminder_question_takes_a_natural_answer`, and `test_a_new_request_after_which_bill_creates_nothing_unasked` (unchanged). |
 | R6 (second report L2) | `test_a_bill_is_named_only_by_its_whole_title`, `test_a_general_question_naming_a_month_searches_everything`, the rewritten `test_a_general_question_that_names_a_bill_searches_that_bill`. |
 | R7 (second report L1) | `test_a_two_step_request_in_a_non_bill_scope_finishes`. |
-| R8 (second report L3) | `test_two_bills_with_the_same_title_are_chosen_by_list_number`, `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request`. |
+| R8 (second report L3) | `test_two_bills_with_the_same_title_are_chosen_by_list_number`, `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request`, `test_a_list_number_follows_the_offered_bill_after_a_rename`, and `test_a_list_number_in_an_older_question_uses_the_title_rule` for the fallback. |
 | Nits: the unrecorded branch-name nit, and the merge wording in Global Constraints | Step 5, and the reworded Global Constraints line. |
 
 ---
