@@ -77,6 +77,9 @@ async def run_turn(
                     resolved = _document_id(action)
                     if resolved in ref_by_document:
                         filled = filled.model_copy(update={"document_ref": ref_by_document[resolved]})
+                    elif resolved is not None:
+                        # The bill the question was about has gone: never replace it with another bill.
+                        filled = None
             except Exception:  # noqa: BLE001 - an unreadable stored question is treated as a new request
                 filled = None
             if filled is not None:

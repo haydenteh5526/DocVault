@@ -701,3 +701,31 @@ async def test_a_list_number_for_a_bill_that_is_gone_is_a_new_request(bill):
         second = await _say(client, owner_id, conversation, "2")
     assert second["action"]["kind"] != "reminder_proposal"
     assert await _count(ReminderProposal, other) == 0 and await _count(ReminderProposal, document_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_question_after_how_many_days_creates_nothing(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        conversation = await _confirmed_chat(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me before it's due.")
+        assert first["action"]["kind"] == "question" and first["action"]["missing"] == "how_many_days"
+        second = await _say(client, owner_id, conversation, "How much will I owe in two weeks?")
+    assert second["action"]["kind"] == "bill_facts"
+    assert await _count(ReminderProposal, document_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_follow_up_about_a_bill_that_is_gone_is_a_new_request(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        september, conversation = await _two_bills(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me about the October electricity bill")
+        assert first["action"]["kind"] == "question" and first["action"]["missing"] == "how_many_days"
+        assert first["action"]["document_id"] == str(document_id)
+        async with async_session() as db:
+            await db.execute(delete(Document).where(Document.id == document_id))
+            await db.commit()
+        second = await _say(client, owner_id, conversation, "3")
+    assert second["action"]["kind"] != "reminder_proposal"
+    assert await _count(ReminderProposal, september) == 0

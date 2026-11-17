@@ -21,6 +21,9 @@ _ORDINALS = {
 }  # fmt: skip
 _NUMBER_WORDS = "|".join(_NUMBERS)
 _ASKS = re.compile(r"\b(how|what|when)\b|\?\s*$")
+_OPENS_QUESTION = re.compile(
+    r"^(?:(?:actually|and|so|ok|okay|but|then|wait)\W+)*(?:how|what|when|which|who|is|are|will|does|do|did|can|could)\b"
+)
 
 _RULES = (
     (re.compile(r"\b(remind|reminder|nudge|alert me|notify me)\b"), "propose_reminder", None),
@@ -111,7 +114,7 @@ def read_people(text: str, housemates: list[str]) -> list[str]:
 
 def read_bill(text: str, bills: list[BillRef]) -> str | None:
     folded = _fold(text)
-    whole = [bill for bill in bills if bill.title.casefold() in folded]
+    whole = [bill for bill in bills if _fold(bill.title).strip() and bill.title.casefold() in folded]
     if len(whole) == 1:
         return whole[0].ref
     months = [month for month in _MONTHS if re.search(rf"\b{month}\b", folded)]
@@ -130,7 +133,7 @@ def named_bill(text: str, bills: list[BillRef]) -> str | None:
     found = [
         bill
         for bill in bills
-        if re.search(rf"(?<!\w){re.escape(_fold(bill.title))}(?!\w)", folded)
+        if _fold(bill.title).strip() and re.search(rf"(?<!\w){re.escape(_fold(bill.title))}(?!\w)", folded)
     ]
     if not found:
         return None
@@ -189,10 +192,14 @@ def fill_pending(
 ) -> Selection | None:
     if missing in ("which_bill", "which_people", "how_many_days"):
         # A reply that is itself a different request is a new request, not the answer. Bill facts count as a
-        # different request only after "which bill" and only when the reply is phrased as a question.
+        # different request after "which bill" when the reply is phrased as a question, and after "who" or
+        # "how many days" when the reply opens with a question word.
         other = select_by_rules(reply, bills, housemates).tool
+        folded = _fold(reply).strip()
         if other not in ("answer_from_documents", pending.tool) and (
-            other != "get_bill_facts" or (missing == "which_bill" and _ASKS.search(_fold(reply).strip()))
+            other != "get_bill_facts"
+            or (missing == "which_bill" and _ASKS.search(folded))
+            or (missing != "which_bill" and _OPENS_QUESTION.search(folded))
         ):
             return None
     if missing == "which_bill":

@@ -149,6 +149,10 @@ def test_a_reply_that_is_not_an_answer_is_not_forced_in():
         (_pending("propose_reminder"), "how_many_days", "How much do I owe?"),
         (_pending("propose_reminder"), "which_bill", "Actually, how much is the October bill"),
         (_pending("propose_reminder"), "which_bill", "when is the October bill due"),
+        (_pending("propose_reminder"), "how_many_days", "How much will I owe in two weeks?"),
+        (_pending("propose_reminder"), "how_many_days", "Actually, what will I owe in a week?"),
+        (_pending("split_bill"), "which_people", "How much does Aoife owe?"),
+        (_pending("split_bill"), "which_people", "Does Aoife owe the most?"),
     ],
 )
 def test_a_different_request_is_not_an_answer(pending, missing, reply):
@@ -164,6 +168,7 @@ def test_a_different_request_is_not_an_answer(pending, missing, reply):
         (_pending("propose_reminder"), "how_many_days", "on the due date", "days_before_due", 0),
         (_pending("split_bill"), "which_people", "Aoife and Ben, how much each?", "people", ["Aoife", "Ben"]),
         (_pending("propose_reminder"), "which_bill", "the one due in October", "document_ref", "bill-1"),
+        (_pending("propose_reminder"), "how_many_days", "Two days before it's due?", "days_before_due", 2),
     ],
 )
 def test_a_natural_answer_with_a_bill_word_still_answers(pending, missing, reply, field, expected):
@@ -174,6 +179,17 @@ def test_a_bill_titled_with_a_rule_word_can_be_picked_by_its_title():
     bills = [*BILLS, _bill("bill-3", "Final notice - payment due")]
     filled = fill_pending(_pending("propose_reminder"), "which_bill", "Final notice - payment due", bills, FOUR)
     assert filled.document_ref == "bill-3"
+
+
+@pytest.mark.parametrize("blank", ["", "  "])
+def test_a_blank_title_names_no_bill(blank):
+    bills = [_bill("bill-1", "October electricity bill"), _bill("bill-2", blank)]
+    assert named_bill("What is in my lease?", bills) is None
+    assert named_bill("When is it due, roughly?", bills) is None
+    assert named_bill("What does the October electricity bill say?", bills) == "bill-1"
+    assert read_bill("how much do I owe", bills) is None
+    assert read_bill("the October one", bills) == "bill-1"
+    assert select_by_rules("What is in my lease?", bills, FOUR).document_ref is None
 
 
 def test_a_bill_is_named_only_by_its_whole_title():
