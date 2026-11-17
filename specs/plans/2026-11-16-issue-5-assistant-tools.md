@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is not implemented. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -39,7 +39,7 @@ The tasks implement them. A change to any of them comes back to the Architect be
 
 ## Global Constraints
 
-- Phase 1 branch `feature/issue-5-assistant-tools` from `origin/main`; Phase 2 branch `feature/issue-5-assistant-chat` from `origin/main` after Phase 1 is merged. Each opens a PR to protected `main`; do not merge and do not enable auto-merge.
+- Phase 1 branch `feature/issue-5-assistant-tools` from `origin/main`; Phase 2 branch `feature/issue-5-assistant-chat` from `origin/main` after Phase 1 is merged. Each opens a PR to protected `main`. The Issue session never merges and never enables auto-merge; the Reviewer may merge only under the rule in `AGENTS.md`.
 - Commits and PRs carry the configured Git identity only. No `Co-Authored-By` trailer, no "Generated with" line and no other tool attribution.
 - Identity comes from the session. Every document, housemate, conversation and proposal is read with the session's user id in the query. A document that is not the caller's is 404 or absent, never used.
 - No document text (`raw_text`, chunk text, evidence lines, retrieval answers) is sent to the selector.
@@ -412,6 +412,75 @@ In `test_assistant_rules.py` and `test_assistant_turn.py`:
 | R2 (report M1) | `test_a_different_request_is_not_an_answer`, `test_the_same_request_restated_still_answers`, `test_a_new_request_after_which_bill_creates_nothing_unasked`. |
 | R3 (report L2) | `test_a_scope_that_is_not_a_bill_is_said_not_worked_around`, `test_resolution_stops_at_a_scope_outside_the_bills`, `test_unconfirmed_facts_name_the_bill`. |
 | Leftovers: "about about", ordering tie-break untested, stale issue #3 paragraphs | `test_a_topic_reply_starting_with_about_is_not_doubled`, `test_messages_of_one_turn_are_returned_user_first`, Step 5. |
+
+---
+
+### Task 5c (Revision 3): Let a natural answer fill the question, and narrow only to a bill named in full
+
+Added on 17 November 2026 after the second Reviewer's report on PR 22 (head `7a49f30`). R5 and R6 correct defects in Revision 2 that the build followed exactly (the report's M1 and L2). R7 and R8 cover the report's L1 and L3. Server and documents only. It is built on this branch and lands in PR 22.
+
+**Decisions, approved by the owner on 17 November 2026 as recommended (R5 to R8)**
+
+- **R5. A reply that the router reads as bill facts does not count as a different request when it answers the question.** *Recommended.* R2 treated any reply that the router reads as `get_bill_facts` as a new request. Rule 6 matches `due` and `deadline`, so natural answers such as `2 days before the due date`, `on the due date`, `the one due in October` and `Aoife and Ben, how much each?` were dropped, together with the pending request. The new rule:
+  - After `how_many_days` or `which_people`, `get_bill_facts` never counts as a different request. The question's own reader decides, and a reply it cannot read is still a new request.
+  - After `which_bill`, `get_bill_facts` counts as a different request only when the reply is phrased as a question: it contains the word `how`, `what` or `when`, or it ends with `?`. This keeps R2's case: `Actually, how much is the October bill?` is still a new request.
+  - `split_bill`, `propose_reminder`, `draft_enquiry` and `decline`, when they differ from the pending tool, still make the reply a new request after every question.
+
+  This replaces R2's guard.
+- **R6. A general question is narrowed to a bill only when the message contains that bill's whole title.** *Recommended.* R1 accepted any valid `document_ref`. The router produces one from a month in a single title, from a title found inside a longer word, or from a bare list number. So `What does my lease say about rent in September?` searched only the September bill. Under R6, for `answer_from_documents` with no scope, the server narrows to a bill only when that bill's whole title appears in the message as whole words, ignoring case. If several titles match, the longest one wins; if two or more match at that length, nothing is narrowed. The selector's `document_ref` is ignored for this tool, whether it came from the model or the router: the server can check the message itself but not why the selector chose a reference (Architecture decision 4). This replaces R1's "a bill the message itself names". A scope still wins, as in R1.
+- **R7. A question asked about a bill that is already resolved keeps that bill.** *Recommended.* Report L1. The `which_people`, `how_many_days` and `what_topic` questions store `pending` with `document_ref` cleared, although Task 1 asks for that only for `which_bill`. In a conversation scoped to a document that is not a bill, the reply then hits R3's notice. When such a question is answered, the filled selection takes the bill from the question's stored `document_id`, if that document is still one of the owner's bills, and uses its current `ref`. The stored ref is not used, because refs are positions in a list that can change between turns (the M2 lesson).
+- **R8. "Which bill?" remembers the documents it offered.** *Recommended.* Report L3. Under R4, a list number is matched by title, so two bills with the same title cannot be chosen at all. The `which_bill` question now also stores the offered document ids, in list order. A list number maps to the id at that position. If that id is still one of the owner's bills, the number chooses it. Otherwise the reply is a new request. A stored question without ids (written before this change) keeps the title rule. *Alternative:* leave L3 and record "two bills with the same title cannot be chosen by number in chat" as a limit. Nothing is written in that case, but the owner gets a confusing reply.
+
+**Files:**
+- Modify: `backend/app/schemas/assistant.py`, `backend/app/services/assistant/rules.py`, `tools.py`, `turn.py`
+- Test: `backend/tests/test_assistant_rules.py`, `test_assistant_tools.py`, `test_assistant_turn.py`
+- Modify: `specs/Repo_Current_State.md`, `specs/Tickets.md` (only if the #5 row describes the changed behaviour)
+
+**Interfaces:**
+- R5, in `rules.py`: `_ASKS = re.compile(r"\b(how|what|when)\b|\?\s*$")`, matched against the folded, trimmed reply. In `fill_pending`, for `which_bill`, `which_people` and `how_many_days`, with `other = select_by_rules(reply, bills, housemates).tool`, the reply is a new request (return `None`) when `other` is neither `answer_from_documents` nor `pending.tool`, and either `other != "get_bill_facts"` or (`missing == "which_bill"` and `_ASKS` matches). The readers that follow, and the `what_topic` branch, are unchanged.
+- R6, in `rules.py`: `def named_bill(text: str, bills: list[BillRef]) -> str | None`. It returns the `ref` of the bill whose case-folded title appears in the case-folded, quote-straightened text between `(?<!\w)` and `(?!\w)`. Among several matches it returns the one with the longest title, or `None` on a tie. In `tools.py`, for `answer_from_documents`, `named` is the bill whose `ref` equals `named_bill(question, bills)`, and `selection.document_ref` is not read. Everything else in R1's interface is unchanged: the scope first, then `named`, otherwise nothing, and the action's `document_id` and `document_title` are set only in those two cases.
+- R7, in `turn.py`: when a stored question with `missing` in `which_people`, `how_many_days` or `what_topic` is filled and `_document_id(action)` is a key of `ref_by_document`, the filled selection's `document_ref` is set to that value before `run_selection` is called. The stored `pending` is unchanged.
+- R8, in `schemas/assistant.py`: `AssistantAction.option_ids: list[UUID] | None = None`. In `tools.py`, the `which_bill` question sets `option_ids` to the offered bills' document ids, in the same order as `options`. In `turn.py`, for a list-number reply to `which_bill`: if the stored action has `option_ids`, the number `n` (1 to `len(option_ids)`) chooses the bill whose `document.id` equals `option_ids[n - 1]`. If there is no such bill, or `n` is out of range, `filled` is `None`. Without `option_ids`, the existing title rule applies. Phase 2's `AssistantAction` type in `api.ts` mirrors the model and gains `option_ids?: string[] | null`. The card does not use it.
+
+- [ ] **Step 1: Write the failing tests.**
+
+In `test_assistant_rules.py`, `BILLS` is the file's two bills:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_natural_answer_with_a_bill_word_still_answers` (parametrised) | Pending `propose_reminder`, `how_many_days`: `2 days before the due date` → 2; `Two days before it's due` → 2; `a day before the deadline` → 1; `on the due date` → 0. Pending `split_bill`, `which_people`: `Aoife and Ben, how much each?` → `["Aoife", "Ben"]`. Pending `propose_reminder`, `which_bill`: `the one due in October` → `bill-1`. Pending `propose_reminder`, `which_bill`, with an extra bill `bill-3` titled `Final notice - payment due`: `Final notice - payment due` → `bill-3`. |
+| `test_a_different_request_is_not_an_answer` (extend) | Add these rows; the existing rows stay. Pending `propose_reminder`, `which_bill`: `When is the October bill due?` → `None`. Pending `propose_reminder`, `how_many_days`: `How much do I owe?` → `None`. |
+| `test_a_bill_is_named_only_by_its_whole_title` | `named_bill`: `What does my lease say about rent in September?` → `None`; `What does the September electricity bill say about rent?` → `bill-2`; `two` → `None`; `the september electricity billing` → `None`. With bills titled `Electricity bill` and `October electricity bill`: `What does the October electricity bill say?` → the October bill's ref. |
+
+In `test_assistant_turn.py` (the lease and `searched()` as in Task 5b):
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_reminder_question_takes_a_natural_answer` (parametrised: `2 days before the due date` → `2026-11-21`; `on the due date` → `2026-11-23`) | One confirmed bill. `Remind me before it's due.` → `question`, `how_many_days`. Then the reply → `reminder_proposal`, `proposal.details.remind_on` is the date, and `meta.selector == "pending"`. One proposal row. |
+| `test_a_general_question_naming_a_month_searches_everything` | Two bills and the lease. `What does my lease say about rent in September?` → `answer`; `searched() is None`; `action.document_id is None`. |
+| `test_a_general_question_that_names_a_bill_searches_that_bill` (rewrite) | Two bills. `What does the September electricity bill say about the standing charge?` → `searched()` is the September bill's id. With `_fake_model` returning `answer_from_documents` with `document_ref="bill-2"` and the message `What does it say about the standing charge?` → `searched() is None`. With `_fake_model` returning `document_ref="bill-9"` and the message naming the September bill in full → the September bill's id. |
+| `test_a_two_step_request_in_a_non_bill_scope_finishes` | One confirmed bill (`Owner only`) and the lease; every message is scoped to the lease. `Remind me about the Owner only bill` → `question`, `how_many_days`, with `action.document_id` = the bill. Then `3` → `reminder_proposal` on the bill, `remind_on == "2026-11-20"`. One proposal row. |
+| `test_two_bills_with_the_same_title_are_chosen_by_list_number` | Two confirmed bills, both titled `Electricity bill`. `Remind me two days before it's due.` → `which_bill`; `options` holds both titles, and `option_ids` holds both document ids in list order. Then `2` → `reminder_proposal` whose `document_id` equals `option_ids[1]`. One proposal row. |
+| `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request` | Two confirmed bills. After `which_bill`, delete the document at `option_ids[1]`, then send `2` → `kind != "reminder_proposal"`. Zero proposal rows. |
+
+The existing tests stay unchanged, apart from the rewrite above. In particular, `test_a_new_request_after_which_bill_creates_nothing_unasked` and the stored-title list-number test from M2 must still pass.
+
+- [ ] **Step 2: Run to see them fail.** Run: `python -m pytest tests/test_assistant_tools.py tests/test_assistant_rules.py tests/test_assistant_turn.py -v` · Expected: the new and rewritten tests fail.
+- [ ] **Step 3: Implement the changes listed under Interfaces.**
+- [ ] **Step 4: Run the backend gate.** Expected: ruff clean; all tests pass; coverage at or above 65%.
+- [ ] **Step 5: Update the documents.** In `specs/Repo_Current_State.md`, add a verified-results row for this revision with the commit and test counts. State that a general question is narrowed only to a bill named by its whole title, and that a natural answer to the assistant's question fills it. In the PR 22 description, record the first report's branch-name nit as fixed. State only what was run.
+- [ ] **Step 6: Commit.** `git commit -m "Let natural answers fill the assistant's questions and narrow only to a bill named in full"`
+- [ ] **Step 7: Review and, on a clean verdict, merge.** As in Task 5b Step 7, with the note to the Reviewer that it reviewed `7a49f30` already and should concentrate on the commits after it.
+
+**Revision 3 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R5 (second report M1) | `test_a_natural_answer_with_a_bill_word_still_answers`, the extended `test_a_different_request_is_not_an_answer`, `test_a_reminder_question_takes_a_natural_answer`, and `test_a_new_request_after_which_bill_creates_nothing_unasked` (unchanged). |
+| R6 (second report L2) | `test_a_bill_is_named_only_by_its_whole_title`, `test_a_general_question_naming_a_month_searches_everything`, the rewritten `test_a_general_question_that_names_a_bill_searches_that_bill`. |
+| R7 (second report L1) | `test_a_two_step_request_in_a_non_bill_scope_finishes`. |
+| R8 (second report L3) | `test_two_bills_with_the_same_title_are_chosen_by_list_number`, `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request`. |
+| Nits: the unrecorded branch-name nit, and the merge wording in Global Constraints | Step 5, and the reworded Global Constraints line. |
 
 ---
 
