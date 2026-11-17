@@ -6,6 +6,7 @@ import pytest
 from app.schemas.assistant import Selection
 from app.services.assistant.rules import (
     fill_pending,
+    named_bill,
     read_bill,
     read_count,
     read_days,
@@ -144,10 +145,42 @@ def test_a_reply_that_is_not_an_answer_is_not_forced_in():
         (_pending("propose_reminder"), "which_bill", "Split the October bill between Aoife and Ben"),
         (_pending("split_bill"), "which_people", "Remind Aoife and Ben two days before"),
         (_pending("propose_reminder"), "how_many_days", "Split it 4 ways"),
+        (_pending("propose_reminder"), "which_bill", "When is the October bill due?"),
+        (_pending("propose_reminder"), "how_many_days", "How much do I owe?"),
     ],
 )
 def test_a_different_request_is_not_an_answer(pending, missing, reply):
     assert fill_pending(pending, missing, reply, BILLS, FOUR) is None
+
+
+@pytest.mark.parametrize(
+    "pending, missing, reply, field, expected",
+    [
+        (_pending("propose_reminder"), "how_many_days", "2 days before the due date", "days_before_due", 2),
+        (_pending("propose_reminder"), "how_many_days", "Two days before it's due", "days_before_due", 2),
+        (_pending("propose_reminder"), "how_many_days", "a day before the deadline", "days_before_due", 1),
+        (_pending("propose_reminder"), "how_many_days", "on the due date", "days_before_due", 0),
+        (_pending("split_bill"), "which_people", "Aoife and Ben, how much each?", "people", ["Aoife", "Ben"]),
+        (_pending("propose_reminder"), "which_bill", "the one due in October", "document_ref", "bill-1"),
+    ],
+)
+def test_a_natural_answer_with_a_bill_word_still_answers(pending, missing, reply, field, expected):
+    assert getattr(fill_pending(pending, missing, reply, BILLS, FOUR), field) == expected
+
+
+def test_a_bill_titled_with_a_rule_word_can_be_picked_by_its_title():
+    bills = [*BILLS, _bill("bill-3", "Final notice - payment due")]
+    filled = fill_pending(_pending("propose_reminder"), "which_bill", "Final notice - payment due", bills, FOUR)
+    assert filled.document_ref == "bill-3"
+
+
+def test_a_bill_is_named_only_by_its_whole_title():
+    assert named_bill("What does my lease say about rent in September?", BILLS) is None
+    assert named_bill("What does the September electricity bill say about rent?", BILLS) == "bill-2"
+    assert named_bill("two", BILLS) is None
+    assert named_bill("the september electricity billing", BILLS) is None
+    bills = [_bill("bill-1", "Electricity bill"), _bill("bill-2", "October electricity bill")]
+    assert named_bill("What does the October electricity bill say?", bills) == "bill-2"
 
 
 def test_the_same_request_restated_still_answers():

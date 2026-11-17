@@ -20,6 +20,7 @@ from app.schemas.bill_split import BillSplitRequest
 from app.schemas.document import BillSourceLine
 from app.schemas.reminder import ReminderProposalRequest
 from app.services.assistant.bills import BillRef, resolve_bill
+from app.services.assistant.rules import named_bill
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import latest_revision
 from app.services.bill_split import BillSplitConflict, preview_split
@@ -141,12 +142,14 @@ async def run_selection(
             "question",
             missing="which_bill",
             options=titles,
+            option_ids=[ids[b.ref] for b in bills],
             pending=selection.model_copy(update={"document_ref": None}),
         )
 
     if tool == "answer_from_documents":
-        # Search all the owner's documents unless the owner scoped the request or the message names a bill.
-        named = next((b for b in bills if selection.document_ref and b.ref == selection.document_ref), None)
+        # Search all the owner's documents unless the owner scoped the request or the message names a bill in full.
+        named_ref = named_bill(question, bills)
+        named = next((b for b in bills if b.ref == named_ref), None)
         searched = scope_id if scope_id else (ids[named.ref] if named else None)
         result = await generate_rag_answer(
             question=question,

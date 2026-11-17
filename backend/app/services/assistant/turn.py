@@ -53,16 +53,30 @@ async def run_turn(
                 if number is not None:
                     # A list number means the list the owner was shown, not today's list of bills.
                     shown = action.get("options") or []
-                    matches = (
-                        [bill for bill in bills if bill.title == shown[number - 1]]
-                        if 1 <= number <= len(shown)
-                        else []
-                    )
+                    offered = action.get("option_ids")
+                    if offered:
+                        # The ids the owner was offered, in order: the number chooses one of them.
+                        matches = (
+                            [bill for bill in bills if str(bill.document.id) == str(offered[number - 1])]
+                            if 1 <= number <= len(offered)
+                            else []
+                        )
+                    else:
+                        matches = (
+                            [bill for bill in bills if bill.title == shown[number - 1]]
+                            if 1 <= number <= len(shown)
+                            else []
+                        )
                     filled = (
                         pending.model_copy(update={"document_ref": matches[0].ref}) if len(matches) == 1 else None
                     )
                 else:
                     filled = fill_pending(pending, action.get("missing"), question, bills, housemates)
+                if filled is not None and action.get("missing") in ("which_people", "how_many_days", "what_topic"):
+                    # The question was about a bill that was already resolved: keep it (by its current ref).
+                    resolved = _document_id(action)
+                    if resolved in ref_by_document:
+                        filled = filled.model_copy(update={"document_ref": ref_by_document[resolved]})
             except Exception:  # noqa: BLE001 - an unreadable stored question is treated as a new request
                 filled = None
             if filled is not None:

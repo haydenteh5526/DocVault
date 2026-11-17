@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.config import settings
 from app.dependencies import async_session
@@ -447,16 +447,45 @@ async def test_a_list_number_means_the_list_the_owner_was_shown(bill):
     assert await _count(ReminderProposal, september) == 0 and await _count(ReminderProposal, newer) == 0
 
 
+async def _forget_offered_ids(conversation):
+    """Make the stored question look like one written before option_ids existed."""
+    async with async_session() as db:
+        message = (
+            await db.execute(
+                select(ConversationMessage)
+                .where(ConversationMessage.conversation_id == uuid.UUID(conversation))
+                .where(ConversationMessage.role == "assistant")
+            )
+        ).scalar_one()
+        message.action = {**message.action, "option_ids": None}
+        await db.commit()
+
+
 @pytest.mark.asyncio
-async def test_a_list_number_for_a_bill_that_is_gone_is_not_guessed(bill):
+async def test_a_list_number_in_an_older_question_uses_the_title_rule(bill):
     owner_id, _, document_id = bill
     async with _client() as client:
         september, conversation = await _two_bills(client, owner_id, document_id)
         await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        await _forget_offered_ids(conversation)
         await _rename(september, "Renamed bill")
         answer = await _say(client, owner_id, conversation, "1")
     assert answer["action"]["kind"] != "reminder_proposal"
     assert await _count(ReminderProposal, september) == 0 and await _count(ReminderProposal, document_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_list_number_follows_the_offered_bill_after_a_rename(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        september, conversation = await _two_bills(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        assert first["action"]["option_ids"][0] == str(september)
+        await _rename(september, "Renamed bill")
+        answer = await _say(client, owner_id, conversation, "1")
+    assert answer["action"]["kind"] == "reminder_proposal"
+    assert answer["action"]["document_id"] == str(september)
+    assert await _count(ReminderProposal, september) == 1 and await _count(ReminderProposal, document_id) == 0
 
 
 async def _lease(owner_id):
@@ -522,14 +551,15 @@ async def test_a_general_question_that_names_a_bill_searches_that_bill(bill, mon
     searched = _searched(monkeypatch)
     async with _client() as client:
         september, conversation = await _two_bills(client, owner_id, document_id)
+        named = "What does the September electricity bill say about the standing charge?"
+        await _say(client, owner_id, conversation, named)
+        assert searched() == str(september)
         _fake_model(monkeypatch, (Selection(tool="answer_from_documents", document_ref="bill-2"), None))
         await _say(client, owner_id, conversation, "What does it say about the standing charge?")
-        assert searched() == str(document_id)  # bill-2 is the older, October bill
-        assert september != document_id
+        assert searched() is None
         _fake_model(monkeypatch, (Selection(tool="answer_from_documents", document_ref="bill-9"), None))
-        message = await _say(client, owner_id, conversation, "What does it say about the standing charge?")
-    assert searched() is None
-    assert message["action"]["kind"] == "answer"
+        await _say(client, owner_id, conversation, named)
+    assert searched() == str(september)
 
 
 @pytest.mark.asyncio
@@ -586,3 +616,88 @@ async def test_messages_of_one_turn_are_returned_user_first(bill):
             await db.commit()
         detail = (await client.get(f"/api/v1/conversations/{conversation}", headers=_headers(owner_id))).json()
     assert [m["role"] for m in detail["messages"]] == ["user", "assistant"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reply, remind_on", [("2 days before the due date", "2026-11-21"), ("on the due date", "2026-11-23")]
+)
+async def test_a_reminder_question_takes_a_natural_answer(bill, reply, remind_on):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        conversation = await _confirmed_chat(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me before it's due.")
+        assert first["action"]["kind"] == "question" and first["action"]["missing"] == "how_many_days"
+        second = await _say(client, owner_id, conversation, reply)
+    assert second["action"]["kind"] == "reminder_proposal"
+    assert second["action"]["proposal"]["details"]["remind_on"] == remind_on
+    assert second["action"]["meta"]["selector"] == "pending"
+    assert await _count(ReminderProposal, document_id) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_general_question_naming_a_month_searches_everything(bill, monkeypatch):
+    owner_id, _, document_id = bill
+    searched = _searched(monkeypatch)
+    await _lease(owner_id)
+    async with _client() as client:
+        _, conversation = await _two_bills(client, owner_id, document_id)
+        message = await _say(client, owner_id, conversation, "What does my lease say about rent in September?")
+    assert message["action"]["kind"] == "answer"
+    assert searched() is None
+    assert message["action"]["document_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_two_step_request_in_a_non_bill_scope_finishes(bill):
+    owner_id, _, document_id = bill
+    lease = await _lease(owner_id)
+    async with _client() as client:
+        conversation = await _confirmed_chat(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me about the Owner only bill", lease)
+        assert first["action"]["kind"] == "question" and first["action"]["missing"] == "how_many_days"
+        assert first["action"]["document_id"] == str(document_id)
+        second = await _say(client, owner_id, conversation, "3", lease)
+    assert second["action"]["kind"] == "reminder_proposal"
+    assert second["action"]["document_id"] == str(document_id)
+    assert second["action"]["proposal"]["details"]["remind_on"] == "2026-11-20"
+    assert await _count(ReminderProposal, document_id) == 1
+
+
+async def _same_title_bills(client, owner_id, document_id):
+    await _rename(document_id, "Electricity bill")
+    other = await _add_document(owner_id, "Electricity bill", minutes=1)
+    await _confirm(client, document_id, owner_id)
+    await _confirm(client, other, owner_id)
+    return other, await _chat(client, owner_id)
+
+
+@pytest.mark.asyncio
+async def test_two_bills_with_the_same_title_are_chosen_by_list_number(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        other, conversation = await _same_title_bills(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        action = first["action"]
+        assert action["missing"] == "which_bill"
+        assert action["options"] == ["Electricity bill", "Electricity bill"]
+        assert action["option_ids"] == [str(other), str(document_id)]
+        second = await _say(client, owner_id, conversation, "2")
+    assert second["action"]["kind"] == "reminder_proposal"
+    assert second["action"]["document_id"] == action["option_ids"][1]
+    assert await _count(ReminderProposal, document_id) == 1 and await _count(ReminderProposal, other) == 0
+
+
+@pytest.mark.asyncio
+async def test_a_list_number_for_a_bill_that_is_gone_is_a_new_request(bill):
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        other, conversation = await _two_bills(client, owner_id, document_id)
+        first = await _say(client, owner_id, conversation, "Remind me two days before it's due.")
+        gone = uuid.UUID(first["action"]["option_ids"][1])
+        async with async_session() as db:
+            await db.execute(delete(Document).where(Document.id == gone))
+            await db.commit()
+        second = await _say(client, owner_id, conversation, "2")
+    assert second["action"]["kind"] != "reminder_proposal"
+    assert await _count(ReminderProposal, other) == 0 and await _count(ReminderProposal, document_id) == 0

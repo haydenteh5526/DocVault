@@ -69,6 +69,7 @@ class AssistantAction(BaseModel):
     evidence: list[BillSourceLine] | None = None
     missing: Literal["which_bill", "which_people", "how_many_days", "what_topic"] | None = None
     options: list[str] | None = None
+    option_ids: list[uuid.UUID] | None = None
     pending: Selection | None = None
     reason: str | None = None
 

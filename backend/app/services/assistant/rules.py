@@ -20,6 +20,7 @@ _ORDINALS = {
     "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
 }  # fmt: skip
 _NUMBER_WORDS = "|".join(_NUMBERS)
+_ASKS = re.compile(r"(how|what|when)|\?\s*$")
 
 _RULES = (
     (re.compile(r"\b(remind|reminder|nudge|alert me|notify me)\b"), "propose_reminder", None),
@@ -123,6 +124,21 @@ def read_bill(text: str, bills: list[BillRef]) -> str | None:
     return None
 
 
+def named_bill(text: str, bills: list[BillRef]) -> str | None:
+    """The ref of the bill whose whole title appears in the text as whole words; the longest wins, a tie is None."""
+    folded = _fold(text)
+    found = [
+        bill
+        for bill in bills
+        if re.search(rf"(?<!\w){re.escape(_fold(bill.title))}(?!\w)", folded)
+    ]
+    if not found:
+        return None
+    longest = max(len(bill.title) for bill in found)
+    best = [bill for bill in found if len(bill.title) == longest]
+    return best[0].ref if len(best) == 1 else None
+
+
 def read_list_number(text: str) -> int | None:
     """A whole reply that is only a list number: `2`, `2.`, `the second`, `the first one`."""
     names = "|".join([*_NUMBERS, *_ORDINALS])
@@ -172,9 +188,12 @@ def fill_pending(
     pending: Selection, missing: str, reply: str, bills: list[BillRef], housemates: list[str]
 ) -> Selection | None:
     if missing in ("which_bill", "which_people", "how_many_days"):
-        # A reply that is itself a different request is a new request, not the answer.
+        # A reply that is itself a different request is a new request, not the answer. Bill facts count as a
+        # different request only after "which bill" and only when the reply is phrased as a question.
         other = select_by_rules(reply, bills, housemates).tool
-        if other != "answer_from_documents" and other != pending.tool:
+        if other not in ("answer_from_documents", pending.tool) and (
+            other != "get_bill_facts" or (missing == "which_bill" and _ASKS.search(_fold(reply).strip()))
+        ):
             return None
     if missing == "which_bill":
         ref = read_bill(reply, bills)
