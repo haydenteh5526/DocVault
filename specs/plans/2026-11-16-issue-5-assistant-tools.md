@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is not implemented. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is not implemented. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -488,6 +488,73 @@ Clarification added on 17 November 2026 during the build. The M2 test `test_a_li
 | R7 (second report L1) | `test_a_two_step_request_in_a_non_bill_scope_finishes`. |
 | R8 (second report L3) | `test_two_bills_with_the_same_title_are_chosen_by_list_number`, `test_a_list_number_for_a_bill_that_is_gone_is_a_new_request`, `test_a_list_number_follows_the_offered_bill_after_a_rename`, and `test_a_list_number_in_an_older_question_uses_the_title_rule` for the fallback. |
 | Nits: the unrecorded branch-name nit, and the merge wording in Global Constraints | Step 5, and the reworded Global Constraints line. |
+
+---
+
+### Task 5d (Revision 4): Questions are not answers, a gone bill is not replaced, and a blank title names nothing
+
+Added on 17 November 2026 after the fourth Reviewer's report on PR 22 (head `5b7351b`). It covers that report's L1, L2 and L3, all low. L1 and L2 were already in the third report. Server and documents only. It is built on this branch and lands in PR 22.
+
+**Decisions, approved by the owner on 17 November 2026 as recommended (R9 to R11)**
+
+- **R9. After "How many days?" or "Who is sharing?", a reply that opens with a question word is a new request.** *Recommended.* R5 never counted bill facts as a different request after these two questions. So `How much will I owe in two weeks?` filled 14 days, and `How much does Aoife owe?` filled `people=["Aoife"]`: a question became a pending proposal or a split preview. Under R9, after `how_many_days` or `which_people`, a reply that the router reads as `get_bill_facts` is a new request when it opens with a question word. Leading words such as `actually` or `and` may come first. A reply that opens with its answer still fills the question, even when it contains a question word or ends with `?`:
+  - `Aoife and Ben, how much each?` fills the names.
+  - `Two days before it's due?` fills 2 days.
+
+  This replaces R5's first bullet. R5's `which_bill` rule (`_ASKS` anywhere in the reply) is unchanged.
+- **R10. A follow-up question about a bill that has since gone is answered as a new request.** *Recommended.* R7 keeps the asked-about bill only while it is still among the owner's bills. When it is gone, `document_ref` stays `None` and `resolve_bill` falls back to another bill, so a reminder could land on a bill the owner never chose. Under R10, when the stored question (`which_people`, `how_many_days` or `what_topic`) has a `document_id` that is not among the owner's bills, the reply is a new request. A stored question with no `document_id` behaves as before.
+- **R11. A bill whose title is blank is never matched by its title.** *Recommended.* An empty title is a substring of every message, so `read_bill` and `named_bill` chose that bill for almost anything. Only the owner can create such a title, and only through `PATCH /documents/{id}`. Under R11, both functions skip bills whose title, case-folded and trimmed, is empty. Such a bill can still be chosen by list number or month, and it is still listed in "Which bill?".
+  - *Not in this revision:* rejecting a blank title in `DocumentUpdate` (`backend/app/schemas/document.py`). It is outside the assistant, changes the documents API, and is proposed as a separate follow-up.
+
+**Files:**
+- Modify: `backend/app/services/assistant/rules.py`, `turn.py`
+- Test: `backend/tests/test_assistant_rules.py`, `test_assistant_turn.py`
+- Modify: `specs/Repo_Current_State.md`
+
+**Interfaces:**
+- R9, in `rules.py`: `_OPENS_QUESTION = re.compile(r"^(?:(?:actually|and|so|ok|okay|but|then|wait)\W+)*(?:how|what|when|which|who|is|are|will|does|do|did|can|could)\b")`, matched against the folded, trimmed reply. In `fill_pending`, the guard condition becomes: `other` is neither `answer_from_documents` nor `pending.tool`, and at least one of these holds:
+  - `other != "get_bill_facts"`;
+  - `missing == "which_bill"` and `_ASKS` matches;
+  - `missing` is `which_people` or `how_many_days`, and `_OPENS_QUESTION` matches.
+
+  The readers that follow are unchanged.
+- R10, in `turn.py`: after a stored question with `missing` in `which_people`, `how_many_days` or `what_topic` is filled, `filled` becomes `None` when `_document_id(action)` is not `None` and is not a key of `ref_by_document`. Otherwise R7 applies as built.
+- R11, in `rules.py`: `read_bill`'s whole-title step and `named_bill` consider only bills for which `_fold(bill.title).strip()` is not empty. The month and list-number steps of `read_bill` are unchanged.
+
+- [ ] **Step 1: Write the failing tests.**
+
+In `test_assistant_rules.py`:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_different_request_is_not_an_answer` (extend) | Add these rows; the existing rows stay. Pending `propose_reminder`, `how_many_days`: `How much will I owe in two weeks?` → `None`; `Actually, what will I owe in a week?` → `None`. Pending `split_bill`, `which_people`: `How much does Aoife owe?` → `None`; `Does Aoife owe the most?` → `None`. |
+| `test_a_natural_answer_with_a_bill_word_still_answers` (extend) | The existing rows stay, including `Aoife and Ben, how much each?` → `["Aoife", "Ben"]`. Add: pending `propose_reminder`, `how_many_days`: `Two days before it's due?` → 2. |
+| `test_a_blank_title_names_no_bill` | Bills `bill-1` `October electricity bill` and `bill-2` titled `""`. `named_bill` returns `None` for `What is in my lease?` and `When is it due, roughly?`, and `bill-1` for `What does the October electricity bill say?`. `read_bill` returns `None` for `how much do I owe` and `bill-1` for `the October one`. `select_by_rules("What is in my lease?", …).document_ref is None`. The same holds with a title of two spaces. |
+
+In `test_assistant_turn.py`:
+
+| Test | Assertions |
+| --- | --- |
+| `test_a_question_after_how_many_days_creates_nothing` | One confirmed bill. `Remind me before it's due.` → `question`, `how_many_days`. Then `How much will I owe in two weeks?` → `kind == "bill_facts"`. Zero proposal rows. |
+| `test_a_follow_up_about_a_bill_that_is_gone_is_a_new_request` | Two confirmed bills. `Remind me about the October electricity bill` → `question`, `how_many_days`, with `action.document_id` = the October bill. Delete the October bill, then send `3` → `kind != "reminder_proposal"`. Zero proposal rows on the September bill. |
+
+All other existing tests stay unchanged.
+
+- [ ] **Step 2: Run to see them fail.** Run: `python -m pytest tests/test_assistant_rules.py tests/test_assistant_turn.py -v` · Expected: the new rows and tests fail.
+- [ ] **Step 3: Implement the changes listed under Interfaces.** Check the bytes of every new regular expression: it must contain `\b`, not a backspace character. `git grep -nP '\x08' -- backend` must print nothing.
+- [ ] **Step 4: Run the backend gate.** Expected: ruff clean; all tests pass; coverage at or above 65%.
+- [ ] **Step 5: Update the documents.** In `specs/Repo_Current_State.md`, add a verified-results row for this revision with the commit and test counts, and add a limit: a blank document title set through the API is listed but never matched by its title. In the PR 22 description, record R9 to R11 under "What was fixed and what was left". State only what was run.
+- [ ] **Step 6: Commit.** `git commit -m "Treat questions as new requests, never replace a gone bill, and ignore blank titles"`
+- [ ] **Step 7: Review and, on a clean verdict, merge.** As in Task 5b Step 7, with the note to the Reviewer that it reviewed `5b7351b` already and should concentrate on the commits after it.
+
+**Revision 4 coverage**
+
+| Item | Verified by |
+| --- | --- |
+| R9 (fourth report L1) | The extended `test_a_different_request_is_not_an_answer` and `test_a_natural_answer_with_a_bill_word_still_answers`, and `test_a_question_after_how_many_days_creates_nothing`. |
+| R10 (fourth report L2) | `test_a_follow_up_about_a_bill_that_is_gone_is_a_new_request`. |
+| R11 (fourth report L3) | `test_a_blank_title_names_no_bill`. |
+| Stale Status line | The Status line at the top of this plan. |
 
 ---
 
