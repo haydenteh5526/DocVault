@@ -3,12 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Send, Bot, User, FileText, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
-import { askQuestion, type AskResponse, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
+import { AssistantActionCard } from '@/components/AssistantAction'
+import { askQuestion, type AskResponse, type AssistantAction, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   sources?: AskResponse['sources']
+  action?: AssistantAction | null
 }
 
 export default function AskAI() {
@@ -42,6 +44,7 @@ export default function AskAI() {
               role: m.role as 'user' | 'assistant',
               content: m.content,
               sources: m.sources || undefined,
+              action: m.action ?? null,
             }))
           )
         })
@@ -97,6 +100,7 @@ export default function AskAI() {
           role: 'assistant',
           content: data.assistant_message.content,
           sources: data.assistant_message.sources || undefined,
+          action: data.assistant_message.action ?? null,
         },
       ])
     } catch {
@@ -237,6 +241,9 @@ export default function AskAI() {
                   msg.content
                 )}
               </div>
+              {msg.role === 'assistant' && msg.action && (
+                <AssistantActionCard action={msg.action} onOpenDocument={id => navigate(`/app/documents/${id}`)} />
+              )}
               {/* Citation pills */}
               {uniqueSources(msg.sources).length > 0 && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
