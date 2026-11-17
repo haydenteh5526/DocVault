@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is not implemented. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. Phase 2 is not started.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
