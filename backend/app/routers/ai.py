@@ -43,6 +43,8 @@ async def ai_status():
         "gemini": bool(settings.GEMINI_API_KEY),
         "ollama": bool(settings.OLLAMA_URL),
         "ocr_backend": settings.OCR_BACKEND,
+        "assistant_selector": "model" if settings.ASSISTANT_MODEL and settings.OLLAMA_URL else "rules",
+        "assistant_model": settings.ASSISTANT_MODEL or None,
         "mode": (
             "groq" if settings.GROQ_API_KEY
             else "gemini" if settings.GEMINI_API_KEY

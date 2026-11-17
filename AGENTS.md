@@ -15,9 +15,15 @@ One Architect session plans, and each active issue has one Issue session that bu
 | --- | --- | --- | --- |
 | Architect | The root checkout on `main`. One long-lived session, with its context cleared between unrelated features. | Turns an issue's acceptance checks into a plan in `specs/plans/`: files, names, signatures, exact copy, tests and the decisions for the owner. Commits the plan on the issue's feature branch and waits for the owner's approval. | Change application code or commit to `main`. |
 | Issue | Its own worktree, cut from the feature branch that holds the approved plan. One session per active issue. | Implements the plan test first, runs the gates, has the Reviewer check the result, shows the owner the Reviewer's full report, applies the findings the owner approves and opens the PR. | Add scope, change the plan's decisions, shorten or filter the Reviewer's report, or merge. |
-| Reviewer | Inside the Issue session, started with a fresh context that has not seen the build. Read-only. | Reads the diff against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. | Change code, post to GitHub, or merge. |
+| Reviewer | Inside the Issue session, started with a fresh context that has not seen the build. Read-only. | Reads the diff against the plan and the issue's acceptance checks, re-runs the gates, and reports findings by severity with file, line and a failure scenario. When called on an open pull request, merges it if every merge condition below holds. | Change code, push, comment on GitHub, or merge on anything less than a clean verdict. |
 
-- The owner approves the plan, decides which findings to fix, and merges.
+- The owner approves the plan and decides which findings to fix. The owner merges, unless the Reviewer does so under the next rule.
+- The Reviewer may merge a pull request only when all of these hold. If any does not, it reports and leaves the merge to the owner.
+  - Its verdict on the pull request's current head commit is `merge`: no confirmed defect of any severity above a nit, nothing suspected that it could not rule out, and nothing sent back to the Architect.
+  - It reviewed that exact commit, and every earlier finding is recorded in the description as fixed or as left by the owner's decision.
+  - The backend, frontend, mobile and e2e checks passed on that commit, and GitHub reports the pull request open, mergeable and current with `main`.
+  - The description, commits and branch name carry no tool attribution.
+  - It merges with a merge commit pinned to that commit, and changes nothing else: no push, no comment, no closing of issues, no branch deletion.
 - Record the Reviewer's full report in the PR description, with what was fixed and what was left.
 - A plan that proves wrong or ambiguous goes back to the Architect. Do not improvise around it.
 - Freeze any evaluation protocol in a commit before the first measured run, and keep failed runs in the record.
