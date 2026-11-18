@@ -371,7 +371,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Reset failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Reset failed') : 'Server unavailable')
   }
   return res.json()
 }
