@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking. Also load the `frontend-design`, `ui-ux-pro-max` and `modern-web-design` skills before Task R1.
 
-**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). Later that day the owner found the landing page too close to the generic AI-product template, and Section 2R replaces Directions A and B with three bolder directions, C, D and E (Decisions D1, D8 and D9). The owner then kept the yellow and asked for Direction C to lead with DocVault as a personal knowledge base, not a bill checker (Decision D10). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
+**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). Later that day the owner found the landing page too close to the generic AI-product template, and Section 2R replaces Directions A and B with three bolder directions, C, D and E (Decisions D1, D8 and D9). The owner then kept the yellow and asked for Direction C to lead with DocVault as a personal knowledge base, not a bill checker (Decision D10). On 18 November the owner put the plan on hold until the audit defects (issue #24) were fixed. Section 0R records what changed underneath since then, and the new schedule: redesign PR 1 runs alongside issue #25 once #24 PR 2 merges. The plan waits for the owner's approval of the decisions below; D10 is already agreed. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
 
 **Goal:** Give DocVault a recognisable visual identity built around what people do with it: find a household document, check what it says, and decide what needs attention. Retire the purple and indigo gradient branding, glows, frosted surfaces and colourful feature cards. Every function, check and piece of evidence the app has today stays.
 
@@ -18,6 +18,40 @@
   - **Frontend Design** for the identity (Section 3).
   - **UI/UX Pro Max** v2.15.0 for the signed-in flows and its accessibility and touch checklist (Section 4). Its `--design-system` query proposed a generic teal and orange flat palette. I kept its structural advice (flat surfaces, no gradients, 150–200 ms transitions, product-demo hero) and rejected the palette as not specific to this product.
   - **Modern Web Design** for the one interaction where feedback earns its place (Section 5).
+
+---
+
+## 0R. Revision, 18 November 2026 (evening): what changed underneath, and the new schedule
+
+The owner put this plan on hold until the 18 November audit defects were fixed. That work changed several screens this plan restyles, and two PRs merged. This section updates the plan; where it disagrees with a later section, this section wins.
+
+**Merged into `main` since this plan was written:**
+- PR 23 (issue #5 Phase 2, `b86a27f`): `AssistantAction.tsx` and the chat cards. **Task R9 is no longer blocked.**
+- PR 26 (issue #24 PR 1, `57d4ea4`):
+  - **Upload:** "View Documents" goes to `/app/documents`, and the list refreshes after an upload (part of P10).
+  - **Rows:** they no longer show summary JSON (P9).
+  - **Document page:** shows only real summaries and filled fields, through `lib/summary.ts` (`isGeneratedSummary`, `summaryOverview`).
+  - **Sidebar:** links to Search, Warranties and Settings. On a phone it starts off-screen and closes on every route change and on the logo (part of P4).
+  - **Other:** sign-in changes follow across tabs; a failed reload after a confirmation is reported (`ReloadFailedError`); timestamps in Irish time (`lib/dates.ts`); the landing page's untrue claims were corrected.
+
+**Still to come before or alongside this plan:**
+- issue #24 PR 2 (server fixes: Ask's "not found", 2FA confirmation, the Google button, password rules, and the rest)
+- issue #25 (split by days at home), which adds controls to `BillSplit.tsx`
+
+**What this changes in the tasks:**
+- **R3 (App shell):** `AppNav` replaces the sidebar, so it must keep PR 26's behaviour. The existing `AppShell.test.tsx` cases (Search, Warranties and Settings reachable; the phone navigation closed on route change and on the logo; a backdrop that closes it) are kept, moved to `AppNav.test.tsx` and adapted:
+  - in the three-item phone tab bar, Search, Warranties and Settings sit behind the account menu and the command palette
+  - on desktop they appear in the rail under "More"
+- **R4 (Landing):** builds Section 2R Direction C as revised (knowledge base, highlighter yellow, 8 px controls). It replaces the whole page, including PR 26's corrected copy. The new `Landing.test.tsx` keeps PR 26's banned-claims assertions, which still hold.
+- **R6 (Documents home) and R7 (Upload):** start from PR 26's behaviour. R7 keeps the `['documents']` invalidation and still ends on the documents list. Its in-row upload states replace the success panel.
+- **R8 (bill panels):** waits for issue #25 to merge, and restyles its "How to split" choice and days fields along with the rest of `BillSplit.tsx`.
+- **D2 (home route):** the e2e assertions that expect "Ask anything about your documents" right after sign-in move to "Documents". Today there are six such places across `accessibility.spec.ts`, `app.spec.ts` and `password-reset.spec.ts`. The Issue session greps for the exact list.
+- **Frozen copy:** add the copy that PR 26, PR 23 and issue #25 introduce and test, for example "Saved as revision {n}…", "Ask in your own words", "Split by days at home" and "Days at home for {label}". Before changing any visible string, grep `frontend/e2e/*.ts` and `frontend/src/**/*.test.tsx`, as the global constraints say.
+
+**New schedule (owner, 18 November 2026: "in parallel"):**
+- **Redesign PR 1 = Tasks R0 to R7 and R10.** R10 leaves out `BillSplit.tsx` and `BillReminder.tsx`, which R8 does in PR 2. PR 1 starts after issue #24 PR 2 merges, on its own branch from that `main`, and runs **at the same time as issue #25**. It does not touch `BillSplit.tsx`, `BillReminder.tsx`, `services/bill_split.py` or the split types in `lib/api.ts`.
+- **Redesign PR 2 = Tasks R8, R9 and R11.** It starts after issue #25 and redesign PR 1 have merged.
+- Each PR is reviewed and merged under `AGENTS.md`. A merge into `main` needs the owner's words in the session that merges.
 
 ---
 
@@ -709,9 +743,7 @@ Any pair under its threshold on the built CSS is a defect.
 4. **D4. Themes.** *Recommended:* follow the system setting, with a manual override in Settings (today's `lib/theme.ts` behaviour). The rail is no longer forced dark.
 5. **D5. Remove `canvas-confetti`.** *Recommended:* yes; it is used only for the upload celebration that Section 5 replaces.
 6. **D6. A GitHub issue and two pull requests.** *Recommended:* I open an issue, "Redesign the website around finding, checking and deciding", with the acceptance checks at the end of this plan.
-   - PR 1 (Tasks R0 to R8 and R10) starts after Demo 1 (from 21 November 2026) and can run alongside issue #5 Phase 2. It avoids `AskAI.tsx` and `AssistantAction.tsx`.
-   - PR 2 (Task R9 and the final screenshots) starts after issue #5 Phase 2 merges.
-   - Nothing merges before 21 November.
+   - Superseded by Section 0R: PR 1 is Tasks R0 to R7 and R10 (not the bill panels), alongside issue #25, once #24 PR 2 merges. PR 2 is Tasks R8, R9 and R11, after #25 and PR 1 merge. The Demo 1 merge freeze was lifted on 18 November.
 7. **D7. Impeccable.** It is not installed, because its hooks download and run a binary at every session start, after every file edit and at every turn end, in all your sessions. *Recommended:* leave it uninstalled; this plan used its critique method without the detector. If you want it, install it yourself with `claude plugin install impeccable@impeccable`, knowing the hooks will run.
 8. **D8. A display face for the landing page.** Only under Direction C. *Recommended:* Archivo (variable width and weight), loaded from Google Fonts in the same `<link>` as Geist, at €0 and with no package. It is used only for the landing display type and the wordmark; the app keeps Geist (D3). D and E need no new face.
 9. **D9. The highlighter mark in the app.** *Recommended:* yes, with any of C, D or E. `SourceTie` shows the quoted line on `--mark` (`#FFE98A` with ink text, 14.7:1) and a 3 px ink edge in light mode. In dark mode it uses a `#3A3414` wash, a `#E8C93A` edge and `#FFF3BD` text (Section 7's marker values). This replaces the grey `bg-muted` block of Section 3R principle 4, so the landing page and the bill review mark evidence the same way. Muted text never sits on the mark. Alternative: keep 3R's grey block.
