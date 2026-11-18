@@ -1,0 +1,63 @@
+# Website redesign: screens before and after
+
+This folder holds the screenshots that compare the web app before and after the redesign in
+[`specs/plans/2026-11-18-website-redesign.md`](../../specs/plans/2026-11-18-website-redesign.md).
+Every document, name, amount and date in them is synthetic.
+
+## What is here
+
+| Folder | What it shows | Recorded |
+| --- | --- | --- |
+| `before/` | The app on `main` at `9939121`, before any redesign change | Task R0 |
+| `after/` | The same screens after the redesign | Task R11 (PR 2) |
+
+Files are named `<screen>-<width>-<theme>.png`, for example `documents-390-dark.png`.
+Widths are 1366 and 390 pixels. Themes are `light` and `dark`.
+
+## The screens
+
+| Screen | Route | State |
+| --- | --- | --- |
+| `landing` | `/` | Signed out |
+| `login` | `/login` | Signed out, email step |
+| `documents-empty` | `/app/documents` | Signed in, no documents yet |
+| `home` | `/app` | Signed in, twelve documents, the bill read but not confirmed |
+| `documents` | `/app/documents` | The same account |
+| `documents-search` | `/app/documents?q=october` | The search "october" |
+| `documents-no-match` | `/app/documents?q=octber` | A search that matches nothing |
+| `bill-unconfirmed` | `/app/documents/<October bill>` | The bill review before confirming |
+| `bill-confirmed` | the same | Confirmed as revision 1 |
+| `reminder-proposal` | the same | Split saved, reminder proposed and waiting for approval |
+| `upload-mid` | `/app/upload` | One file chosen, its upload held in flight |
+
+Before the redesign, the Documents page has no search field, so `documents-search` and
+`documents-no-match` show the same list as `documents`. They are recorded anyway so that the
+after set compares like with like.
+
+## How they were recorded
+
+The spec is [`frontend/e2e/redesign-screens.spec.ts`](../../frontend/e2e/redesign-screens.spec.ts). It is
+skipped unless `E2E_SCREENSHOTS=1`. It needs a disposable stack and a verified synthetic account,
+and it clears that account's documents and housemates first.
+
+```powershell
+cd frontend
+$env:E2E_BASE_URL = 'http://localhost:3300'
+$env:E2E_EMAIL = 'e2e-verified@example.com'
+$env:E2E_PASSWORD = '<the disposable account password>'
+$env:E2E_SCREENSHOTS = '1'
+$env:E2E_SCREENSHOT_SET = 'before'   # or 'after'
+npx playwright test redesign-screens --retries=0
+```
+
+The twelve documents are defined in
+[`frontend/e2e/fixtures/redesign/documents.ts`](../../frontend/e2e/fixtures/redesign/documents.ts).
+The spec draws each one as an image of its text and uploads it, so OCR reads it the way it reads the
+bill in `app.spec.ts`. Their titles in the list end in `.png` because the title comes from the file name.
+
+## Run record: before set
+
+- Commit: `9939121` plus the R0 spec and fixtures.
+- Stack: a disposable Compose project (`rdsn1`) on ports 3300 (web), 8300 (API), 9300 (storage) and
+  8325 (mail). The `dvdemo` project was not touched.
+- Result: one test passed, 44 screenshots (11 screens, 2 widths, 2 themes).
