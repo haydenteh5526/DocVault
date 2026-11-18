@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed on 18 November 2026. It waits for the owner's approval of decisions E1 to E5. Nothing in it is implemented. The build starts after issue #24's PR 2 merges, because both change `backend/app/services/bill_split.py` and `frontend/src/lib/api.ts` (E5).
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions E1 to E5 as recommended. Nothing in it is implemented. The build starts after issue #24's PR 2 (PR 27) merges, because both change `backend/app/services/bill_split.py` and `frontend/src/lib/api.ts` (E5).
 
 **Issue:** [#25](https://github.com/haydenteh5526/DocVault/issues/25). It builds on #2 (equal split, `2026-11-12-issue-2-bill-split.md`).
 
