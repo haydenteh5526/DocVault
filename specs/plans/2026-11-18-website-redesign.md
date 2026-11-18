@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking. Also load the `frontend-design`, `ui-ux-pro-max` and `modern-web-design` skills before Task R1.
 
-**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). Later that day the owner found the landing page too close to the generic AI-product template, and Section 2R replaces Directions A and B with three bolder directions, C, D and E (Decisions D1, D8 and D9). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
+**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). Later that day the owner found the landing page too close to the generic AI-product template, and Section 2R replaces Directions A and B with three bolder directions, C, D and E (Decisions D1, D8 and D9). The owner then kept the yellow and asked for Direction C to lead with DocVault as a personal knowledge base, not a bill checker (Decision D10). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
 
 **Goal:** Give DocVault a recognisable visual identity built around what people do with it: find a household document, check what it says, and decide what needs attention. Retire the purple and indigo gradient branding, glows, frosted surfaces and colourful feature cards. Every function, check and piece of evidence the app has today stays.
 
@@ -199,33 +199,70 @@ The owner found Directions A and B underwhelming. Both follow the generic AI-pro
 - **No new package.** Motion is CSS keyframes and transitions, plus at most one `IntersectionObserver` (a browser API) in E. The only new external resource is one Google Fonts family in C (Decision D8).
 - **Product truth kept:** every value on the page is shown beside its line; the approval copy is the app's real copy; nothing claims payment, sending or automatic saving; all examples are synthetic.
 
+### Positioning, revised 18 November 2026
+
+The owner corrected the subject. DocVault is not a bill checker. In the README's words, it "helps users turn the documents they keep into a personal knowledge base they can talk to", uses those files as its long-term memory, answers with evidence, connects information across documents and proposes actions for approval. **The landing page leads with that.** The Example Energy bill stays, but as the first worked example, because it is the one flow built and verified end to end. Direction C below is rewritten on this basis. D and E still lead with documents and the bill; if the owner picks either, it gets the same change of subject before it is built.
+
+**What the page may show as working** (the product-truth rule, Section 2R):
+
+| Claim | State on 18 November 2026 | How the page uses it |
+| --- | --- | --- |
+| Search by the words on the page or by meaning, across every document | Implemented: hybrid search, PostgreSQL full text plus local embeddings | Shown working (C section 2) |
+| Answers about a bill (amount, dates, split, reminder proposal) from confirmed values, with their source lines | Implemented and tested (issue #5 Phase 1, PR 22) | Shown working (C hero) |
+| A split or reminder proposed, saved only on approval | Implemented and tested (issues #2, #3, #5) | Shown working (C section 3) |
+| Answers to general questions, written from retrieved passages | Needs a hosted Q&A key. Without one, the app shows raw excerpts. Local answer generation is not built, so it is not available at €0 today. | Described in the copy, never shown as a working screen |
+| Connecting information across documents | Not built | Not shown and not claimed in the hero. The README's wording may stay in the copy only once it is built and evaluated. |
+
 ### Direction C — "The poster" (recommended)
 
-*The first screen is a full-bleed highlighter-yellow field. A huge condensed headline sits on the left; on the right, the bill bleeds off the bottom of the screen at poster scale. Its total and due date are pulled out into the margin as black tags, each touching the line it came from.* From hackathlone.com: a field colour, heavy condensed display type, colour bands, big numerals and a motif from the subject. The motif here is a bill's perforated tear-off edge, used where one band meets the next.
+*The first screen is a full-bleed highlighter-yellow field. A huge condensed headline sits on the left. On the right, a question typed in everyday words sits above a stack of mixed household documents. The front one, the Example Energy bill, has its answer pulled into the margin as black tags, each touching the line it came from.* From hackathlone.com: a field colour, heavy condensed display type, colour bands, big numerals and a motif from the subject. The motif here is a bill's perforated tear-off edge, used where one band meets the next.
 
 - **Type:** display in **Archivo** (Google Fonts, variable `wdth` 62–125 and `wght` 100–900), set at `font-stretch: 75%` and weight 800 with tracking −0.02 em. Text and UI in Geist (Section 3R).
+- **Corners:** buttons, inputs and tags are 8 px (shadcn's `rounded-md`, as in the app); panels and the question bar are 12 px. Only paper stays nearly square (2 px), because a document is a sheet. No pills. *Why the change:* the first draft used 4 px to echo the poster and the sheet, but that was a style choice with no usability reason behind it. The landing page leads straight into the app, so its controls should match the app's.
 - **Colour:**
 
   | Token | Hex | Use |
   | --- | --- | --- |
-  | `--field` | `#FFD83D` | Hero field; numerals on the ink band |
-  | `--ink` | `#14171F` | Text, primary button, ink band, tags |
-  | `--paper` | `#FFFFFF` | Bill sheet, white sections |
-  | `--mark` | `#FFE98A` | Quoted source line |
+  | `--field` | `#FFD83D` | Hero field; numerals and tags on ink |
+  | `--ink` | `#14171F` | Text, primary button, question bar, ink band, tags |
+  | `--paper` | `#FFFFFF` | Documents, white sections |
+  | `--mark` | `#FFE98A` | Quoted source line; search matches |
   | `--muted` | `#5B6170` on paper; `#A9B0BF` on ink; `#4A4422` on the field | Supporting text |
-  | `--correction` | `#C8261C` | "Corrected from …" text only |
 
-  Contrast: ink on field 12.9; ink on paper 17.9; muted on paper 6.2; `#4A4422` on field 7.1; white on ink 17.9; `#A9B0BF` on ink 8.2; field on ink 12.9; ink on mark 14.7; correction on paper 5.6.
+  Contrast: ink on field 12.9; ink on paper 17.9; muted on paper 6.2; `#4A4422` on field 7.1; white on ink 17.9; `#A9B0BF` on ink 8.2; field on ink 12.9; ink on mark 14.7. The input border `#8F8F8F` on paper is 3.2 (controls need 3.0).
 - **Copy and sections** (each one screen at 1440×900):
-  1. **Hero, on the field.** H1 (136 px desktop, 64 px phone, line height 0.88): **"Your bills, checked line by line."** Lead (20/30): "DocVault reads your household paperwork, ties every amount and date to the line it came from, and saves a split or a reminder only when you approve it." Buttons: "Create an account" and "Sign in". The sheet shows lines 7 to 21 with small line numbers; lines 15 and 17 sit on the mark with a 4 px ink edge. Margin tags: "€123.47" against line 15, "23 Nov" against line 17.
-  2. **Perforation edge, then white.** H2: **"The figure and its line, side by side."** Body: "Every value DocVault reads keeps the line it came from. Correct anything the scan got wrong, then confirm it. A confirmed bill keeps its revision number." Visual: the real Bill review panel (title "Bill review", tag "Not confirmed yet"), with three source ties (lines 15, 17 and 9) and the button "Review and confirm".
-  3. **Perforation edge, then the ink band.** H2: **"Split to the cent."** Body: "€123.47 among four housemates. 3 leftover cents went one each to the first 3 people in this order." Then four numerals at 132 px in Archivo (30.87, 30.87 and 30.87 in yellow; 30.86 in white), with a name under each.
-  4. **White.** H2: **"Nothing is saved until you approve it."** Visual: the reminder proposal with the app's copy: "Approve this reminder", "Proposal 2 · not saved yet", the rows Amount due, Due date and Remind on, "Nothing is sent to anyone. The reminder is saved in your account only.", then "Approve and save" and "Cancel proposal".
-  5. Footer.
-- **Layout:** a 12-column grid with 64 px side margins and 24 px gutters. The hero text spans 7 columns; the sheet spans 5 and runs past the right margin by 40 px, cropped by the section. No element is centred.
-- **Motion** (once, on load only): each margin tag draws out from its line with `clip-path: inset()`, 400 ms ease-out, the second 150 ms after the first. Buttons darken on hover and press 1 px on click. Nothing moves on scroll. Under reduced motion, the tags are simply there.
-- **Phone (390):** the field, the H1 at 64 px, a shorter lead, then a full-width "Create an account". The sheet is cropped to lines 15 and 17, each tag dropping under its line.
-- **Dark theme:** the field and the ink band stay as they are. White sections become `#101218` with white text; the sheet and the review panel stay paper-white, like a document on a dark desk.
+  1. **Hero, on the field.**
+     - H1 (136 px desktop, 60 px phone, line height 0.88): **"Everything you keep, ready to answer."**
+     - Lead (20/30): "DocVault turns the documents you keep into a personal knowledge base. Ask in your own words, and every answer comes with the line it came from. Nothing is saved or acted on until you approve it."
+     - Buttons: "Create an account" and "Sign in".
+     - Visual: an ink question bar reading "You asked" and "When is the electricity bill due?". Under it, a stack of four documents offset down and to the left, never rotated: "Tenancy agreement 2026–27", "Washer-dryer warranty card", "Linkline Broadband, November 2026", and the Example Energy bill in front. Lines 15 and 17 of the bill sit on the mark with a 4 px ink edge. Margin tags read "€123.47" against line 15 and "23 Nov" against line 17.
+  2. **Perforation edge, then white.**
+     - H2: **"Find anything by what it says or what it means."**
+     - Body: "Search the words printed on the page, or describe what you are looking for. Results come from every document you have uploaded: bills, leases, manuals, warranties and receipts."
+     - Visual: a search panel with the visible label "Search your documents" and the query "how long is the washer guaranteed for". Under it, "3 documents match" and three result rows, each with the matched phrase on the mark:
+       - Washer-dryer warranty card: "Warranty period: 2 years from the date of purchase, parts and labour."
+       - Washer-dryer manual (model WD8): "Keep your proof of purchase. The guarantee does not cover misuse."
+       - Kettle receipt: "Returns within 30 days. Manufacturer warranty applies after that."
+     - In the built page, this panel is a static picture (`figure`, `role="img"`, labelled "A search across three documents"), not a working input. A field on the signed-out page would promise a search that cannot run.
+  3. **Perforation edge, then the ink band.**
+     - H2: **"It proposes. You decide."**
+     - Body: "Ask DocVault to split a bill among the people you live with, or to remind you before it is due. You see the exact shares and the exact reminder first. Nothing is saved until you approve it."
+     - Visual: four numerals at 96 px in Archivo (30.87, 30.87 and 30.87 in yellow; 30.86 in white), with Aoife, Ben, Chidi and Dara under them. Beside them, the reminder proposal with the app's copy: "Approve this reminder", "Proposal 2 · not saved yet", Amount due €123.47, Remind on 21 November 2026, "Nothing is sent to anyone. The reminder is saved in your account only.", then "Approve and save" and "Cancel proposal".
+  4. **White.**
+     - H2: **"Your documents stay on your computer."**
+     - Body: "DocVault runs on your own machine. It stores the originals, reads their text and searches them locally, and each account sees only its own documents."
+  5. **Footer**, with the shared footer line.
+- **Layout:** a 12-column grid with 64 px side margins and 24 px gutters. The hero text spans 7 columns. The question bar and the stack span 5, running 40 px past the right margin, cropped by the section. No element is centred.
+- **Motion** (once, on load only):
+  - The question bar fades in first (200 ms).
+  - Each margin tag then draws out from its line with `clip-path: inset()`, 400 ms ease-out, the second 150 ms after the first.
+  - Buttons darken on hover and press 1 px on click.
+  - Nothing moves on scroll. Under reduced motion, everything is simply there.
+- **Phone (390):**
+  - the field, the H1 at 60 px and a shorter lead ("Ask in your own words. Every answer comes with the line it came from, and nothing is saved until you approve it.")
+  - a full-width "Create an account"
+  - the question bar, then the bill cropped to line 17, with the tag "23 Nov 2026" under it
+- **Dark theme:** the field and the ink band stay as they are. White sections become `#101218` with white text. The documents and panels stay paper-white, like documents on a dark desk.
 
 ### Direction D — "The pile"
 
@@ -239,7 +276,7 @@ The owner found Directions A and B underwhelming. Both follow the generic AI-pro
   3. Footer.
 - **Motion** (one orchestrated moment, once, on load, about 2.4 s, CSS only): the query types in with `steps()`, 1.2 s. Then the other tiles fade to 38% (300 ms), the bill scales from 1 to 1.02 and gains its ring (300 ms), and the chip fades in. After that the page is still. Under reduced motion, the end state is shown at once.
 - **Phone:** the H1 at 42 px, a full-width "Create an account", the search figure, then the bill tile across two columns with its chip, and two dimmed tiles under it.
-- **Truth check:** document search over page text exists today (the search endpoint used by `/app/search`). The page shows an exact-match search, not a chat answer, so it claims nothing the keyword router has not shown.
+- **Truth check:** document search over page text exists today (the search endpoint used by `/app/search`). The page shows an exact-match search, not a chat answer, so it claims nothing the keyword router has not shown. If D is chosen, its H1 and lead change to the knowledge-base positioning first (Positioning, above).
 
 ### Direction E — "The walkthrough"
 
@@ -257,7 +294,7 @@ The owner found Directions A and B underwhelming. Both follow the generic AI-pro
 
 ### Recommendation: Direction C
 
-1. **The hero is the product's truth, at poster scale.** A total tied to its line is readable from across a room and survives a shared screen in Demo 1's ten minutes. In A, the same idea sat at 14 px inside a screenshot.
+1. **The hero is the product's promise, at poster scale:** ask in your own words, and the answer is tied to its source line. It is readable from across a room and survives a shared screen in Demo 1's ten minutes. In A, the same idea sat at 14 px inside a screenshot. The example question is one the app answers today.
 2. **It answers the owner's reference most directly:** a field colour, heavy condensed type, colour bands, a motif from the subject and big numerals. It borrows the structure, not hackathlone's blue, typeface or battlements.
 3. **It holds still.** Its only motion is two tags drawing out once. It reads the same with reduced motion and at 390 px.
 4. **Cheap and contained:** one Google Fonts family and CSS only. It touches `Landing.tsx`, `Navbar.tsx`, `Footer.tsx`, `index.html` and the tokens, and nothing that issue #5 Phase 2 changes.
@@ -678,6 +715,7 @@ Any pair under its threshold on the built CSS is a defect.
 7. **D7. Impeccable.** It is not installed, because its hooks download and run a binary at every session start, after every file edit and at every turn end, in all your sessions. *Recommended:* leave it uninstalled; this plan used its critique method without the detector. If you want it, install it yourself with `claude plugin install impeccable@impeccable`, knowing the hooks will run.
 8. **D8. A display face for the landing page.** Only under Direction C. *Recommended:* Archivo (variable width and weight), loaded from Google Fonts in the same `<link>` as Geist, at €0 and with no package. It is used only for the landing display type and the wordmark; the app keeps Geist (D3). D and E need no new face.
 9. **D9. The highlighter mark in the app.** *Recommended:* yes, with any of C, D or E. `SourceTie` shows the quoted line on `--mark` (`#FFE98A` with ink text, 14.7:1) and a 3 px ink edge in light mode. In dark mode it uses a `#3A3414` wash, a `#E8C93A` edge and `#FFF3BD` text (Section 7's marker values). This replaces the grey `bg-muted` block of Section 3R principle 4, so the landing page and the bill review mark evidence the same way. Muted text never sits on the mark. Alternative: keep 3R's grey block.
+10. **D10. The landing page's subject (Section 2R, Positioning).** *Recommended:* lead with DocVault as a personal knowledge base you can ask, with the bill as the first worked example. Show as working only what the table there marks as implemented; general answers and connecting documents are not shown until they are built and evaluated. Agreed by the owner on 18 November 2026 for Direction C.
 
 ## Global Constraints
 
@@ -732,9 +770,9 @@ Any pair under its threshold on the built CSS is a defect.
 
 - **Files:** `pages/Landing.tsx`, `components/Navbar.tsx`, `components/Footer.tsx`, `index.html` (the Archivo link, under D8 only); create `pages/Landing.test.tsx`.
 - [ ] Failing tests:
-  - The heading reads the chosen direction's H1: C "Your bills, checked line by line.", D "Find any household document by what it says." or E "Check the bill before you pay it."
+  - The heading reads the chosen direction's H1: C "Everything you keep, ready to answer.". For D or E, the H1 is rewritten to the knowledge-base positioning before the build (Section 2R, Positioning).
   - A link "Create an account" goes to `/register`, and a link "Sign in" goes to `/login`.
-  - The hero shows the quoted source lines and their values from Section 2R. C: "Total amount due: EUR 123.47" and "Payment due date: 23 November 2026", with "€123.47" and "23 Nov". D: "Payment due date: 23 November 2026", with "Due 23 November 2026". E: "Total amount due: EUR 123.47", with "Line 15".
+  - The hero shows the quoted source lines and their values from Section 2R. C: the question "When is the electricity bill due?", the quoted lines "Total amount due: EUR 123.47" and "Payment due date: 23 November 2026", and the tags "€123.47" and "23 Nov"; the search picture is a `figure` with `role="img"` and the page has no `input`. D: "Payment due date: 23 November 2026", with "Due 23 November 2026". E: "Total amount due: EUR 123.47", with "Line 15".
   - The page has exactly one `h1`. With `prefers-reduced-motion: reduce` mocked, no hero element has an animation class.
   - The footer line reads "A final-year project at TUS Athlone. It runs on your own computer, and the examples on this page are synthetic."
   - Under D, the hero search is a `figure` with `role="img"`, and the page has no `input`.
