@@ -730,3 +730,26 @@ async def test_reminders_are_removed_with_the_document(bill, monkeypatch):
         ).scalars().all()
     assert events == []
 
+
+
+@pytest.mark.asyncio
+async def test_an_approval_for_a_document_deleted_during_the_save_is_not_found(bill):
+    from sqlalchemy import delete
+
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        proposal = await _proposed(client, owner_id, document_id)
+        async with async_session() as locker:
+            await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
+            approval = asyncio.create_task(_approve(client, document_id, owner_id, proposal))
+            try:
+                assert await wait_until_blocked(approval, locker)
+                await locker.execute(delete(Document).where(Document.id == document_id))
+                await locker.commit()
+            finally:
+                if not approval.done():
+                    await locker.rollback()
+                response = await approval
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Document not found"}
+    assert await _rows(Reminder, document_id) == []
