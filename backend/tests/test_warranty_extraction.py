@@ -11,6 +11,29 @@ def test_extract_warranty_dates_requires_text_or_parseable_date():
     assert extract_warranty_dates("Purchased 99/99/9999 with 2 year warranty") is None
 
 
+def test_a_bill_is_not_a_warranty():
+    assert extract_warranty_dates("Issued 01/11/2026 Total amount due: EUR 123.47") is None
+
+
+def test_a_warranty_period_next_to_a_purchase_date_gives_the_expiry():
+    assert extract_warranty_dates("Purchased 12/06/2026. 2 year warranty.") == {
+        "purchase_date": date(2026, 6, 12),
+        "expiry_date": date(2028, 6, 12),
+    }
+
+
+def test_the_word_warranty_near_a_date_is_enough_to_keep_the_purchase_date():
+    assert extract_warranty_dates("Warranty card. Date of purchase 12/06/2026.") == {
+        "purchase_date": date(2026, 6, 12),
+        "expiry_date": None,
+    }
+
+
+def test_the_word_warranty_far_from_every_date_is_not_enough():
+    far = "Warranty terms apply to this product. " + "x" * 80 + " Issued 12/06/2026"
+    assert extract_warranty_dates(far) is None
+
+
 def test_extract_year_warranty_and_clamp_leap_day():
     assert extract_warranty_dates("Purchase 29/02/2024. 1 year warranty") == {
         "purchase_date": date(2024, 2, 29),

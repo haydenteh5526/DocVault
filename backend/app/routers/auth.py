@@ -1,7 +1,8 @@
+import re
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,10 +26,34 @@ from app.services.auth_service import (
 router = APIRouter()
 
 
+PASSWORD_RULES_MESSAGE = (
+    "Use at least 8 characters with an uppercase letter, a lowercase letter, "
+    "a number and a special character."
+)
+
+
+def check_password_rules(password: str) -> str:
+    """The rules the sign-up checklist shows, enforced on the server (new passwords only)."""
+    if not (
+        8 <= len(password) <= 128
+        and re.search(r"[A-Z]", password)
+        and re.search(r"[a-z]", password)
+        and re.search(r"[0-9]", password)
+        and re.search(r"[^A-Za-z0-9]", password)
+    ):
+        raise ValueError(PASSWORD_RULES_MESSAGE)
+    return password
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str
     display_name: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def password_follows_the_rules(cls, value: str) -> str:
+        return check_password_rules(value)
 
 
 class LoginRequest(BaseModel):
@@ -43,7 +68,12 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_follows_the_rules(cls, value: str) -> str:
+        return check_password_rules(value)
 
 
 class RefreshRequest(BaseModel):
@@ -200,8 +230,10 @@ async def setup_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_curr
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
 
+    # The secret stays pending until the owner types a correct code
+    # (POST /2fa/confirm), so an abandoned setup can never lock them out.
     secret = pyotp.random_base32()
-    user.totp_secret = secret
+    user.totp_pending_secret = secret
     await db.commit()
 
     totp = pyotp.TOTP(secret)
@@ -216,11 +248,39 @@ async def setup_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_curr
     return {"secret": secret, "qr_code": f"data:image/png;base64,{qr_b64}", "uri": uri}
 
 
+class Confirm2FARequest(BaseModel):
+    code: str
+
+
+@router.post("/2fa/confirm")
+async def confirm_2fa(
+    req: Confirm2FARequest,
+    db: AsyncSession = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    import pyotp
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one()
+
+    if not user.totp_pending_secret:
+        raise HTTPException(409, "Start two-factor setup first.")
+
+    if not pyotp.TOTP(user.totp_pending_secret).verify(req.code, valid_window=1):
+        raise HTTPException(400, "That code didn't match. Check the time on your phone and try again.")
+
+    user.totp_secret = user.totp_pending_secret
+    user.totp_pending_secret = None
+    await db.commit()
+    return {"message": "Two-factor sign-in is on."}
+
+
 @router.post("/2fa/disable")
 async def disable_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
     user.totp_secret = None
+    user.totp_pending_secret = None
     await db.commit()
     return {"message": "2FA disabled"}
 
@@ -308,6 +368,12 @@ async def delete_account(
         storage_service.delete_user_files(str(user_id))
         await db.delete(user)
         await db.commit()
+
+
+@router.get("/providers")
+async def auth_providers():
+    """Which optional sign-in methods this server can offer. Public: no session."""
+    return {"google": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)}
 
 
 @router.get("/oauth/google")

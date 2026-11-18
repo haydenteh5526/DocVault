@@ -521,3 +521,27 @@ async def test_another_account_cannot_preview_save_or_read_a_split(bill):
 
         await _saved_first_split(client, owner_id, document_id, ids)
         assert (await _get(client, document_id, other_id)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_split_save_for_a_document_deleted_during_the_save_is_not_found(bill):
+    from sqlalchemy import delete
+
+    owner_id, _, document_id = bill
+    async with _client() as client:
+        ids = await _confirmed_with_four(client, owner_id, document_id)
+        preview = (await _preview(client, document_id, owner_id, {**REQUEST, "housemate_ids": ids})).json()
+        async with async_session() as locker:
+            await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
+            save = asyncio.create_task(_save(client, document_id, owner_id, _full_save(ids, preview)))
+            try:
+                assert await wait_until_blocked(save, locker)
+                await locker.execute(delete(Document).where(Document.id == document_id))
+                await locker.commit()
+            finally:
+                if not save.done():
+                    await locker.rollback()
+                response = await save
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Document not found"}
+    assert await _row_count(document_id) == 0

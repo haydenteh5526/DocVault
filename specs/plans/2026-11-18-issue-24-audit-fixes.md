@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. PR 1 Tasks 1 to 6 are built on `feature/issue-24-audit-fixes` (PR 26, head `fc1932d`). **Revision 1** (Task 6a) was added the same day after the review of PR 26 and approved by the owner as recommended (R1 to R6); R1 to R5 are built in `abbed40`. **Revision 2** (Task 6b) was added after the re-check at `abbed40` and approved by the owner as recommended (R7 to R11); it is not implemented. PR 2 (Tasks 7 to 12) starts after PR 23 merges.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11, R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is built on `feature/issue-24-server-fixes` and open as PR 27. **Revision 4** (Task 7a, R14) was added the same day after the review of PR 27 (finding M1), approved by the owner, and built in `9a2a3aa`. **Revision 5** (Task 7b, R15 and R16) was added after the re-check at `9a2a3aa` (finding D1 and the suspected numbering issue) and approved by the owner; it is not implemented.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -349,6 +349,82 @@ Added on 18 November 2026 after the Reviewer's re-check of PR 26 at `abbed40` (v
   - `the no-key answer names each passage`: it starts with "No answer could be written", contains "Example Energy, line 15:", and does not contain "[Dev mode".
 - [ ] Gates. Commit: `Say when nothing was found and name each passage's line`
 
+### Task 7a (Revision 4, PR 2): Find a passage's lines in real chunks
+
+Added on 18 November 2026 after the review of PR 27 (finding M1). It replaces Task 7's item 3 and the test `sources carry the OCR line`.
+
+**The defect in the plan.**
+- `chunking_service._split_sentences` replaces every newline with a space (`chunking_service.py:52`), so a stored chunk never contains a line break. Task 7's rule ("the first line that the chunk's first non-blank line starts with") therefore never matches, and `line` is always `None` for real documents.
+- The plan's tests used chunks with newlines, which the chunker never produces.
+- A second flaw: a short bill fits in one chunk, so a single line number would always be 1. That number is true but useless.
+
+**R14. Sources carry the range of OCR lines the passage covers.**
+- **File:** `backend/app/services/rag_service.py`, `backend/tests/test_rag_service.py`.
+- **Interface:** `ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None`. Line numbers are 1-based, the same numbering as the bill review's "OCR line" (`raw_text.splitlines()`).
+  1. Build `collapsed`, plus a list `origin` of original indices: walk `raw_text`; each run of whitespace becomes one space mapped to the run's first index, and every other character maps to its own index.
+  2. `flat = " ".join(chunk_text.split())`. If it is empty, return `None`.
+  3. `head = flat[:40]`, and `start = collapsed.find(head)`. If it is `-1`, return `None`.
+  4. `tail = flat[-40:]`, and `end = collapsed.find(tail, start)`. If it is `-1`, use `start`. The end index is `end + len(tail) - 1`.
+  5. Return `(raw_text.count("\n", 0, origin[start]) + 1, raw_text.count("\n", 0, origin[end_index]) + 1)`.
+- `Source` gains `line_start: int | None` and `line_end: int | None` in place of Task 7's `line`, and `to_dict` includes both.
+- **No-key answer format** (replaces Task 7 item 4's label):
+  - `"{title}, lines {a}–{b}:"` when `a != b`
+  - `"{title}, line {a}:"` when they are equal
+  - `"{title}:"` when unknown
+  - The rest of item 4 is unchanged: the first line "No answer could be written because no language model is set up. These passages match your question:", then 200 characters of each chunk, and no "[Dev mode".
+- **No migration, no re-chunking:** the lines are found at answer time from `documents.raw_text`, which Task 7 already selects.
+- **Tests** (replace `sources carry the OCR line` and every test that builds chunks containing newlines):
+  - `lines of the real bill`: the synthetic Example Energy text (the e2e fixture's lines) goes through `chunk_text()`. Each chunk gets a range whose first line contains the chunk's first ten collapsed characters, and whose last line contains its last ten. A one-chunk bill gives `(1, n)`, where `n` is the line of the last non-blank text.
+  - `lines of a later chunk`: 30 lines of `"Item {i}: the part number is PN-{i:04d} and it fits model WD8."` give at least three chunks. The second chunk's `line_start` is greater than 1 and at most its `line_end`. The overlap tail that starts that chunk is found on its `line_start`.
+  - `unknown text gives None`: a chunk that is not in `raw_text` → `None`.
+  - `the no-key answer names the line range`: a two-chunk document → the answer contains `"Manual, lines "` and the `–` range for each passage. A single-line chunk gives `"line {a}:"`.
+- Task 7's other tests (the floor, scoped questions, keyword matches, "not found") are unchanged.
+
+**Revision 4 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| M1: the OCR-line rule fails on real chunks; the tests used impossible chunks | R14 tests, built from `chunk_text()` output |
+
+### Task 7b (Revision 5, PR 2): Match the whole passage, not just its ends
+
+Added on 18 November 2026 after the re-check of PR 27 at `9a2a3aa` (finding D1). It changes R14's steps 3 and 4 and its one-chunk test.
+
+**The defect.** R14 takes the first match of the chunk's first 40 characters, then the first match of its last 40 after that. When a document repeats headers, warnings or account lines word for word, both ends can land on the wrong copy. The Reviewer reproduced a chunk covering lines 9–20 reported as 9–14, and one covering 20–28 reported as 2–28.
+
+**R15. The new rule:**
+1. **Whole match first.** `start = collapsed.find(flat)`. If found, the range is `start` to `start + len(flat) - 1`. A stored chunk is a contiguous run of the document's text once whitespace is collapsed: the chunker joins whole sentences, its overlap tail is the end of the previous chunk, and a hard split cuts inside one sentence. So a chunk normally matches whole.
+2. **Fallback, only if the whole match fails:** R14's head-and-tail steps.
+3. **Identical repeated passages:** if `flat` occurs more than once, the first occurrence is used. This is recorded as a known limit in the code comment and under "Found while planning".
+
+Section titles: `chunk_text` takes heading lines out as section titles, so a chunk's range starts at its first body line. That is correct, because the passage does not include the heading.
+
+**R16. The same line numbering as the bill review, worked out once per document.**
+- `ocr_lines_of` counts `\n`. The bill review numbers lines with `splitlines()`, and the two differ on `\f`, `\v`, `\x1c`–`\x1e`, `\x85`, ` `, ` ` and a lone `\r` (re-check, section 4).
+- Instead, build the line start offsets once:
+  - `starts = [0]`; for each `piece` in `raw_text.splitlines(keepends=True)`, append `starts[-1] + len(piece)`
+  - a character index `i` is on line `bisect.bisect_right(starts, i)`
+- `collapsed`, `origin` and `starts` are built once per document per request (a dict keyed by `document_id` inside `generate_rag_answer`), not once per source.
+
+**Tests** (they replace R14's `lines of the real bill`, and add these):
+- `numbering matches the bill review`: a text with a form feed between lines 30 and 31 gives the same line numbers as `raw_text.splitlines()`. For example, the last chunk reports (31, 34), not (30, 33).
+- `blank lines before a later passage`: a text with blank lines and indented whitespace before the second chunk. Its `line_start` is the line holding its first character, which protects the `origin` mapping (re-check N2).
+- `lines of the real bill`: use the e2e fixture's text, the synthetic Example Energy lines that the browser tests upload. Assert the literal range the chunker gives for it, `(1, 4)`. Also assert that the first line contains the chunk's first ten collapsed characters and the last line contains its last ten.
+- `repeated lines do not move the range`: a document where the same header line ("EXAMPLE ENERGY · account ending 0042") and the same warning sentence each appear three times, at lines 1, 10 and 20. Every chunk's computed range must equal the range found by locating the chunk itself in the text. That includes a chunk that starts on a repeated header.
+- `fallback still finds a range`: a `chunk_text` whose whole text is not in `raw_text`, but whose first and last 40 characters are, gives the head-and-tail range.
+- R14's other tests are unchanged.
+
+**Revision 5 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| D1: repeated text gives wrong ranges | R15 rule; the repeated-lines test |
+| The one-chunk fixture expectation (N1) | `lines of the real bill` with the e2e fixture, `(1, 4)` |
+| Line numbering differs from `splitlines()` (suspected, section 4) | R16; the numbering test |
+| Cost on long documents (suspected, section 4) | R16: work done once per document |
+| The `origin` mapping untested (N2) | The blank-lines test |
+| D2 (the PR description) and N3 (the evidence row's commit) | The Issue session updates both. No plan change. |
+
 ### Task 8: Two-factor sign-in turns on only after a correct code
 
 - **Files:**
@@ -426,6 +502,20 @@ Added on 18 November 2026 after the Reviewer's re-check of PR 26 at `abbed40` (v
   - Ruff: `select = ["E", "F", "I", "PLE251"]`. Fix any finding.
   - R6 (Revision 1): the FastAPI title in `backend/app/main.py` becomes "DocVault API".
   - R11 (Revision 2): `extract_warranty_dates` returns `None` unless warranty wording is present, as Task 6b says, with its two tests.
+
+**Revision 3 (18 November 2026, before PR 2 starts).** These items go into PR 2. The owner agreed to them when deciding the third review of PR 26 and the merge order.
+
+- **R12. Warranty expiry dates are shown as calendar dates in en-IE.**
+  - `frontend/src/pages/Warranties.tsx:108` formats `expiry_date` with `new Date(...).toLocaleDateString(undefined, …)`. That uses the browser's locale and time zone, so the date can read "June 12, 2028" or even move back a day.
+  - Use `formatBillDate` (from `components/BillReview.tsx`; date-only, `en-IE`, `timeZone: 'UTC'`). It shows "Expires 12 June 2028", matching the landing card.
+  - **Test** (create `pages/Warranties.test.tsx`): `expiry_date: "2028-06-12"` renders "Expires 12 June 2028".
+- **R13. Correct the records that PR 23 and PR 26 left behind.**
+  - `specs/Repo_Current_State.md`: the issue #5 Phase 2 row says hosted CI was not run. Record what PR 23 actually ran:
+    - hosted CI passed on `c20c018` (run 44396089130) and on its final head `7a294fa`
+    - merged as `b86a27f` on 18 November 2026
+  - `specs/plans/2026-11-16-issue-5-assistant-tools.md`: the status line still ends at Phase 1. Add that Phase 2 (Tasks 6 to 9 and Revision 7) was merged as PR 23 (`b86a27f`) on 18 November 2026, and that issue #5 stays open until the owner closes it.
+  - This plan's status line: PR 1 was merged as PR 26 (`57d4ea4`) with R1 to R5 and R7 to R10. PR 2 holds Tasks 7 to 12, plus R6, R11, R12 and R13.
+
 - [ ] **Tests:** `no key stores no summary`: with every provider key empty, `_generate_summary("text")` is `None`. Update any test that expected the fallback JSON.
 - [ ] Gates. Update `specs/Repo_Current_State.md`, and the README's "Document Q&A" line if its wording changes. Commit: `Store no placeholder summary and check for invisible characters`
 

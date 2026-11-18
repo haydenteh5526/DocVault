@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.base import BillRevision, Document
 from app.schemas.document import BillConfirmation, BillReview, BillRevisionOut
 from app.services.bill_review import extract_bill_review
+from app.services.locking import lock_document
 
 
 def to_cents(amount: str) -> int:
@@ -65,11 +66,7 @@ async def _conflict(db: AsyncSession, code: str, message: str) -> BillReviewConf
 
 async def save_revision(db: AsyncSession, doc: Document, confirmation: BillConfirmation) -> BillRevisionOut:
     # Lock the document row so a concurrent confirmation or transcript edit waits for this one.
-    locked = (
-        await db.execute(
-            select(Document).where(Document.id == doc.id).with_for_update().execution_options(populate_existing=True)
-        )
-    ).scalar_one()
+    locked = await lock_document(db, doc.id)
 
     review = extract_bill_review(locked.raw_text) if locked.processing_status == "complete" else None
     if review is None:
