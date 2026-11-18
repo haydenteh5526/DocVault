@@ -4,14 +4,14 @@ import asyncio
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.dependencies import async_session
 from app.main import app
 from app.models.base import BillRevision, Document
 from app.services.auth_service import create_access_token
 from app.services.bill_revisions import from_cents, to_cents
-from tests.accounts import create_users_and_document, delete_users
+from tests.accounts import create_users_and_document, delete_users, wait_until_blocked
 
 BASE = "http://test"
 
@@ -331,5 +331,29 @@ async def test_a_duplicate_revision_number_is_a_conflict(monkeypatch):
             assert response.status_code == 409
             assert _code(response) == "revision_changed"
         assert await _row_count(document_id) == 1
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
+async def test_a_confirmation_for_a_document_deleted_during_the_save_is_not_found():
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=BILL)
+    try:
+        async with _client() as client:
+            review = await _review(client, document_id, owner_id)
+            async with async_session() as locker:
+                await locker.execute(select(Document).where(Document.id == document_id).with_for_update(key_share=True))
+                save = asyncio.create_task(_post(client, document_id, owner_id, {**VALUES, "reviewed": review}))
+                try:
+                    assert await wait_until_blocked(save, locker)
+                    await locker.execute(delete(Document).where(Document.id == document_id))
+                    await locker.commit()
+                finally:
+                    if not save.done():
+                        await locker.rollback()
+                    response = await save
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Document not found"}
+        assert await _row_count(document_id) == 0
     finally:
         await delete_users(owner_id, other_id)

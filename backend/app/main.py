@@ -21,6 +21,7 @@ from app.routers import (
     tags,
     warranties,
 )
+from app.services.locking import DocumentGoneError
 
 configure_logging()
 logger = get_logger("app")
@@ -46,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI Cloud Document Vault",
+    title="DocVault API",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -90,6 +91,12 @@ async def security_headers_middleware(request: Request, call_next):
         "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
     )
     return response
+
+
+@app.exception_handler(DocumentGoneError)
+async def document_gone_handler(request: Request, exc: DocumentGoneError):
+    # A save found its document deleted while it waited for the lock.
+    return JSONResponse(status_code=404, content={"detail": "Document not found"})
 
 
 @app.exception_handler(RateLimitExceeded)

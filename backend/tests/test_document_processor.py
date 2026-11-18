@@ -1,4 +1,3 @@
-import json
 import uuid
 from types import SimpleNamespace
 
@@ -222,13 +221,11 @@ async def test_process_document_marks_failure_in_fresh_transaction(monkeypatch):
     assert database.commits == 2
 
 
-def test_generate_summary_fallback_handles_short_and_long_text(monkeypatch):
-    monkeypatch.setattr(settings, "MISTRAL_API_KEY", "")
-    short = json.loads(document_processor._generate_summary("short text"))
-    long = json.loads(document_processor._generate_summary("x" * 250))
-    assert short["overview"] == "short text"
-    assert long["overview"] == "x" * 200 + "..."
-    assert short["key_topics"] == []
+def test_no_key_stores_no_summary(monkeypatch):
+    for key in ("MISTRAL_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY"):
+        monkeypatch.setattr(settings, key, "")
+    assert document_processor._generate_summary("text") is None
+    assert document_processor._generate_summary("x" * 250) is None
 
 
 def test_generate_summary_accepts_fenced_mistral_json(monkeypatch):
@@ -247,7 +244,7 @@ def test_generate_summary_accepts_fenced_mistral_json(monkeypatch):
     assert document_processor._generate_summary("manual") == payload
 
 
-def test_generate_summary_falls_back_on_invalid_provider_response(monkeypatch):
+def test_generate_summary_returns_none_on_invalid_provider_response(monkeypatch):
     class Response:
         def raise_for_status(self):
             return None
@@ -258,4 +255,4 @@ def test_generate_summary_falls_back_on_invalid_provider_response(monkeypatch):
     monkeypatch.setattr(settings, "MISTRAL_API_KEY", "key")
     monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: Response())
     monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
-    assert json.loads(document_processor._generate_summary("manual"))["overview"] == "manual"
+    assert document_processor._generate_summary("manual") is None

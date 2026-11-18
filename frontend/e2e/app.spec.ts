@@ -10,7 +10,7 @@ test.describe('DocVault auth flow', () => {
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByPlaceholder('name@example.com')).toBeVisible();
     await expect(page.getByRole('button', { name: /Continue with Email/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Continue with Google/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Continue with Google/i })).toHaveCount(0);
   });
 
   test('advances from email to the password step', async ({ page }) => {

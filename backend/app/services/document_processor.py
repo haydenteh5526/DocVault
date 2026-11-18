@@ -110,7 +110,7 @@ async def process_document(document_id: str | uuid.UUID) -> None:
 
 
 def _generate_summary(raw_text: str) -> str | None:
-    """Generate a rich structured summary of the document using Mistral or fallback."""
+    """Generate a structured summary with Mistral, or None when no summary can be written."""
     import json
 
     from app.config import settings
@@ -170,13 +170,6 @@ Rules:
         except Exception:
             pass
 
-    # Fallback: return a simple JSON structure with just an overview
-    overview = (raw_text[:200] + "...") if len(raw_text) > 200 else raw_text
-    fallback = json.dumps({
-        "overview": overview,
-        "key_topics": [],
-        "specifications": [],
-        "safety_warnings": [],
-        "quick_facts": [],
-    })
-    return fallback
+    # No provider key, or the call failed: store no summary. A placeholder that
+    # looks like AI output would only be shown to the owner as if it were real.
+    return None

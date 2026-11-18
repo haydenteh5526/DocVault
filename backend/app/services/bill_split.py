@@ -19,6 +19,7 @@ from app.schemas.bill_split import (
 )
 from app.schemas.document import BillRevisionOut
 from app.services.bill_revisions import from_cents, latest_revision, to_cents
+from app.services.locking import lock_document
 
 
 def split_equally(total_cents: int, count: int) -> list[int]:
@@ -133,11 +134,7 @@ async def preview_split(
 
 async def save_split(db: AsyncSession, doc: Document, user_id: uuid.UUID, request: BillSplitSave) -> BillSplitOut:
     # Lock the document row so a concurrent confirmation or split waits for this one.
-    locked = (
-        await db.execute(
-            select(Document).where(Document.id == doc.id).with_for_update().execution_options(populate_existing=True)
-        )
-    ).scalar_one()
+    locked = await lock_document(db, doc.id)
 
     revision = await latest_revision(db, locked.id)
     if revision is None:

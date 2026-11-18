@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.bill_split import BillSplitOut
 from app.schemas.reminder import ReminderProposalOut
@@ -44,6 +44,16 @@ class DocumentUpdate(BaseModel):
     document_type: str | None = None
     category_id: uuid.UUID | None = None
     raw_text: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_is_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Title cannot be blank.")
+        return stripped
 
 
 class BillSourceLine(BaseModel):

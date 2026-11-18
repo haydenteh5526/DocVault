@@ -4,7 +4,7 @@ import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, D
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
-import { setup2FA, disable2FA, deleteAccount, getProfile, updateProfile, exportDocuments } from '@/lib/api'
+import { setup2FA, confirm2FA, disable2FA, deleteAccount, getProfile, updateProfile, exportDocuments } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { useTheme } from '@/lib/theme'
 
@@ -184,19 +184,42 @@ function AccountSettings() {
   const [qr, setQr] = useState<string | null>(null)
   const [secret, setSecret] = useState('')
   const [twoFAEnabled, setTwoFAEnabled] = useState(false)
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState('')
+  const [confirming, setConfirming] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   async function handleSetup2FA() {
     const data = await setup2FA()
     setQr(data.qr_code)
     setSecret(data.secret)
-    setTwoFAEnabled(true)
+    setCode('')
+    setCodeError('')
+  }
+
+  async function handleConfirm2FA() {
+    setConfirming(true)
+    setCodeError('')
+    try {
+      await confirm2FA(code)
+      setTwoFAEnabled(true)
+      setQr(null)
+      setSecret('')
+      setCode('')
+      toast('Two-factor sign-in is on.')
+    } catch (err) {
+      setCodeError(err instanceof Error ? err.message : 'Could not turn on two-factor sign-in. Try again.')
+    } finally {
+      setConfirming(false)
+    }
   }
 
   async function handleDisable2FA() {
     await disable2FA()
     setQr(null)
     setSecret('')
+    setCode('')
+    setCodeError('')
     setTwoFAEnabled(false)
     toast('2FA disabled')
   }
@@ -217,7 +240,39 @@ function AccountSettings() {
       {/* 2FA section */}
       <section>
         <h3 className="text-sm font-semibold mb-4">Two-Factor Authentication</h3>
-        {!twoFAEnabled ? (
+        {twoFAEnabled ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded-lg p-3">
+              <ShieldCheck size={16} /> 2FA is enabled
+            </div>
+            <Button variant="outline" size="sm" onClick={handleDisable2FA}>Disable 2FA</Button>
+          </div>
+        ) : qr ? (
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-3 py-4">
+              <img src={qr} alt="2FA QR Code" className="w-40 h-40 rounded-lg border" />
+              <p className="text-xs text-muted-foreground">Scan with your authenticator app, then enter the code it shows.</p>
+              <code className="text-xs bg-muted px-3 py-1.5 rounded-md select-all">{secret}</code>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="totp-code" className="text-sm font-medium">Code from your authenticator app</label>
+              <Input
+                id="totp-code"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                aria-describedby={codeError ? 'totp-code-error' : undefined}
+              />
+              {codeError && <p id="totp-code-error" role="alert" className="text-sm text-destructive">{codeError}</p>}
+            </div>
+            <Button onClick={handleConfirm2FA} disabled={code.length !== 6 || confirming} className="gradient-bg border-0 text-white">
+              Turn on 2FA
+            </Button>
+          </div>
+        ) : (
           <div>
             <p className="text-sm text-muted-foreground mb-4">
               Add an extra layer of security with an authenticator app like Google Authenticator or Authy.
@@ -225,20 +280,6 @@ function AccountSettings() {
             <Button onClick={handleSetup2FA} className="gradient-bg border-0 text-white">
               <Smartphone size={15} className="mr-1.5" /> Enable 2FA
             </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded-lg p-3">
-              <ShieldCheck size={16} /> 2FA is enabled
-            </div>
-            {qr && (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <img src={qr} alt="2FA QR Code" className="w-40 h-40 rounded-lg border" />
-                <p className="text-xs text-muted-foreground">Scan with your authenticator app</p>
-                <code className="text-xs bg-muted px-3 py-1.5 rounded-md select-all">{secret}</code>
-              </div>
-            )}
-            <Button variant="outline" size="sm" onClick={handleDisable2FA}>Disable 2FA</Button>
           </div>
         )}
       </section>

@@ -2,6 +2,7 @@
 
 Used by both the /api/v1/ai/ask endpoint and the conversations endpoint.
 """
+import bisect
 import uuid
 
 from sqlalchemy import text
@@ -9,13 +10,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import embedding_service
 
+# Cosine similarity a chunk must reach when a question is asked across all
+# documents. Provisional (D1 of the issue 24 plan): the retrieval benchmark
+# calibrates it on a frozen set. A question scoped to one document has no floor.
+SIMILARITY_FLOOR = 0.55
+
+NOT_FOUND_ANSWER = "I couldn't find this in your documents."
+NO_KEY_HEADER = (
+    "No answer could be written because no language model is set up. "
+    "These passages match your question:"
+)
+
 
 class Source:
-    def __init__(self, document_id: str, document_title: str, chunk_text: str, similarity: float):
+    def __init__(
+        self,
+        document_id: str,
+        document_title: str,
+        chunk_text: str,
+        similarity: float,
+        line_start: int | None = None,
+        line_end: int | None = None,
+    ):
         self.document_id = document_id
         self.document_title = document_title
         self.chunk_text = chunk_text
         self.similarity = similarity
+        self.line_start = line_start
+        self.line_end = line_end
 
     def to_dict(self) -> dict:
         return {
@@ -23,6 +45,8 @@ class Source:
             "document_title": self.document_title,
             "chunk_text": self.chunk_text,
             "similarity": self.similarity,
+            "line_start": self.line_start,
+            "line_end": self.line_end,
         }
 
 
@@ -30,6 +54,79 @@ class RAGResult:
     def __init__(self, answer: str, sources: list[Source]):
         self.answer = answer
         self.sources = sources
+
+
+class _LineIndex:
+    """A document's text prepared once, so each passage is located without rescanning it.
+
+    `collapsed` is raw_text with every run of whitespace turned into one space,
+    `origin[i]` is the index in raw_text that collapsed[i] came from, and
+    `starts` are the offsets where `raw_text.splitlines()` begins each line, so a
+    character is numbered exactly as the bill review's "OCR line" numbers it.
+    """
+
+    def __init__(self, raw_text: str):
+        chars: list[str] = []
+        self.origin: list[int] = []
+        in_space = False
+        for index, char in enumerate(raw_text):
+            if char.isspace():
+                if not in_space and chars:
+                    chars.append(" ")
+                    self.origin.append(index)
+                in_space = True
+            else:
+                chars.append(char)
+                self.origin.append(index)
+                in_space = False
+        self.collapsed = "".join(chars)
+        self.starts = [0]
+        for piece in raw_text.splitlines(keepends=True):
+            self.starts.append(self.starts[-1] + len(piece))
+
+    def _line_of(self, collapsed_index: int) -> int:
+        return bisect.bisect_right(self.starts, self.origin[collapsed_index])
+
+    def lines_of(self, chunk_text: str) -> tuple[int, int] | None:
+        flat = " ".join(chunk_text.split())
+        if not flat or not self.collapsed:
+            return None
+
+        # A stored chunk is a contiguous run of the document's text once
+        # whitespace is collapsed, so it normally matches whole. If the same
+        # passage appears more than once word for word, the first copy is used:
+        # that is a known limit, since the text alone cannot tell the copies apart.
+        start = self.collapsed.find(flat)
+        if start != -1:
+            return self._line_of(start), self._line_of(start + len(flat) - 1)
+
+        # Fallback: the chunk's first and last 40 characters.
+        start = self.collapsed.find(flat[:40])
+        if start == -1:
+            return None
+        tail = flat[-40:]
+        end = self.collapsed.find(tail, start)
+        end_index = (end + len(tail) - 1) if end != -1 else start
+        return self._line_of(start), self._line_of(end_index)
+
+
+def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
+    """The 1-based first and last line of raw_text that a chunk covers.
+
+    The chunker joins lines with spaces, so a stored chunk has no line breaks;
+    see _LineIndex for how it is found and numbered.
+    """
+    if not raw_text:
+        return None
+    return _LineIndex(raw_text).lines_of(chunk_text)
+
+
+def _passage_label(title: str, line_start: int | None, line_end: int | None) -> str:
+    if line_start is None or line_end is None:
+        return f"{title}:"
+    if line_start == line_end:
+        return f"{title}, line {line_start}:"
+    return f"{title}, lines {line_start}\u2013{line_end}:"
 
 
 class ChatTurn:
@@ -75,6 +172,7 @@ async def generate_rag_answer(
     vec_result = await db.execute(
         text(f"""
             SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
+                   d.raw_text,
                    1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
@@ -94,6 +192,7 @@ async def generate_rag_answer(
     kw_result = await db.execute(
         text(f"""
             SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
+                   d.raw_text,
                    ts_rank(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', :q)) as rank
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
@@ -122,6 +221,7 @@ async def generate_rag_answer(
                 "chunk_text": row.chunk_text,
                 "document_id": row.document_id,
                 "document_title": row.document_title,
+                "raw_text": row.raw_text,
                 "rrf": 0.0,
                 "similarity": 0.0,
             })
@@ -133,12 +233,16 @@ async def generate_rag_answer(
     _add(vec_rows, lambda r: (r.similarity if r.similarity == r.similarity else 0.0))
     _add(kw_rows, lambda r: None)  # keyword rows carry no cosine similarity
 
-    # 2d. Relevance floor: keep chunks that clear a semantic similarity
-    #     threshold. This filters out near-irrelevant chunks that would
-    #     otherwise pad the context and invite hallucination.
-    SIMILARITY_FLOOR = 0.25
+    # 2d. Relevance floor: across all documents, keep chunks that clear a
+    #     semantic similarity threshold. This filters out near-irrelevant
+    #     chunks that would otherwise pad the context and invite
+    #     hallucination. Inside one document the owner already chose where to
+    #     look, so every fused chunk counts.
     ranked = sorted(fused.values(), key=lambda e: e["rrf"], reverse=True)
-    relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
+    if document_id:
+        relevant = ranked
+    else:
+        relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
     if not relevant:
         # No chunk cleared the semantic floor. If keyword search still produced
         # matches (exact terms/model numbers), trust the top fused hits;
@@ -146,12 +250,18 @@ async def generate_rag_answer(
         if kw_rows:
             relevant = ranked[:5]
         else:
-            return RAGResult(
-                answer="I don't have information about that in your documents.",
-                sources=[],
-            )
+            return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
 
     top = relevant[:5]
+
+    # Prepared once per document, not once per passage.
+    _line_indexes: dict = {}
+    for e in top:
+        if e["raw_text"] and e["document_id"] not in _line_indexes:
+            _line_indexes[e["document_id"]] = _LineIndex(e["raw_text"])
+    for e in top:
+        lines = _line_indexes[e["document_id"]].lines_of(e["chunk_text"]) if e["raw_text"] else None
+        e["line_start"], e["line_end"] = lines if lines else (None, None)
 
     # 3. Build context from retrieved chunks
     context = "\n\n---\n\n".join(
@@ -179,7 +289,7 @@ async def generate_rag_answer(
             context += warranty_context
 
     # 4. Generate answer via LLM (with conversation history)
-    answer = _generate_answer(question, context, history)
+    answer = _generate_answer(question, context, history, passages=top)
 
     # 5. Build sources from the fused top chunks
     sources = [
@@ -188,6 +298,8 @@ async def generate_rag_answer(
             document_title=e["document_title"],
             chunk_text=e["chunk_text"][:200],
             similarity=round(e["similarity"], 4),
+            line_start=e["line_start"],
+            line_end=e["line_end"],
         )
         for e in top
     ]
@@ -195,7 +307,26 @@ async def generate_rag_answer(
     return RAGResult(answer=answer, sources=sources)
 
 
-def _generate_answer(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
+def _no_key_answer(context: str, passages: list[dict] | None) -> str:
+    if not passages:
+        return f"{NO_KEY_HEADER}\n\n{context[:500]}"
+    parts = [NO_KEY_HEADER]
+    for passage in passages:
+        label = _passage_label(passage["document_title"], passage.get("line_start"), passage.get("line_end"))
+        parts.append(f"{label}\n{passage['chunk_text'][:200]}")
+    answer = "\n\n".join(parts)
+    warranty_at = context.find("[Warranty Information]")
+    if warranty_at != -1:
+        answer += "\n\n---\n\n" + context[warranty_at:]
+    return answer
+
+
+def _generate_answer(
+    question: str,
+    context: str,
+    history: list[ChatTurn] | None = None,
+    passages: list[dict] | None = None,
+) -> str:
     from app.config import settings
     from app.services.observability import trace_generation
 
@@ -204,7 +335,7 @@ def _generate_answer(question: str, context: str, history: list[ChatTurn] | None
     elif settings.GEMINI_API_KEY:
         model = "gemini-2.0-flash"
     else:
-        return f"[Dev mode - no AI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
+        return _no_key_answer(context, passages)
 
     with trace_generation(
         name="rag_answer",
