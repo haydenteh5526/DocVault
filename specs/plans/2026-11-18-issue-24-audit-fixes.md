@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. PR 1 Tasks 1 to 6 are built on `feature/issue-24-audit-fixes` (PR 26, head `fc1932d`). **Revision 1** (Task 6a) was added the same day after the review of PR 26 and approved by the owner as recommended (R1 to R6); it is not implemented. PR 2 (Tasks 7 to 12) starts after PR 23 merges.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. PR 1 Tasks 1 to 6 are built on `feature/issue-24-audit-fixes` (PR 26, head `fc1932d`). **Revision 1** (Task 6a) was added the same day after the review of PR 26 and approved by the owner as recommended (R1 to R6); R1 to R5 are built in `abbed40`. **Revision 2** (Task 6b) was added after the re-check at `abbed40` and approved by the owner as recommended (R7 to R11); it is not implemented. PR 2 (Tasks 7 to 12) starts after PR 23 merges.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -255,7 +255,75 @@ It records the result in the PR description. If it cannot run the check, it list
 | N2: the plan's status line is out of date | This revision's status line |
 | N5: the API title | R6, in PR 2 Task 12 |
 
-**PR 1:** the Reviewer checks Tasks 1 to 6 and Task 6a against the acceptance checks they cover. The body starts `Part of #24`.
+### Task 6b (Revision 2, PR 1): Close what the second review of PR 26 found
+
+Added on 18 November 2026 after the Reviewer's re-check of PR 26 at `abbed40` (verdict "merge after fixes", four low findings and three nits). The owner approves this revision before it is built.
+
+**R7 (L-a). Quick preview shows a generated summary's overview, never its JSON.**
+- **Files:** `frontend/src/lib/summary.ts`, `summary.test.ts`, `components/DocumentPreviewModal.tsx`, `DocumentPreviewModal.test.tsx`.
+- **Change:**
+  - Add `summaryOverview(summary: string | null | undefined): string | null`:
+    - JSON with a non-empty `overview` → that string
+    - text that is not JSON → the text
+    - otherwise → `null`
+  - The preview's "Summary" block renders `summaryOverview(doc.summary)` and appears only when `isGeneratedSummary(doc.summary)` and the overview is not `null`.
+- **Tests:**
+  - `summaryOverview` returns the overview for `{"overview":"An electricity bill.","key_topics":["Charges"]}`, and the text for plain text.
+  - R1's second preview test changes to that JSON summary. It shows "An electricity bill." and no text containing `{"`.
+
+**R8 (L-b). The logo closes the phone sidebar even on `/app`.**
+- **File:** `frontend/src/App.tsx`, `AppShell.test.tsx`.
+- **Change:** the logo button's `onClick` also calls `setSidebarOpen(false)`. R3's effect stays.
+- **Test:** `the logo closes the phone sidebar on the Ask page`. At 390 px, starting at `/app`: open the menu, click the "DocVault" logo, and expect `-translate-x-full` and no backdrop.
+
+**R9 (L-c). The landing page describes Ask as it works today.** Bill questions get a written answer from the confirmed values; that is issue #5, merged. Other questions show matching passages.
+- **File:** `frontend/src/pages/Landing.tsx`, `Landing.test.tsx`.
+- **Copy:**
+  - The feature row "Ask questions, get real answers" becomes:
+    - title "Ask in your own words"
+    - description "Ask when a bill is due or how much it is, and DocVault answers from the values you confirmed. For anything else, it shows the passages in your documents that match your question, with the document each came from."
+    - its mock reply: "€123.47 is due on 23 November 2026. These are the values you confirmed (revision 1)." with the source line "Example Energy bill"
+  - The feature card "AI Q&A" becomes the title "Ask your documents" and the description "Bill questions are answered from the values you confirmed. Other questions show the matching passages and where they came from."
+  - The FAQ question "How does the AI Q&A work?" becomes "How does asking a question work?", with the answer "Your documents are split into passages and indexed by meaning (pgvector) and by their words (PostgreSQL full-text search). Questions about a bill are answered from the values you confirmed. Other questions show the passages that match, with the document they came from. Writing a free-text answer needs a language-model key, which this build does not set."
+- **Test:** the page text contains none of "get real answers", "instant, sourced answer" or "RAG (Retrieval-Augmented Generation) to answer", and contains "Ask in your own words".
+
+**R10 (L-d). The warranty copy matches what the extractor finds.**
+- **File:** `frontend/src/pages/Landing.tsx`.
+- **Copy:**
+  - Description: "DocVault reads every upload with OCR and picks up warranty periods written like "2 year warranty" next to a purchase date, so the Warranties page shows what expires and when. Group everything else with folders and tags."
+  - The card line becomes "Purchased 12/06/2026, 2 year warranty", and its chip becomes "Expires 12 June 2028". This wording gives exactly that expiry in `warranty_extraction.py`.
+- **Test:** `Landing.test.tsx` contains "2 year warranty".
+
+**R11 (found in the re-check). A bill is not filed as a warranty.**
+- `extract_warranty_dates` returns a purchase date for any numeric date. Uploading a bill that says "Issued 01/11/2026" creates a Warranty row, and the bill appears on the Warranties page as "No expiry date detected".
+- This belongs to **PR 2, Task 12**. `extract_warranty_dates` returns `None` unless the text has a warranty period ("N year(s)" or "N month(s)" followed by "warranty" or "guarantee"), or the word "warranty" or "guarantee" within 60 characters of the date.
+- **Tests:**
+  - `"Issued 01/11/2026 Total amount due: EUR 123.47"` → `None`
+  - `"Purchased 12/06/2026. 2 year warranty."` → expiry 12 June 2028
+
+**Record (N-a, N-b, N-c):**
+- The Issue session corrects "What changes" item 2 in the PR description; grid cards show the badge only.
+- This revision updates the plan's status line.
+- The Issue session adds a `specs/Repo_Current_State.md` row for the final head: commit, gates and test counts, plus the L3 browser check with the stack name and result.
+
+**Steps:**
+- [ ] Write the R7 to R10 tests, see them fail, implement, then run the frontend gates.
+- [ ] Update the PR description, with this revision's fixed and left list.
+- [ ] Commit: `Close what the second review of PR 26 found`
+- [ ] The Reviewer re-checks the new head. Merge only on a clean verdict, after 21 November 2026, with every CI check green.
+
+**Revision 2 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| L-a: preview shows raw JSON for a generated summary | R7 tests |
+| L-b: the logo on `/app` leaves the phone sidebar open | R8 test |
+| L-c: the landing page promises written answers for every question | R9 test |
+| L-d: the warranty copy claims more than the extractor finds | R10 test |
+| Bill filed as a warranty (re-check, section 4) | R11, in PR 2 Task 12 |
+| N-a, N-b, N-c | The record steps above |
+
+**PR 1:** the Reviewer checks Tasks 1 to 6, Task 6a and Task 6b against the acceptance checks they cover. The body starts `Part of #24`.
 
 ---
 
@@ -356,6 +424,8 @@ It records the result in the PR description. If it cannot run the check, it list
 - **Change:**
   - `_generate_summary` returns `None` when no provider key is set or the call fails, instead of the fallback JSON (`document_processor.py:173-182`). Existing rows keep their old value; Task 3 already hides it.
   - Ruff: `select = ["E", "F", "I", "PLE251"]`. Fix any finding.
+  - R6 (Revision 1): the FastAPI title in `backend/app/main.py` becomes "DocVault API".
+  - R11 (Revision 2): `extract_warranty_dates` returns `None` unless warranty wording is present, as Task 6b says, with its two tests.
 - [ ] **Tests:** `no key stores no summary`: with every provider key empty, `_generate_summary("text")` is `None`. Update any test that expected the fallback JSON.
 - [ ] Gates. Update `specs/Repo_Current_State.md`, and the README's "Document Q&A" line if its wording changes. Commit: `Store no placeholder summary and check for invisible characters`
 
