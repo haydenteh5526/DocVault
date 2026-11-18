@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking. Also load the `frontend-design`, `ui-ux-pro-max` and `modern-web-design` skills before Task R1.
 
-**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
+**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). Later that day the owner found the landing page too close to the generic AI-product template, and Section 2R replaces Directions A and B with three bolder directions, C, D and E (Decisions D1, D8 and D9). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
 
 **Goal:** Give DocVault a recognisable visual identity built around what people do with it: find a household document, check what it says, and decide what needs attention. Retire the purple and indigo gradient branding, glows, frosted surfaces and colourful feature cards. Every function, check and piece of evidence the app has today stays.
 
@@ -64,7 +64,9 @@
 
 ---
 
-## 2. Two landing directions (Taste Skill)
+## 2. Two landing directions (Taste Skill) — withdrawn, replaced by Section 2R
+
+*Kept for the record. The bill and the copy of Direction A are reused where Section 2R says so.*
 
 Both directions use the same synthetic bill: **Example Energy, electricity bill, statement issued 2 November 2026, billing period 1–31 October 2026, total amount due EUR 123.47 (line 15), payment due 23 November 2026 (line 17), billing period (line 9).** They differ in what visitors see and learn first.
 
@@ -164,6 +166,106 @@ DESKTOP 1366 — first screen                                      [B]
 2. **It matches the lecturer's priority** of retrieval accuracy and answer reliability. A value tied to its source line is answer reliability made visible.
 3. **It gives the identity its signature.** The source tie (Section 3) starts on the landing page and recurs on the dashboard, in the bill review and in chat answers, so the whole site looks like one product. Direction B's chat bubble belongs to a category of products, not to this one.
 4. **It holds up without motion and on a phone**, because it is a still document, not a conversation that has to play out.
+
+---
+
+## 2R. Landing, revised 18 November 2026 (second revision): three bolder directions
+
+The owner found Directions A and B underwhelming. Both follow the generic AI-product template: a centred pill, a big centred headline, two buttons and a product screenshot below. **This section withdraws A and B** and replaces them with Directions C, D and E. The copy of A survives only where C, D or E repeat it. Section 3R still holds for every signed-in screen; the landing page may go further than 3R, as each direction states.
+
+**Canvas:** the row "Bolder landing directions (18 Nov, second revision)" on [DocVault redesign direction](https://claude.ai/artifact/8gxv5H9WbxGnh3bJ2bZJeD). Boards `LandingC`, `LandingCPhone`, `LandingD`, `LandingDPhone`, `LandingE` and `LandingEPhone`. The eight earlier boards are kept; A and B carry a "withdrawn" note.
+
+### How this revision was made
+
+- **References studied in the browser pane on 18 November 2026** (at 1440×900, with computed styles read from the page; non-essential cookies declined):
+  - **hackathlone.com.** A left-aligned hero, not centred. The display face is Overpass 900, uppercase, 53–80 px, with tracking of about −2.8 px. Body text is Inter 16/25.6. Full-bleed colour bands alternate: white, brand blue `#0042A6`, white, black `#111`, a pale tint. A motif from the place (Athlone Castle's battlements) cuts the band edges. Big-number statistics (4, 169, 111). A numbered list with hairlines, used for a real sequence. A photo filmstrip by year. Headline left and body right, in an asymmetric two-column grid.
+  - **higgsfield.ai.** A near-black ground (`#0F1113`) and one acid-lime accent, used only on calls to action. Headings in Space Grotesk 700, uppercase, tracking −4%. The product's own output fills the page: 65 videos and about 100 images in dense mosaics and bento tiles. The page works like a catalogue rather than a pitch.
+  - **granola.ai** (the owner asked for wider inspiration instead of a portfolio link). A serif display at 86 px in the hero, with section statements up to 160 px, all at weight 400 and left-aligned. The product window overlaps the hero's right edge. A quiet ground; scale does the work.
+  - **mercury.com**, as a counter-example. It uses the centred template, rescued by an atmospheric photograph. DocVault has no photography to lean on, so this route is closed.
+- **What makes them work, taken forward:** the hero is the work itself, not a picture of a product next to a pitch. Type is set at poster scale and left-aligned. Colour comes in full-bleed bands, not tinted cards. A motif comes from the subject's own world. The rhythm changes from section to section: white, colour, white, dark.
+- **Design tools:**
+  - **Taste Skill** (`design-taste-frontend` 2.5.1). DocVault is a *software* page: it shows its own UI working on real content. No violet. One section per screen. One orchestrated moment, not fades on every section. The kit's page scripts and gate were not run, because this is a plan for the React app, not a static page built with the kit.
+  - **Frontend Design.** Two of the references sit on its list of generated defaults: Higgsfield's near-black with one acid accent, and Granola's warm ground with a serif display. So D uses carbon blue with highlighter yellow, and no direction uses a cream ground or a clay accent. Its rule on numbering (only for a real sequence) decides where E may number steps.
+  - **UI/UX Pro Max** 2.15.0 (`--design-system`, variance 8, motion 4, density 3). It proposed the "Trust & Authority" pattern, an asymmetric Brutalism style and IBM Plex Sans, with an amber primary and a violet accent. **Kept:** the asymmetric, high-variance structure and the warm amber–yellow signal. **Rejected:** the violet accent (Taste Skill forbids it, and Section 1 retires purple), and Brutalism's instant transitions.
+  - **Modern Web Design.** Motion budget: CSS transforms and opacity only, `prefers-reduced-motion` honoured, no scroll hijacking, no parallax on text.
+- **Test constraint checked:** the landing page has no frozen copy. `e2e/accessibility.spec.ts` only requires a visible `h1` on `/` and no axe A/AA violations, so every colour pair below must pass. `Landing.tsx` has no unit test today.
+
+### Shared across C, D and E
+
+- **The bill:** the same synthetic Example Energy bill as Section 2. Billing period on line 9, total EUR 123.47 on line 15, payment due 23 November 2026 on line 17. The split among four is Aoife, Ben, Chidi and Dara: €30.87, €30.87, €30.87 and €30.86. The reminder falls 2 days before the due date, on 21 November 2026.
+- **Actions:** the primary is "Create an account" (`/register`) and the secondary is "Sign in" (`/login`), in the top bar and in the hero. No anchor links. The primary action is on the first screen at 390 px (fixes P5).
+- **Footer line:** "A final-year project at TUS Athlone. It runs on your own computer, and the examples on this page are synthetic."
+- **The highlighter mark.** A quoted source line sits on `--mark` `#FFE98A` with ink text (14.7:1). Muted grey text never sits on the mark: `#6B6B6B` on it measures 4.3:1 and fails. See Decision D9 for carrying the mark into the app.
+- **No new package.** Motion is CSS keyframes and transitions, plus at most one `IntersectionObserver` (a browser API) in E. The only new external resource is one Google Fonts family in C (Decision D8).
+- **Product truth kept:** every value on the page is shown beside its line; the approval copy is the app's real copy; nothing claims payment, sending or automatic saving; all examples are synthetic.
+
+### Direction C — "The poster" (recommended)
+
+*The first screen is a full-bleed highlighter-yellow field. A huge condensed headline sits on the left; on the right, the bill bleeds off the bottom of the screen at poster scale. Its total and due date are pulled out into the margin as black tags, each touching the line it came from.* From hackathlone.com: a field colour, heavy condensed display type, colour bands, big numerals and a motif from the subject. The motif here is a bill's perforated tear-off edge, used where one band meets the next.
+
+- **Type:** display in **Archivo** (Google Fonts, variable `wdth` 62–125 and `wght` 100–900), set at `font-stretch: 75%` and weight 800 with tracking −0.02 em. Text and UI in Geist (Section 3R).
+- **Colour:**
+
+  | Token | Hex | Use |
+  | --- | --- | --- |
+  | `--field` | `#FFD83D` | Hero field; numerals on the ink band |
+  | `--ink` | `#14171F` | Text, primary button, ink band, tags |
+  | `--paper` | `#FFFFFF` | Bill sheet, white sections |
+  | `--mark` | `#FFE98A` | Quoted source line |
+  | `--muted` | `#5B6170` on paper; `#A9B0BF` on ink; `#4A4422` on the field | Supporting text |
+  | `--correction` | `#C8261C` | "Corrected from …" text only |
+
+  Contrast: ink on field 12.9; ink on paper 17.9; muted on paper 6.2; `#4A4422` on field 7.1; white on ink 17.9; `#A9B0BF` on ink 8.2; field on ink 12.9; ink on mark 14.7; correction on paper 5.6.
+- **Copy and sections** (each one screen at 1440×900):
+  1. **Hero, on the field.** H1 (136 px desktop, 64 px phone, line height 0.88): **"Your bills, checked line by line."** Lead (20/30): "DocVault reads your household paperwork, ties every amount and date to the line it came from, and saves a split or a reminder only when you approve it." Buttons: "Create an account" and "Sign in". The sheet shows lines 7 to 21 with small line numbers; lines 15 and 17 sit on the mark with a 4 px ink edge. Margin tags: "€123.47" against line 15, "23 Nov" against line 17.
+  2. **Perforation edge, then white.** H2: **"The figure and its line, side by side."** Body: "Every value DocVault reads keeps the line it came from. Correct anything the scan got wrong, then confirm it. A confirmed bill keeps its revision number." Visual: the real Bill review panel (title "Bill review", tag "Not confirmed yet"), with three source ties (lines 15, 17 and 9) and the button "Review and confirm".
+  3. **Perforation edge, then the ink band.** H2: **"Split to the cent."** Body: "€123.47 among four housemates. 3 leftover cents went one each to the first 3 people in this order." Then four numerals at 132 px in Archivo (30.87, 30.87 and 30.87 in yellow; 30.86 in white), with a name under each.
+  4. **White.** H2: **"Nothing is saved until you approve it."** Visual: the reminder proposal with the app's copy: "Approve this reminder", "Proposal 2 · not saved yet", the rows Amount due, Due date and Remind on, "Nothing is sent to anyone. The reminder is saved in your account only.", then "Approve and save" and "Cancel proposal".
+  5. Footer.
+- **Layout:** a 12-column grid with 64 px side margins and 24 px gutters. The hero text spans 7 columns; the sheet spans 5 and runs past the right margin by 40 px, cropped by the section. No element is centred.
+- **Motion** (once, on load only): each margin tag draws out from its line with `clip-path: inset()`, 400 ms ease-out, the second 150 ms after the first. Buttons darken on hover and press 1 px on click. Nothing moves on scroll. Under reduced motion, the tags are simply there.
+- **Phone (390):** the field, the H1 at 64 px, a shorter lead, then a full-width "Create an account". The sheet is cropped to lines 15 and 17, each tag dropping under its line.
+- **Dark theme:** the field and the ink band stay as they are. White sections become `#101218` with white text; the sheet and the review panel stay paper-white, like a document on a dark desk.
+
+### Direction D — "The pile"
+
+*The first screen is a carbon-blue desk covered in twelve household documents. A search for "electricity due date" has just run: the wall dims, the October bill lifts out with a yellow ring, and line 17 is lit with the answer beside it.* From Higgsfield: the product's material fills the page as a dense wall, so the page reads like a catalogue of real things.
+
+- **Type:** Geist only. The H1 is 84 px, weight 600, tracking −0.045 em.
+- **Colour:** carbon `#0F2236` ground; paper `#FAFAF7` tiles; yellow `#FFD83D` for the primary button, the ring and the match; `#FFE98A` for the lit line; muted `#9FB0C6` on carbon; `#5E6675` on paper; outline-button border `#607D9E`. Contrast: white on carbon 16.1; muted on carbon 7.3; carbon on yellow 11.6; tile text `#1F2633` on paper 14.5; tile muted on paper 5.5; border on carbon 3.8 (controls need 3.0).
+- **Copy and sections:**
+  1. **Hero.** H1: **"Find any household document by what it says."** Lead: "Bills, leases, manuals and warranties in one place. Search the words printed on the page, and DocVault opens the line that matches." Buttons: "Create an account" (yellow) and "Sign in" (outline). The search shown is a `figure` with `role="img"` and the label "A search for electricity due date", **not an input**: a working field on the landing page would promise a search that cannot run signed out. Its text reads "electricity due date", with "1 of 12 documents" beside it. The wall below holds the twelve seed documents of Section 4, staggered in six columns, every tile at 38% opacity except the October bill. Answer chip on the bill: "Due 23 November 2026", with "Example Energy, October 2026, line 17" under it.
+  2. **Paper.** H2: **"Open it and check the line."** Body: "Each value sits beside its source. Confirm the bill, split it among the people you live with, and approve one reminder before anything is saved." Visual: the Bill review panel and the Bill split panel side by side, with the app's copy.
+  3. Footer.
+- **Motion** (one orchestrated moment, once, on load, about 2.4 s, CSS only): the query types in with `steps()`, 1.2 s. Then the other tiles fade to 38% (300 ms), the bill scales from 1 to 1.02 and gains its ring (300 ms), and the chip fades in. After that the page is still. Under reduced motion, the end state is shown at once.
+- **Phone:** the H1 at 42 px, a full-width "Create an account", the search figure, then the bill tile across two columns with its chip, and two dimmed tiles under it.
+- **Truth check:** document search over page text exists today (the search endpoint used by `/app/search`). The page shows an exact-match search, not a chat answer, so it claims nothing the keyword router has not shown.
+
+### Direction E — "The walkthrough"
+
+*The first screen is one statement in Geist at 150 px, left-aligned across the full width. The bill rises from the bottom edge on the right. Below it, a pinned section keeps the bill still while four numbered steps change its state as you scroll.* From Framer-style portfolio pages and Granola: a single oversized statement, then sticky storytelling. It stays inside Section 3R (shadcn neutral tokens and Geist), so it is the lowest-risk direction and the least loud.
+
+- **Copy and sections:**
+  1. **Hero.** H1 (150 px desktop, 58 px phone, tracking −0.06 em): **"Check the bill before you pay it."** Lead: Direction A's supporting line, unchanged. Buttons: "Create an account" and "Sign in". The sheet has line 15 on the mark, with the badge "Line 15".
+  2. **Pinned steps,** a real sequence, so the numbers are justified. The steps are: 1 "Upload the bill", 2 "Check each value", 3 "Split it to the cent", 4 "Approve one reminder". The active step is set at 56 px, with one line under it. Its copy for step 2 is "Every amount and date sits beside the line it came from. Correct anything the scan got wrong, then confirm." The frame on the right shows the matching state:
+     - step 1: the processing row from Section 5
+     - step 2: the Bill review panel with the source line outlined on the page
+     - step 3: the four shares
+     - step 4: the reminder proposal with "Approve and save"
+  3. Footer.
+- **Motion:** the frame is `position: sticky`. One `IntersectionObserver` sets `data-step` on it as each step crosses the middle of the viewport. States cross-fade in 200 ms. Under reduced motion, and below 1024 px, there is no pinning: the four states are stacked in order, each under its step.
+
+### Recommendation: Direction C
+
+1. **The hero is the product's truth, at poster scale.** A total tied to its line is readable from across a room and survives a shared screen in Demo 1's ten minutes. In A, the same idea sat at 14 px inside a screenshot.
+2. **It answers the owner's reference most directly:** a field colour, heavy condensed type, colour bands, a motif from the subject and big numerals. It borrows the structure, not hackathlone's blue, typeface or battlements.
+3. **It holds still.** Its only motion is two tags drawing out once. It reads the same with reduced motion and at 390 px.
+4. **Cheap and contained:** one Google Fonts family and CSS only. It touches `Landing.tsx`, `Navbar.tsx`, `Footer.tsx`, `index.html` and the tokens, and nothing that issue #5 Phase 2 changes.
+5. **D** argues best for the lecturer's retrieval priority, but costs the most to build (twelve tiles and a timed sequence). **E** is the safest, but the least bold; it could later become C's section 2, if the owner wants the steps.
+
+### Signed-in home
+
+No direction changes the signed-in home's structure (Section 4, Decision D2). The one carry-over is the highlighter mark (Decision D9): it changes how `SourceTie` shows the quoted line.
 
 ---
 
@@ -546,7 +648,7 @@ Any pair under its threshold on the built CSS is a defect.
 
 | Route (`App.tsx`) | Page | Change |
 | --- | --- | --- |
-| `/` | `Landing.tsx` | Direction A, exact copy from Section 2. Remove the Samsung manual, the Tech Stack and FAQ sections and the "Final Year Project" pill (the fact moves to the footer line). |
+| `/` | `Landing.tsx` | The direction chosen in D1 (C recommended), exact copy from Section 2R. Remove the Samsung manual, the Tech Stack and FAQ sections and the "Final Year Project" pill (the fact moves to the footer line). |
 | `/login`, `/register` | `Auth.tsx` | One-column form (Section 3). Retire `.animated-gradient`. All test-matched copy stays ("Welcome back", "Continue with Email", "Sign in", "Check your email", the email and password placeholders). |
 | `/verify`, `/forgot-password`, `/reset-password`, `/auth/callback` | `VerifyEmail.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`, `OAuthCallback.tsx` | Same form shell; the wordmark replaces gradient text; copy unchanged ("Send reset link"). |
 | `/app` (index) | today `AskAI` | Becomes `Dashboard` (Documents home with Needs attention), if D2 is approved. |
@@ -564,7 +666,7 @@ Any pair under its threshold on the built CSS is a defect.
 
 ## Decisions for the owner
 
-1. **D1. Landing direction.** *Recommended:* A, "The check". Alternative: B, "The question".
+1. **D1. Landing direction (revised in Section 2R).** *Recommended:* C, "The poster". Alternatives: D, "The pile", or E, "The walkthrough". A and B are withdrawn.
 2. **D2. Signed-in home.** *Recommended:* `/app` opens Documents with Needs attention; Ask stays in the navigation. Six browser-test assertions expect the heading "Ask anything about your documents" right after sign-in, and they change to expect the heading "Documents". This is the only test change outside new tests. Alternative: keep Ask as the home; the rest of the plan is unchanged.
 3. **D3. Typeface.** *Recommended (Section 3R):* Geist for everything, loaded from Google Fonts exactly as Inter is today (no new dependency, €0). The Section 3 pairing of Public Sans and Source Serif 4 is withdrawn.
 4. **D4. Themes.** *Recommended:* follow the system setting, with a manual override in Settings (today's `lib/theme.ts` behaviour). The rail is no longer forced dark.
@@ -574,6 +676,8 @@ Any pair under its threshold on the built CSS is a defect.
    - PR 2 (Task R9 and the final screenshots) starts after issue #5 Phase 2 merges.
    - Nothing merges before 21 November.
 7. **D7. Impeccable.** It is not installed, because its hooks download and run a binary at every session start, after every file edit and at every turn end, in all your sessions. *Recommended:* leave it uninstalled; this plan used its critique method without the detector. If you want it, install it yourself with `claude plugin install impeccable@impeccable`, knowing the hooks will run.
+8. **D8. A display face for the landing page.** Only under Direction C. *Recommended:* Archivo (variable width and weight), loaded from Google Fonts in the same `<link>` as Geist, at €0 and with no package. It is used only for the landing display type and the wordmark; the app keeps Geist (D3). D and E need no new face.
+9. **D9. The highlighter mark in the app.** *Recommended:* yes, with any of C, D or E. `SourceTie` shows the quoted line on `--mark` (`#FFE98A` with ink text, 14.7:1) and a 3 px ink edge in light mode. In dark mode it uses a `#3A3414` wash, a `#E8C93A` edge and `#FFF3BD` text (Section 7's marker values). This replaces the grey `bg-muted` block of Section 3R principle 4, so the landing page and the bill review mark evidence the same way. Muted text never sits on the mark. Alternative: keep 3R's grey block.
 
 ## Global Constraints
 
@@ -626,13 +730,16 @@ Any pair under its threshold on the built CSS is a defect.
 
 ### Task R4: Landing page, top bar and footer
 
-- **Files:** `pages/Landing.tsx`, `components/Navbar.tsx`, `components/Footer.tsx`; create `pages/Landing.test.tsx`.
+- **Files:** `pages/Landing.tsx`, `components/Navbar.tsx`, `components/Footer.tsx`, `index.html` (the Archivo link, under D8 only); create `pages/Landing.test.tsx`.
 - [ ] Failing tests:
-  - The heading reads "Know what your bills say before you act on them."
+  - The heading reads the chosen direction's H1: C "Your bills, checked line by line.", D "Find any household document by what it says." or E "Check the bill before you pay it."
   - A link "Create an account" goes to `/register`, and a link "Sign in" goes to `/login`.
-  - The hero shows the three quoted lines ("Total amount due: EUR 123.47", "Payment due date: 23 November 2026", "Billing period: 1 October 2026 to 31 October 2026") and their values (€123.47, 23 Nov 2026, 1–31 Oct 2026).
+  - The hero shows the quoted source lines and their values from Section 2R. C: "Total amount due: EUR 123.47" and "Payment due date: 23 November 2026", with "€123.47" and "23 Nov". D: "Payment due date: 23 November 2026", with "Due 23 November 2026". E: "Total amount due: EUR 123.47", with "Line 15".
+  - The page has exactly one `h1`. With `prefers-reduced-motion: reduce` mocked, no hero element has an animation class.
+  - The footer line reads "A final-year project at TUS Athlone. It runs on your own computer, and the examples on this page are synthetic."
+  - Under D, the hero search is a `figure` with `role="img"`, and the page has no `input`.
   - No text contains "Samsung".
-- [ ] Implement Section 2 Direction A, with the exact copy (or Direction B if D1 picks it).
+- [ ] Implement the direction chosen in D1 from Section 2R, with its exact copy, colours and motion. The axe check in `e2e/accessibility.spec.ts` must pass unchanged; Section 2R lists the contrast of every pair.
 - [ ] Gates. Commit: `Redesign the landing page around checking a bill`
 
 ### Task R5: Account pages
