@@ -9,7 +9,7 @@ const faqs = [
   { q: 'What file formats are supported?', a: 'JPEG, PNG, WebP, and multi-page PDF.' },
   { q: 'How is my data protected?', a: 'The app uses JWT authentication, bcrypt password hashing, per-user query isolation, and access-controlled object storage.' },
   { q: 'How does the AI Q&A work?', a: 'We split your documents into chunks, embed them semantically using vector search (pgvector), and use RAG (Retrieval-Augmented Generation) to answer questions grounded in your actual content.' },
-  { q: 'What AI models are used?', a: 'Document categorisation uses Mistral. Q&A uses Groq (Llama 3.3 70B) or Google Gemini 2.0 Flash. OCR is handled by Tesseract.' },
+  { q: 'What AI models are used?', a: 'Text is read with Tesseract OCR and searched with the nomic-embed-text model on Ollama, all on your own computer. Answers written by a language model need a provider key, which this build does not set.' },
   { q: 'Is this a commercial product?', a: 'No — this is a final year project for TUS Athlone (Software Design with AI for Cloud Computing). It demonstrates a tested local architecture and cloud infrastructure definition.' },
 ]
 
@@ -77,18 +77,18 @@ export default function Landing() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/30">
                     <div className="w-6 h-6 rounded bg-blue-500/20 flex items-center justify-center">
-                      <span className="text-[8px] font-bold text-blue-600">S</span>
+                      <span className="text-[8px] font-bold text-blue-600">E</span>
                     </div>
-                    <span className="text-[11px] font-semibold text-foreground/70">Samsung User Manual</span>
+                    <span className="text-[11px] font-semibold text-foreground/70">Example Energy electricity bill</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    <span className="font-semibold text-foreground">Chapter 4: Washing Programmes</span>
+                    <span className="font-semibold text-foreground">Billing period: 1 October 2026 to 31 October 2026</span>
                   </p>
                   <p className="text-[9px] text-muted-foreground leading-relaxed">
-                    Select the appropriate programme for your fabric type. Delicate fabrics should be washed at 30°C with reduced spin speed...
+                    Total amount due: EUR 123.47
                   </p>
                   <p className="text-[9px] text-muted-foreground leading-relaxed">
-                    For heavily soiled items, use the Intensive programme at 60°C. Pre-soak is recommended for stubborn stains.
+                    Payment due date: 23 November 2026
                   </p>
                   <div className="flex gap-2 mt-1">
                     <div className="h-8 w-8 rounded bg-muted-foreground/[0.06] flex items-center justify-center text-[8px] text-muted-foreground">📷</div>
@@ -96,8 +96,8 @@ export default function Landing() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                  <span className="text-[9px] text-muted-foreground">Page 42 of 98</span>
-                  <span className="ml-auto text-[8px] text-muted-foreground">WW90T554DAW</span>
+                  <span className="text-[9px] text-muted-foreground">Page 1 of 1</span>
+                  <span className="ml-auto text-[8px] text-muted-foreground">Synthetic example</span>
                 </div>
               </div>
               {/* Digital output */}
@@ -105,17 +105,17 @@ export default function Landing() {
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center"><FileText size={14} className="text-white" /></div>
                   <div>
-                    <p className="text-sm font-medium">Samsung WW90T Manual</p>
-                    <p className="text-[11px] text-muted-foreground">User Manual • Detected automatically</p>
+                    <p className="text-sm font-medium">Example Energy bill</p>
+                    <p className="text-[11px] text-muted-foreground">Bill • Text read by OCR</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-[12px] text-muted-foreground border-t border-border/30 pt-3">
-                  <p><span className="font-medium text-foreground">Brand:</span> Samsung</p>
-                  <p><span className="font-medium text-foreground">Model:</span> WW90T554DAW</p>
-                  <p><span className="font-medium text-foreground">Category:</span> Appliances → Laundry</p>
+                  <p><span className="font-medium text-foreground">Amount due:</span> EUR 123.47</p>
+                  <p><span className="font-medium text-foreground">Due date:</span> 23 November 2026</p>
+                  <p><span className="font-medium text-foreground">Billing period:</span> 1 – 31 October 2026</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3 text-[12px]">
-                  <p className="text-muted-foreground">💬 "Wash delicates at 30°C with 800rpm spin"<span className="inline-block w-0.5 h-3.5 bg-primary ml-0.5 animate-pulse" /></p>
+                  <p className="text-muted-foreground">💬 "The bill is due on 23 November 2026"<span className="inline-block w-0.5 h-3.5 bg-primary ml-0.5 animate-pulse" /></p>
                 </div>
               </div>
             </div>
@@ -153,13 +153,13 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto space-y-20">
           <FeatureRow
             title="Ask questions, get real answers"
-            desc="Stop flipping through pages. Type your question in plain English and get an instant, sourced answer pulled directly from your stored documents. The AI cites exactly which manual and section it found the answer in."
+            desc="Stop flipping through pages. Type your question in plain English and get an instant, sourced answer pulled directly from your stored documents. Each answer shows which document it came from."
             visual={
               <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
-                <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto w-fit text-right">What temperature for delicates?</div>
+                <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto w-fit text-right">When is this bill due?</div>
                 <div className="bg-muted/60 rounded-lg p-3 text-sm max-w-[85%]">
-                  Wash delicates at 30°C with a maximum spin speed of 800 RPM.
-                  <span className="block text-[10px] text-muted-foreground mt-1.5">🔗 Samsung WW90T Manual, Section 4.2</span>
+                  The bill is due on 23 November 2026.
+                  <span className="block text-[10px] text-muted-foreground mt-1.5">🔗 Example Energy bill</span>
                 </div>
               </div>
             }
@@ -238,8 +238,7 @@ export default function Landing() {
               { name: 'Docker', desc: 'Containers' },
               { name: 'Terraform', desc: 'Infrastructure' },
               { name: 'S3 storage', desc: 'Object storage' },
-              { name: 'Groq / Gemini', desc: 'LLM providers' },
-              { name: 'Mistral', desc: 'Categorisation' },
+              { name: 'Ollama', desc: 'Local embeddings' },
               { name: 'TypeScript', desc: 'Type safety' },
             ].map((tech) => (
               <div key={tech.name} className="rounded-xl border border-border/40 bg-card/50 px-4 py-3.5 text-center transition-all duration-200 hover:border-primary/20 hover:bg-card">
@@ -370,7 +369,7 @@ function AppMockup() {
           {/* Doc cards */}
           <div className="grid grid-cols-2 gap-2 flex-1">
             {[
-              { color: 'bg-blue-400/20', title: 'Samsung Manual', type: 'Appliance', w: 'w-14' },
+              { color: 'bg-blue-400/20', title: 'Example Energy bill', type: 'Bill', w: 'w-14' },
               { color: 'bg-purple-400/20', title: 'Lease Agreement', type: 'Legal', w: 'w-16' },
               { color: 'bg-green-400/20', title: 'Warranty Card', type: 'Warranty', w: 'w-12' },
               { color: 'bg-amber-400/20', title: 'IKEA Instructions', type: 'Manual', w: 'w-14' },

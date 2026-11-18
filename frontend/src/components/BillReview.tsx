@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ApiError, type BillConfirmation, type BillField, type BillReview, type BillRevision } from '@/lib/api'
 import { ReloadFailedError } from '@/lib/billConfirm'
+import { formatTimestamp } from '@/lib/dates'
 
 const AMOUNT_PATTERN = /^[0-9]{1,7}\.[0-9]{2}$/
 
@@ -146,7 +147,7 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
       />
     )
   } else if (confirmed) {
-    status = `Confirmed · revision ${confirmed.revision_number} · ${formatCreatedAt(confirmed.created_at)}`
+    status = `Confirmed · revision ${confirmed.revision_number} · ${formatTimestamp(confirmed.created_at)}`
     body = <ConfirmedView review={review} confirmed={confirmed} processing={processing} onEdit={startSession} />
   } else if (review) {
     status = 'Not confirmed yet'
@@ -330,13 +331,6 @@ export function formatBillDate(value: string) {
   })
 }
 
-function formatCreatedAt(value: string) {
-  // The API sends UTC timestamps without an offset.
-  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z'
-  return new Date(utc).toLocaleDateString('en-IE', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  })
-}
 
 function Evidence({ sources }: { sources: BillField['sources'] }) {
   return (

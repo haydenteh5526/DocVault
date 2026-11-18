@@ -307,9 +307,14 @@ describe('BillReviewPanel', () => {
     expect(screen.queryByRole('button', { name: 'Edit confirmed values' })).not.toBeInTheDocument()
   })
 
-  it('shows the confirmation date in UTC', () => {
+  it('shows the confirmation date in Irish time', () => {
     render(panel({ confirmed: { ...confirmedRevision(2, '125.00'), created_at: '2026-11-11T23:30:00' } }))
     expect(region()).toHaveTextContent('Confirmed · revision 2 · 11 November 2026')
+  })
+
+  it('shows a summer confirmation on the Irish date, not the UTC one', () => {
+    render(panel({ confirmed: { ...confirmedRevision(2, '125.00'), created_at: '2026-06-30T23:30:00' } }))
+    expect(region()).toHaveTextContent('Confirmed · revision 2 · 1 July 2026')
   })
 
   it('offers to edit a confirmed revision whose evidence matches the transcript', () => {
