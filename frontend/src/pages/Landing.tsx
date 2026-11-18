@@ -52,7 +52,7 @@ export default function Landing() {
                 Documents that<br /><span className="gradient-text">think for you</span>
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}>
-                Upload or snap any document — photos, PDFs, manuals. AI extracts the text, organises it, and lets you ask questions about it in plain English.
+                Upload or snap any document — photos, PDFs, manuals. DocVault reads the text, makes it searchable by its words or its meaning, and shows the passages that answer your questions.
               </p>
 
             </div>
@@ -165,18 +165,18 @@ export default function Landing() {
             }
           />
           <FeatureRow
-            title="Automatic organisation"
-            desc="Upload a photo and AI detects the brand, model number, document type, and suggests a title. It auto-creates categories and even extracts warranty expiry dates from receipts. You never have to manually tag anything."
+            title="Warranty dates found for you"
+            desc="DocVault reads every upload with OCR and finds warranty periods in receipts and warranty cards, so the Warranties page shows what expires and when. Group everything else with folders and tags."
             visual={
               <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3 text-sm">
                 <div className="flex items-center gap-3 pb-3 border-b border-border/30">
                   <div className="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center"><FileText size={14} className="text-white" /></div>
-                  <div><p className="font-medium">Bosch Serie 6 Dishwasher</p><p className="text-[11px] text-muted-foreground">Auto-categorised • Warranty: Jan 2028</p></div>
+                  <div><p className="font-medium">Washer-dryer warranty card</p><p className="text-[11px] text-muted-foreground">Warranty: 2 years, expires June 2028</p></div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div className="rounded-md bg-primary/[0.06] px-2 py-1.5 text-center text-primary font-medium">Bosch</div>
-                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">Dishwasher</div>
-                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">User Manual</div>
+                  <div className="rounded-md bg-primary/[0.06] px-2 py-1.5 text-center text-primary font-medium">Washer-dryer</div>
+                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">Warranty card</div>
+                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">Expires June 2028</div>
                 </div>
               </div>
             }

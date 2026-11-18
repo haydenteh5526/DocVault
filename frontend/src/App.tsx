@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, Suspense, lazy } from 'react'
-import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, MoreVertical, Pin, Pencil, Trash2, Upload, ShieldCheck } from 'lucide-react'
+import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, MoreVertical, Pin, Pencil, Trash2, Upload, ShieldCheck, FileSearch } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { useFocusTrap } from './lib/useFocusTrap'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -115,6 +115,9 @@ function AppShell() {
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
     }
   }, [location.pathname, queryClient])
+
+  // Whatever opened a page (a button, the logo, browser back) closes the phone sidebar.
+  useEffect(() => { setSidebarOpen(false) }, [location.pathname])
 
   // Global ⌘K → command palette
   useEffect(() => {
@@ -242,7 +245,7 @@ function AppShell() {
               }`}
               title={sidebarCollapsed ? 'Search' : undefined}
             >
-              <Search size={18} className="shrink-0" />
+              <FileSearch size={18} className="shrink-0" />
               {!sidebarCollapsed && 'Search'}
             </button>
 

@@ -24,6 +24,15 @@ describe('Landing', () => {
     expect(text).toContain('EUR 123.47')
   })
 
+  it('makes no claim the local build cannot keep', () => {
+    const text = pageText().toLowerCase()
+    for (const phrase of ['bosch', 'model number', 'auto-creates', 'cloud document vault']) {
+      expect(text).not.toContain(phrase)
+    }
+    expect(text).toContain('runs on your own computer')
+    expect(text).toContain('warranty dates found for you')
+  })
+
   it('says what runs locally', () => {
     const text = pageText()
     expect(text).toContain(

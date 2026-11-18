@@ -114,6 +114,19 @@ describe('AppShell navigation', () => {
     await waitFor(() => expect(aside(container)).toHaveClass('-translate-x-full'))
   })
 
+  it('the phone sidebar closes when the logo opens a page', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    const { container } = renderShell()
+    await screen.findByText('Documents page')
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+    expect(aside(container)).not.toHaveClass('-translate-x-full')
+
+    await user.click(screen.getByRole('button', { name: 'DocVault' }))
+    await waitFor(() => expect(aside(container)).toHaveClass('-translate-x-full'))
+    expect(backdrop(container)).toBeNull()
+  })
+
   it('on a desktop the sidebar is in place', async () => {
     const { container } = renderShell()
     await screen.findByText('Documents page')

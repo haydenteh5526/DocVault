@@ -70,12 +70,10 @@ describe('Dashboard rows', () => {
     expect(container.textContent).not.toContain('EXAMPLE ENERGY electricity bill')
   })
 
-  it('a grid row shows the document type in place of the summary', async () => {
+  it('a grid card shows the type once', async () => {
     localStorage.setItem('docvault-view', 'grid')
     renderDashboard()
     await screen.findByText('October electricity bill')
-    const typeLines = screen.getAllByText('bill').filter(el => el.tagName === 'P')
-    expect(typeLines).toHaveLength(1)
-    expect(typeLines[0]).toHaveClass('text-[11px]', 'text-muted-foreground')
+    expect(screen.getAllByText('bill')).toHaveLength(1)
   })
 })
