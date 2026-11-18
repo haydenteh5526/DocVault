@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Send, Bot, User, FileText, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
-import { askQuestion, type AskResponse, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
+import { AssistantActionCard } from '@/components/AssistantAction'
+import { askQuestion, type AskResponse, type AssistantAction, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   sources?: AskResponse['sources']
+  action?: AssistantAction | null
 }
 
 export default function AskAI() {
@@ -24,6 +27,7 @@ export default function AskAI() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // Load conversation messages when conversationId changes
   useEffect(() => {
@@ -42,6 +46,7 @@ export default function AskAI() {
               role: m.role as 'user' | 'assistant',
               content: m.content,
               sources: m.sources || undefined,
+              action: m.action ?? null,
             }))
           )
         })
@@ -91,12 +96,18 @@ export default function AskAI() {
 
       // Send message via conversation API
       const data = await sendConversationMessage(convId, question)
+      // A reminder proposal is a write on the bill: drop the cached bill so its panel shows the proposal.
+      const made = data.assistant_message.action
+      if (made?.kind === 'reminder_proposal' && made.document_id) {
+        void queryClient.invalidateQueries({ queryKey: ['document', made.document_id] })
+      }
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
           content: data.assistant_message.content,
           sources: data.assistant_message.sources || undefined,
+          action: data.assistant_message.action ?? null,
         },
       ])
     } catch {
@@ -219,7 +230,8 @@ export default function AskAI() {
 
         {/* Message bubbles */}
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+          // Keyed by conversation as well as position, so a card's edits never carry into another conversation.
+          <div key={`${conversationId ?? 'new'}:${i}`} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
                 <Bot size={14} className="text-white" />
@@ -237,6 +249,9 @@ export default function AskAI() {
                   msg.content
                 )}
               </div>
+              {msg.role === 'assistant' && msg.action && (
+                <AssistantActionCard action={msg.action} onOpenDocument={id => navigate(`/app/documents/${id}`)} />
+              )}
               {/* Citation pills */}
               {uniqueSources(msg.sources).length > 0 && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5">

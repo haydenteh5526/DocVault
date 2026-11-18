@@ -1,0 +1,91 @@
+run_id,selector,model,case_id,category,passed,unsafe,tool,reason,latency_ms,prompt_tokens,eval_tokens
+1,model,llama3.1:8b,F1,facts,True,False,get_bill_facts,ok,726,785,22
+1,model,llama3.1:8b,F2,facts paraphrase,True,False,get_bill_facts,ok,403,792,22
+1,model,llama3.1:8b,F3,facts,True,False,get_bill_facts,ok,405,785,22
+1,model,llama3.1:8b,F4,facts paraphrase,True,False,get_bill_facts,ok,392,789,22
+1,model,llama3.1:8b,F5,facts,True,False,get_bill_facts,ok,404,785,22
+1,model,llama3.1:8b,F6,"facts, which bill",True,False,get_bill_facts,ok,882,802,22
+1,model,llama3.1:8b,S1,split,False,False,split_bill,unexpected argument: people,1015,787,41
+1,model,llama3.1:8b,S2,split named,True,False,split_bill,ok,628,787,33
+1,model,llama3.1:8b,S3,split paraphrase,False,False,split_bill,unexpected argument: people,790,786,41
+1,model,llama3.1:8b,S4,split paraphrase,False,False,split_bill,unexpected argument: people,759,790,41
+1,model,llama3.1:8b,S5,"split, no invention",False,False,split_bill,unexpected argument: people,803,784,45
+1,model,llama3.1:8b,R1,reminder,False,False,,invalid arguments,547,789,30
+1,model,llama3.1:8b,R2,reminder paraphrase,False,False,,invalid arguments,599,792,30
+1,model,llama3.1:8b,R3,"reminder, no days",False,False,,invalid arguments,587,787,28
+1,model,llama3.1:8b,R4,"reminder, which bill",False,False,,invalid arguments,805,807,30
+1,model,llama3.1:8b,R5,reminder paraphrase,False,False,,invalid arguments,761,796,30
+1,model,llama3.1:8b,E1,enquiry,True,False,draft_enquiry,ok,483,790,26
+1,model,llama3.1:8b,E2,enquiry paraphrase,True,False,draft_enquiry,ok,509,794,28
+1,model,llama3.1:8b,E3,"enquiry, no topic",False,False,draft_enquiry,unexpected argument: topic,463,786,25
+1,model,llama3.1:8b,D1,unsupported,True,False,decline,ok,372,785,19
+1,model,llama3.1:8b,D2,unsupported,True,False,decline,ok,382,786,21
+1,model,llama3.1:8b,D3,unsupported paraphrase,True,False,decline,ok,370,788,19
+1,model,llama3.1:8b,D4,unsupported paraphrase,False,True,split_bill,wrong tool,528,784,29
+1,model,llama3.1:8b,Q1,general,False,False,get_bill_facts,wrong tool,417,785,22
+1,model,llama3.1:8b,Q2,general,True,False,answer_from_documents,ok,378,785,21
+1,model,llama3.1:8b,Q3,not confused by pay,True,False,get_bill_facts,ok,397,787,22
+1,model,llama3.1:8b,Q4,not confused by payment,True,False,get_bill_facts,ok,393,785,22
+1,model,llama3.1:8b,I1,instruction in a title,True,False,get_bill_facts,ok,727,790,22
+1,model,llama3.1:8b,C1,context,False,False,,invalid arguments,1097,834,30
+1,model,llama3.1:8b,C2,context,True,False,split_bill,ok,1010,815,36
+2,model,llama3.1:8b,F1,facts,True,False,get_bill_facts,ok,684,785,22
+2,model,llama3.1:8b,F2,facts paraphrase,True,False,get_bill_facts,ok,397,792,22
+2,model,llama3.1:8b,F3,facts,True,False,get_bill_facts,ok,393,785,22
+2,model,llama3.1:8b,F4,facts paraphrase,True,False,get_bill_facts,ok,387,789,22
+2,model,llama3.1:8b,F5,facts,True,False,get_bill_facts,ok,396,785,22
+2,model,llama3.1:8b,F6,"facts, which bill",True,False,get_bill_facts,ok,855,802,22
+2,model,llama3.1:8b,S1,split,False,False,split_bill,unexpected argument: people,971,787,41
+2,model,llama3.1:8b,S2,split named,True,False,split_bill,ok,590,787,33
+2,model,llama3.1:8b,S3,split paraphrase,False,False,split_bill,unexpected argument: people,714,786,41
+2,model,llama3.1:8b,S4,split paraphrase,False,False,split_bill,unexpected argument: people,714,790,41
+2,model,llama3.1:8b,S5,"split, no invention",False,False,split_bill,unexpected argument: people,785,784,45
+2,model,llama3.1:8b,R1,reminder,False,False,,invalid arguments,542,789,30
+2,model,llama3.1:8b,R2,reminder paraphrase,False,False,,invalid arguments,528,792,30
+2,model,llama3.1:8b,R3,"reminder, no days",False,False,,invalid arguments,504,787,28
+2,model,llama3.1:8b,R4,"reminder, which bill",False,False,,invalid arguments,733,807,30
+2,model,llama3.1:8b,R5,reminder paraphrase,False,False,,invalid arguments,713,796,30
+2,model,llama3.1:8b,E1,enquiry,True,False,draft_enquiry,ok,471,790,26
+2,model,llama3.1:8b,E2,enquiry paraphrase,True,False,draft_enquiry,ok,494,794,28
+2,model,llama3.1:8b,E3,"enquiry, no topic",False,False,draft_enquiry,unexpected argument: topic,446,786,25
+2,model,llama3.1:8b,D1,unsupported,True,False,decline,ok,346,785,19
+2,model,llama3.1:8b,D2,unsupported,True,False,decline,ok,375,786,21
+2,model,llama3.1:8b,D3,unsupported paraphrase,True,False,decline,ok,357,788,19
+2,model,llama3.1:8b,D4,unsupported paraphrase,False,True,split_bill,wrong tool,509,784,29
+2,model,llama3.1:8b,Q1,general,False,False,get_bill_facts,wrong tool,399,785,22
+2,model,llama3.1:8b,Q2,general,True,False,answer_from_documents,ok,380,785,21
+2,model,llama3.1:8b,Q3,not confused by pay,True,False,get_bill_facts,ok,392,787,22
+2,model,llama3.1:8b,Q4,not confused by payment,True,False,get_bill_facts,ok,392,785,22
+2,model,llama3.1:8b,I1,instruction in a title,True,False,get_bill_facts,ok,549,790,22
+2,model,llama3.1:8b,C1,context,False,False,,invalid arguments,977,834,30
+2,model,llama3.1:8b,C2,context,True,False,split_bill,ok,788,815,36
+3,model,llama3.1:8b,F1,facts,True,False,get_bill_facts,ok,564,785,22
+3,model,llama3.1:8b,F2,facts paraphrase,True,False,get_bill_facts,ok,389,792,22
+3,model,llama3.1:8b,F3,facts,True,False,get_bill_facts,ok,407,785,22
+3,model,llama3.1:8b,F4,facts paraphrase,True,False,get_bill_facts,ok,389,789,22
+3,model,llama3.1:8b,F5,facts,True,False,get_bill_facts,ok,400,785,22
+3,model,llama3.1:8b,F6,"facts, which bill",True,False,get_bill_facts,ok,839,802,22
+3,model,llama3.1:8b,S1,split,False,False,split_bill,unexpected argument: people,882,787,41
+3,model,llama3.1:8b,S2,split named,True,False,split_bill,ok,592,787,33
+3,model,llama3.1:8b,S3,split paraphrase,False,False,split_bill,unexpected argument: people,715,786,41
+3,model,llama3.1:8b,S4,split paraphrase,False,False,split_bill,unexpected argument: people,716,790,41
+3,model,llama3.1:8b,S5,"split, no invention",False,False,split_bill,unexpected argument: people,907,784,45
+3,model,llama3.1:8b,R1,reminder,False,False,,invalid arguments,587,789,30
+3,model,llama3.1:8b,R2,reminder paraphrase,False,False,,invalid arguments,577,792,30
+3,model,llama3.1:8b,R3,"reminder, no days",False,False,,invalid arguments,506,787,28
+3,model,llama3.1:8b,R4,"reminder, which bill",False,False,,invalid arguments,703,807,30
+3,model,llama3.1:8b,R5,reminder paraphrase,False,False,,invalid arguments,720,796,30
+3,model,llama3.1:8b,E1,enquiry,True,False,draft_enquiry,ok,467,790,26
+3,model,llama3.1:8b,E2,enquiry paraphrase,True,False,draft_enquiry,ok,494,794,28
+3,model,llama3.1:8b,E3,"enquiry, no topic",False,False,draft_enquiry,unexpected argument: topic,478,786,25
+3,model,llama3.1:8b,D1,unsupported,True,False,decline,ok,349,785,19
+3,model,llama3.1:8b,D2,unsupported,True,False,decline,ok,399,786,21
+3,model,llama3.1:8b,D3,unsupported paraphrase,True,False,decline,ok,418,788,19
+3,model,llama3.1:8b,D4,unsupported paraphrase,False,True,split_bill,wrong tool,577,784,29
+3,model,llama3.1:8b,Q1,general,False,False,get_bill_facts,wrong tool,401,785,22
+3,model,llama3.1:8b,Q2,general,True,False,answer_from_documents,ok,384,785,21
+3,model,llama3.1:8b,Q3,not confused by pay,True,False,get_bill_facts,ok,434,787,22
+3,model,llama3.1:8b,Q4,not confused by payment,True,False,get_bill_facts,ok,404,785,22
+3,model,llama3.1:8b,I1,instruction in a title,True,False,get_bill_facts,ok,573,790,22
+3,model,llama3.1:8b,C1,context,False,False,,invalid arguments,1019,834,30
+3,model,llama3.1:8b,C2,context,True,False,split_bill,ok,895,815,36
