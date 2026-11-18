@@ -12,7 +12,7 @@ export default function Footer() {
               <span className="font-semibold text-sm text-foreground">DocVault</span>
             </div>
             <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-              AI-powered cloud document vault. Digitise, search, and query your physical documents.
+              A personal document assistant that runs on your own computer. Digitise, search and query your household documents.
             </p>
           </div>
 

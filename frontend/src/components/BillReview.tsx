@@ -2,6 +2,8 @@ import { useId, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ApiError, type BillConfirmation, type BillField, type BillReview, type BillRevision } from '@/lib/api'
+import { ReloadFailedError } from '@/lib/billConfirm'
+import { formatTimestamp } from '@/lib/dates'
 
 const AMOUNT_PATTERN = /^[0-9]{1,7}\.[0-9]{2}$/
 
@@ -29,12 +31,14 @@ interface Session {
   step: 'edit' | 'compare'
 }
 
-export function BillReviewPanel({ review, confirmed, processing = false, onViewOriginal, onConfirm }: {
+export function BillReviewPanel({ review, confirmed, processing = false, onViewOriginal, onConfirm, onRefresh }: {
   review: BillReview | null
   confirmed: BillRevision | null
   processing?: boolean
   onViewOriginal: () => void
   onConfirm: (body: BillConfirmation) => Promise<void>
+  /** Reloads the document; used by "Load latest" after a save whose reload failed. */
+  onRefresh?: () => Promise<void>
 }) {
   const [session, setSession] = useState<Session | null>(null)
   const [draft, setDraft] = useState<Draft>({ amount: '', dueDate: '', start: '', end: '' })
@@ -42,6 +46,9 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
   const [saveError, setSaveError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // Set when a confirmation was saved but the page could not be reloaded afterwards.
+  const [unloadedRevision, setUnloadedRevision] = useState<number | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   function startSession() {
     if (!review) return
@@ -58,6 +65,20 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
     setValidationError(null)
     setSaveError(null)
     setConflict(null)
+    setUnloadedRevision(null)
+  }
+
+  async function loadLatest() {
+    if (!onRefresh) return
+    setRefreshing(true)
+    try {
+      await onRefresh()
+      setUnloadedRevision(null)
+    } catch {
+      // The notice stays: the page may still be out of date.
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   function checkValues() {
@@ -85,7 +106,11 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
       })
       setSession(null)
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
+      if (error instanceof ReloadFailedError) {
+        // The confirmation is saved and already in the cache; only the reload failed.
+        setSession(null)
+        setUnloadedRevision(error.revision.revision_number)
+      } else if (error instanceof ApiError && error.status === 409) {
         // The document was refetched before this rejection, so the props are fresh.
         setSession(null)
         setConflict((error.code && CONFLICT_MESSAGES[error.code]) || DEFAULT_CONFLICT_MESSAGE)
@@ -122,7 +147,7 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
       />
     )
   } else if (confirmed) {
-    status = `Confirmed · revision ${confirmed.revision_number} · ${formatCreatedAt(confirmed.created_at)}`
+    status = `Confirmed · revision ${confirmed.revision_number} · ${formatTimestamp(confirmed.created_at)}`
     body = <ConfirmedView review={review} confirmed={confirmed} processing={processing} onEdit={startSession} />
   } else if (review) {
     status = 'Not confirmed yet'
@@ -153,6 +178,14 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
       </div>
       {conflict && (
         <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{conflict}</p>
+      )}
+      {unloadedRevision !== null && (
+        <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-2">
+          <p>Saved as revision {unloadedRevision}. The latest version could not be loaded, so this page may be out of date.</p>
+          {onRefresh && (
+            <Button size="sm" variant="outline" onClick={loadLatest} disabled={refreshing}>Load latest</Button>
+          )}
+        </div>
       )}
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
       {body}
@@ -298,13 +331,6 @@ export function formatBillDate(value: string) {
   })
 }
 
-function formatCreatedAt(value: string) {
-  // The API sends UTC timestamps without an offset.
-  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z'
-  return new Date(utc).toLocaleDateString('en-IE', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  })
-}
 
 function Evidence({ sources }: { sources: BillField['sources'] }) {
   return (

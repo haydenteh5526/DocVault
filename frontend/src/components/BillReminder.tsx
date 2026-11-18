@@ -10,6 +10,7 @@ import {
   type ReminderProposalRequest,
 } from '@/lib/api'
 import { formatBillDate } from '@/components/BillReview'
+import { formatTimestamp } from '@/lib/dates'
 
 const MAX_DAYS = 60
 
@@ -441,7 +442,7 @@ function Details({ proposal, title, today }: { proposal: ReminderProposal; title
 }
 
 function eventText(proposal: ReminderProposal, event: ReminderProposal['history'][number]) {
-  const date = formatCreatedAt(event.created_at)
+  const date = formatTimestamp(event.created_at)
   switch (event.event) {
     case 'proposed':
       return `${proposal.source === 'assistant' ? 'Proposed by the assistant' : 'Proposed by you'} · ${date} · remind on ${formatBillDate(proposal.details.remind_on)}`
@@ -479,10 +480,3 @@ function History({ proposals, currentId }: { proposals: ReminderProposal[]; curr
   )
 }
 
-function formatCreatedAt(value: string) {
-  // The API sends UTC timestamps without an offset.
-  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z'
-  return new Date(utc).toLocaleDateString('en-IE', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  })
-}
