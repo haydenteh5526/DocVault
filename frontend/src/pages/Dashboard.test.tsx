@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { getDocuments, type Document } from '@/lib/api'
+import { getDocuments, renameDocument, type Document } from '@/lib/api'
+import { ToastProvider } from '@/components/Toast'
 import Dashboard from './Dashboard'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getDocuments: vi.fn(), getCategories: vi.fn(async () => []) }
+  return { ...actual, getDocuments: vi.fn(), getCategories: vi.fn(async () => []), renameDocument: vi.fn() }
 })
 
 const fallbackSummary = JSON.stringify({
@@ -43,9 +45,11 @@ function renderDashboard() {
   localStorage.setItem('docvault-analytics', 'hidden')
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/app/documents']}>
-        <Dashboard />
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/app/documents']}>
+          <Dashboard />
+        </MemoryRouter>
+      </ToastProvider>
     </QueryClientProvider>,
   )
 }
@@ -75,5 +79,21 @@ describe('Dashboard rows', () => {
     renderDashboard()
     await screen.findByText('October electricity bill')
     expect(screen.getAllByText('bill')).toHaveLength(1)
+  })
+})
+
+describe('renaming a document', () => {
+  it('shows the API message when the title is rejected', async () => {
+    localStorage.setItem('docvault-view', 'grid')
+    vi.mocked(renameDocument).mockRejectedValue(new Error('Title cannot be blank.'))
+    renderDashboard()
+    await userEvent.dblClick(await screen.findByText('October electricity bill'))
+    const input = screen.getByDisplayValue('October electricity bill')
+    await userEvent.clear(input)
+    await userEvent.type(input, ' x ')
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => expect(screen.getByText('Title cannot be blank.')).toBeInTheDocument())
+    expect(screen.queryByText('Document renamed')).not.toBeInTheDocument()
   })
 })

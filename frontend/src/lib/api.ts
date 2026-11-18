@@ -265,7 +265,8 @@ export function detailMessage(detail: unknown, fallback: string, listFallback = 
   if (typeof detail === 'string' && detail) return detail
   if (Array.isArray(detail)) {
     const msg = (detail[0] as { msg?: unknown } | undefined)?.msg
-    return typeof msg === 'string' && msg ? msg : listFallback
+    // The server's own validators reach the client as "Value error, <our text>".
+    return typeof msg === 'string' && msg ? msg.replace(/^Value error, /, '') : listFallback
   }
   return fallback
 }
@@ -673,6 +674,10 @@ export async function updateDocumentText(documentId: string, rawText: string): P
 
 export async function renameDocument(documentId: string, title: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
+  if (!res.ok) {
+    const body = safeJson(await res.text().catch(() => ''))
+    throw new Error(detailMessage(body?.detail, 'Could not rename the document. Try again.'))
+  }
   return res.json()
 }
 

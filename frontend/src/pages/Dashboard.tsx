@@ -165,10 +165,15 @@ export default function Dashboard() {
   async function handleRenameDoc(docId: string) {
     const name = renameValue.trim()
     if (!name) { setRenamingDoc(null); return }
-    await renameDocument(docId, name)
-    setDocs(docs => docs.map(d => d.id === docId ? { ...d, title: name } : d))
-    setRenamingDoc(null)
-    toast('Document renamed')
+    try {
+      await renameDocument(docId, name)
+      setDocs(docs => docs.map(d => d.id === docId ? { ...d, title: name } : d))
+      setRenamingDoc(null)
+      toast('Document renamed')
+    } catch (err) {
+      setRenamingDoc(null)
+      toast(err instanceof Error ? err.message : 'Could not rename the document. Try again.', 'error')
+    }
   }
 
   async function handleToggleFavourite(e: React.MouseEvent, docId: string) {

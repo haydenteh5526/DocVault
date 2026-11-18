@@ -1,7 +1,8 @@
+import re
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,10 +26,34 @@ from app.services.auth_service import (
 router = APIRouter()
 
 
+PASSWORD_RULES_MESSAGE = (
+    "Use at least 8 characters with an uppercase letter, a lowercase letter, "
+    "a number and a special character."
+)
+
+
+def check_password_rules(password: str) -> str:
+    """The rules the sign-up checklist shows, enforced on the server (new passwords only)."""
+    if not (
+        8 <= len(password) <= 128
+        and re.search(r"[A-Z]", password)
+        and re.search(r"[a-z]", password)
+        and re.search(r"[0-9]", password)
+        and re.search(r"[^A-Za-z0-9]", password)
+    ):
+        raise ValueError(PASSWORD_RULES_MESSAGE)
+    return password
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str
     display_name: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def password_follows_the_rules(cls, value: str) -> str:
+        return check_password_rules(value)
 
 
 class LoginRequest(BaseModel):
@@ -43,7 +68,12 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_follows_the_rules(cls, value: str) -> str:
+        return check_password_rules(value)
 
 
 class RefreshRequest(BaseModel):
