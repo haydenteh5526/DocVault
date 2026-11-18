@@ -1,4 +1,4 @@
-"""Equal split of a confirmed bill among housemates, in integer cents.
+"""Equal or by-days split of a confirmed bill among housemates, in integer cents.
 
 A split is previewed (nothing written) and then saved as an append-only row bound to the confirmed
 revision, the housemates and the shares the owner reviewed. A saved split is never recalculated.
@@ -33,6 +33,44 @@ def split_equally(total_cents: int, count: int) -> list[int]:
         raise ValueError("A split needs at least two people.")
     base, remainder = divmod(total_cents, count)
     return [base + (1 if index < remainder else 0) for index in range(count)]
+
+
+def _check_days(total_cents: int, days: list[int]) -> None:
+    if type(total_cents) is not int or any(type(day) is not int for day in days):
+        raise ValueError("Cents and days must be integers.")
+    if total_cents < 0:
+        raise ValueError("The total cannot be negative.")
+    if len(days) < 2:
+        raise ValueError("A split needs at least two people.")
+    if any(day < 0 for day in days):
+        raise ValueError("Days at home cannot be negative.")
+    if not any(days):
+        raise ValueError("At least one person must have been at home.")
+
+
+def leftover_cents(total_cents: int, days: list[int]) -> int:
+    """Whole cents left once everyone has the cents below their exact share (fewer than the people)."""
+    _check_days(total_cents, days)
+    all_days = sum(days)
+    return total_cents - sum(total_cents * day // all_days for day in days)
+
+
+def split_by_days(total_cents: int, days: list[int]) -> list[int]:
+    """Divide whole cents in proportion to days at home, using integer arithmetic only.
+
+    Everyone gets the whole cents below their exact share (total x days / all days). The leftover cents
+    go one each to the people with the largest fractional remainder; ties go to the earlier person in the
+    list. With equal days this gives the same result as `split_equally`.
+    """
+    _check_days(total_cents, days)
+    all_days = sum(days)
+    shares = [total_cents * day // all_days for day in days]
+    remainders = [total_cents * day % all_days for day in days]
+    leftover = total_cents - sum(shares)
+    # A stable sort on the negated remainder keeps list order among ties.
+    for index in sorted(range(len(days)), key=lambda i: -remainders[i])[:leftover]:
+        shares[index] += 1
+    return shares
 
 
 class BillSplitConflict(Exception):

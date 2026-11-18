@@ -1,6 +1,7 @@
 """Equal split of a confirmed bill in integer cents: calculator, preview, save and reopen."""
 
 import asyncio
+import random
 import uuid
 
 import pytest
@@ -12,7 +13,7 @@ from app.main import app
 from app.models.base import BillRevision, BillSplit, Document
 from app.services.auth_service import create_access_token
 from app.services.bill_revisions import to_cents
-from app.services.bill_split import split_equally
+from app.services.bill_split import split_by_days, split_equally
 from tests.accounts import create_users_and_document, delete_users, wait_until_blocked
 
 
@@ -53,6 +54,61 @@ def test_shares_always_sum_to_the_total():
 def test_invalid_inputs_are_rejected(total, count):
     with pytest.raises(ValueError):
         split_equally(total, count)
+
+
+# --- By days at home -------------------------------------------------------------------------
+
+
+def test_days_example():
+    assert split_by_days(12347, [31, 17, 31, 31]) == [3480, 1908, 3480, 3479]
+
+
+def test_zero_days_pays_nothing():
+    assert split_by_days(10000, [30, 0, 30]) == [5000, 0, 5000]
+
+
+@pytest.mark.parametrize("total, count", [(12347, 4), (100, 3), (1, 2)])
+def test_equal_days_match_equal_split(total, count):
+    assert split_by_days(total, [31] * count) == split_equally(total, count)
+
+
+def test_shares_always_add_up():
+    rng = random.Random(25)
+    for _ in range(500):
+        total = rng.randint(1, 10_000_000)
+        days = [rng.randint(0, 31) for _ in range(rng.randint(2, 12))]
+        if not any(days):
+            days[rng.randrange(len(days))] = rng.randint(1, 31)
+        shares = split_by_days(total, days)
+        assert sum(shares) == total
+        assert len(shares) == len(days)
+        assert all(type(share) is int and share >= 0 for share in shares)
+        assert all(share == 0 for share, day in zip(shares, days) if day == 0)
+        if len({day for day in days if day}) == 1:
+            equal_days = [1 if day else 0 for day in days]
+            assert shares == split_by_days(total, equal_days)
+        if all(days):
+            d = days[0]
+            if all(day == d for day in days):
+                assert shares == split_equally(total, len(days))
+
+
+@pytest.mark.parametrize(
+    "total, days",
+    [
+        (12347, [0, 0, 0]),
+        (12347, [31, -1, 31]),
+        (12347, [31]),
+        (12347, [31, 17.0]),
+        (12347, [31, "17"]),
+        (12347, [31, True]),
+        (12347.0, [31, 17]),
+        (-1, [31, 17]),
+    ],
+)
+def test_rejects_bad_days(total, days):
+    with pytest.raises(ValueError):
+        split_by_days(total, days)
 
 
 # --- Preview, save and reopen ---------------------------------------------------------------
