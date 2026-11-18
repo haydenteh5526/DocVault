@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11, R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is built on `feature/issue-24-server-fixes` and open as PR 27. **Revision 4** (Task 7a, R14) was added the same day after the review of PR 27 (finding M1) and approved by the owner; it is not implemented.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11, R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is built on `feature/issue-24-server-fixes` and open as PR 27. **Revision 4** (Task 7a, R14) was added the same day after the review of PR 27 (finding M1), approved by the owner, and built in `9a2a3aa`. **Revision 5** (Task 7b, R15 and R16) was added after the re-check at `9a2a3aa` (finding D1 and the suspected numbering issue) and approved by the owner; it is not implemented.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -385,6 +385,45 @@ Added on 18 November 2026 after the review of PR 27 (finding M1). It replaces Ta
 | Finding | Covered by |
 | --- | --- |
 | M1: the OCR-line rule fails on real chunks; the tests used impossible chunks | R14 tests, built from `chunk_text()` output |
+
+### Task 7b (Revision 5, PR 2): Match the whole passage, not just its ends
+
+Added on 18 November 2026 after the re-check of PR 27 at `9a2a3aa` (finding D1). It changes R14's steps 3 and 4 and its one-chunk test.
+
+**The defect.** R14 takes the first match of the chunk's first 40 characters, then the first match of its last 40 after that. When a document repeats headers, warnings or account lines word for word, both ends can land on the wrong copy. The Reviewer reproduced a chunk covering lines 9–20 reported as 9–14, and one covering 20–28 reported as 2–28.
+
+**R15. The new rule:**
+1. **Whole match first.** `start = collapsed.find(flat)`. If found, the range is `start` to `start + len(flat) - 1`. A stored chunk is a contiguous run of the document's text once whitespace is collapsed: the chunker joins whole sentences, its overlap tail is the end of the previous chunk, and a hard split cuts inside one sentence. So a chunk normally matches whole.
+2. **Fallback, only if the whole match fails:** R14's head-and-tail steps.
+3. **Identical repeated passages:** if `flat` occurs more than once, the first occurrence is used. This is recorded as a known limit in the code comment and under "Found while planning".
+
+Section titles: `chunk_text` takes heading lines out as section titles, so a chunk's range starts at its first body line. That is correct, because the passage does not include the heading.
+
+**R16. The same line numbering as the bill review, worked out once per document.**
+- `ocr_lines_of` counts `\n`. The bill review numbers lines with `splitlines()`, and the two differ on `\f`, `\v`, `\x1c`–`\x1e`, `\x85`, ` `, ` ` and a lone `\r` (re-check, section 4).
+- Instead, build the line start offsets once:
+  - `starts = [0]`; for each `piece` in `raw_text.splitlines(keepends=True)`, append `starts[-1] + len(piece)`
+  - a character index `i` is on line `bisect.bisect_right(starts, i)`
+- `collapsed`, `origin` and `starts` are built once per document per request (a dict keyed by `document_id` inside `generate_rag_answer`), not once per source.
+
+**Tests** (they replace R14's `lines of the real bill`, and add these):
+- `numbering matches the bill review`: a text with a form feed between lines 30 and 31 gives the same line numbers as `raw_text.splitlines()`. For example, the last chunk reports (31, 34), not (30, 33).
+- `blank lines before a later passage`: a text with blank lines and indented whitespace before the second chunk. Its `line_start` is the line holding its first character, which protects the `origin` mapping (re-check N2).
+- `lines of the real bill`: use the e2e fixture's text, the synthetic Example Energy lines that the browser tests upload. Assert the literal range the chunker gives for it, `(1, 4)`. Also assert that the first line contains the chunk's first ten collapsed characters and the last line contains its last ten.
+- `repeated lines do not move the range`: a document where the same header line ("EXAMPLE ENERGY · account ending 0042") and the same warning sentence each appear three times, at lines 1, 10 and 20. Every chunk's computed range must equal the range found by locating the chunk itself in the text. That includes a chunk that starts on a repeated header.
+- `fallback still finds a range`: a `chunk_text` whose whole text is not in `raw_text`, but whose first and last 40 characters are, gives the head-and-tail range.
+- R14's other tests are unchanged.
+
+**Revision 5 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| D1: repeated text gives wrong ranges | R15 rule; the repeated-lines test |
+| The one-chunk fixture expectation (N1) | `lines of the real bill` with the e2e fixture, `(1, 4)` |
+| Line numbering differs from `splitlines()` (suspected, section 4) | R16; the numbering test |
+| Cost on long documents (suspected, section 4) | R16: work done once per document |
+| The `origin` mapping untested (N2) | The blank-lines test |
+| D2 (the PR description) and N3 (the evidence row's commit) | The Issue session updates both. No plan change. |
 
 ### Task 8: Two-factor sign-in turns on only after a correct code
 
