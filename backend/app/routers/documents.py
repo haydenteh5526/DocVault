@@ -362,6 +362,8 @@ async def update_document(
 ):
     doc = await _get_doc_or_404(document_id, user_id, db)
     changes = update.model_dump(exclude_unset=True)
+    if changes.get("title") is None:
+        changes.pop("title", None)  # a null title means "not changing"; the column is NOT NULL
 
     # Snapshot the previous text as a version whenever raw_text is changed
     if "raw_text" in changes and changes["raw_text"] != doc.raw_text and doc.raw_text is not None:

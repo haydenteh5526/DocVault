@@ -2,9 +2,27 @@ import re
 from calendar import monthrange
 from datetime import date
 
+# How close (in characters) the word "warranty" or "guarantee" must be to a date
+# for that date to count as a purchase date when no period is written.
+_WARRANTY_WORD_DISTANCE = 60
+
+
+def _dates_near_warranty_wording(text: str, date_pattern: str) -> list[str]:
+    near = []
+    for match in re.finditer(date_pattern, text):
+        window = text[max(0, match.start() - _WARRANTY_WORD_DISTANCE):match.end() + _WARRANTY_WORD_DISTANCE]
+        if re.search(r"warranty|guarantee", window, re.IGNORECASE):
+            near.append(match.group(1))
+    return near
+
 
 def extract_warranty_dates(text: str) -> dict | None:
-    """Extract purchase_date and expiry_date from document text using regex patterns."""
+    """Extract purchase_date and expiry_date from document text using regex patterns.
+
+    Returns None unless the text has warranty wording: a period such as "2 year
+    warranty", or the word "warranty" or "guarantee" close to a date. A bill with
+    an issue date is not a warranty.
+    """
     if not text:
         return None
 
@@ -15,6 +33,11 @@ def extract_warranty_dates(text: str) -> dict | None:
     # Look for warranty period keywords
     warranty_years = re.search(r"(\d+)\s*(?:year|yr)s?\s*(?:warranty|guarantee)", text, re.IGNORECASE)
     warranty_months = re.search(r"(\d+)\s*(?:month)s?\s*(?:warranty|guarantee)", text, re.IGNORECASE)
+
+    if not warranty_years and not warranty_months:
+        dates = _dates_near_warranty_wording(text, date_pattern)
+        if not dates:
+            return None
 
     purchase_date = None
     expiry_date = None

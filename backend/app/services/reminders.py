@@ -26,6 +26,7 @@ from app.schemas.reminder import (
 )
 from app.services.bill_revisions import latest_revision
 from app.services.bill_split import latest_split
+from app.services.locking import lock_document
 
 STALE_MESSAGE = "The bill or its split changed after this was proposed."
 
@@ -48,11 +49,7 @@ async def _conflict(db: AsyncSession, code: str, message: str) -> ReminderConfli
 
 async def _lock_document(db: AsyncSession, doc: Document) -> Document:
     # Lock the document row so a concurrent confirmation, split, proposal, approval or cancellation waits.
-    return (
-        await db.execute(
-            select(Document).where(Document.id == doc.id).with_for_update().execution_options(populate_existing=True)
-        )
-    ).scalar_one()
+    return await lock_document(db, doc.id)
 
 
 async def _current_inputs(

@@ -4,6 +4,7 @@ import { ShieldCheck, AlertTriangle, Calendar, CheckCircle2, ChevronRight, FileT
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { QueryError } from '@/components/QueryError'
+import { formatBillDate } from '@/components/BillReview'
 import { getWarranties } from '@/lib/api'
 import { warrantyState, daysUntil } from '@/lib/format'
 import { downloadICS } from '@/lib/ics'
@@ -105,7 +106,7 @@ export default function Warranties() {
                     <p className="text-base font-semibold truncate group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">{w.document_title}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-sm text-muted-foreground">
-                        {w.expiry_date ? `Expires ${new Date(w.expiry_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}` : 'No expiry date detected'}
+                        {w.expiry_date ? `Expires ${formatBillDate(w.expiry_date)}` : 'No expiry date detected'}
                       </p>
                       {w.notes && (
                         <>

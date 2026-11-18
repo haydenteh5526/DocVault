@@ -15,7 +15,7 @@ class DocVaultUser(HttpUser):
         import time
         email = f"load-{time.time_ns()}@test.com"
         res = self.client.post("/api/v1/auth/register", json={
-            "email": email, "password": "loadtest123"
+            "email": email, "password": "LoadTest123!"
         })
         self.token = res.json().get("access_token")
 

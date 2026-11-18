@@ -226,7 +226,14 @@ export interface SearchResult {
 
 export interface AskResponse {
   answer: string
-  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number }[]
+  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number; line_start?: number | null; line_end?: number | null }[]
+}
+
+/** Which optional sign-in methods the server offers. Public call: no session is needed. */
+export async function getAuthProviders(): Promise<{ google: boolean }> {
+  const res = await fetch(`${BASE}/auth/providers`)
+  if (!res.ok) throw new Error('Could not load sign-in options')
+  return res.json()
 }
 
 export async function registerUser(email: string, password: string, displayName?: string): Promise<{ message: string }> {
@@ -258,7 +265,8 @@ export function detailMessage(detail: unknown, fallback: string, listFallback = 
   if (typeof detail === 'string' && detail) return detail
   if (Array.isArray(detail)) {
     const msg = (detail[0] as { msg?: unknown } | undefined)?.msg
-    return typeof msg === 'string' && msg ? msg : listFallback
+    // The server's own validators reach the client as "Value error, <our text>".
+    return typeof msg === 'string' && msg ? msg.replace(/^Value error, /, '') : listFallback
   }
   return fallback
 }
@@ -363,7 +371,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Reset failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Reset failed') : 'Server unavailable')
   }
   return res.json()
 }
@@ -585,6 +593,19 @@ export async function setup2FA(): Promise<{ secret: string; qr_code: string; uri
   return res.json()
 }
 
+/** Turn two-factor sign-in on by proving the authenticator app shows the right code. */
+export async function confirm2FA(code: string): Promise<void> {
+  const res = await authorizedFetch(`${BASE}/auth/2fa/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  if (!res.ok) {
+    const body = safeJson(await res.text().catch(() => ''))
+    throw new Error(detailMessage(body?.detail, 'Could not turn on two-factor sign-in. Try again.'))
+  }
+}
+
 export async function disable2FA(): Promise<void> {
   await authorizedFetch(`${BASE}/auth/2fa/disable`, { method: 'POST' })
 }
@@ -653,6 +674,10 @@ export async function updateDocumentText(documentId: string, rawText: string): P
 
 export async function renameDocument(documentId: string, title: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
+  if (!res.ok) {
+    const body = safeJson(await res.text().catch(() => ''))
+    throw new Error(detailMessage(body?.detail, 'Could not rename the document. Try again.'))
+  }
   return res.json()
 }
 
