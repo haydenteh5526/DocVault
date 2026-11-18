@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import embedding_service
 
-
 # Cosine similarity a chunk must reach when a question is asked across all
 # documents. Provisional (D1 of the issue 24 plan): the retrieval benchmark
 # calibrates it on a frozen set. A question scoped to one document has no floor.

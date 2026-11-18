@@ -222,7 +222,7 @@ def test_generate_answer_without_provider_says_no_answer_was_written(monkeypatch
     result = rag_service._generate_answer("Question", "x" * 600)
     assert result.startswith("No answer could be written because no language model is set up.")
     assert "[Dev mode" not in result
-    assert len(result) < 600
+    assert "x" * 501 not in result
 
 
 def test_generate_answer_records_groq_output(monkeypatch):
