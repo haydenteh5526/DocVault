@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed on 18 November 2026. It waits for the owner's approval of decisions D1 to D6. Nothing in it is implemented.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. Nothing in it is implemented yet. PR 1 (Tasks 1 to 6) may start now; PR 2 (Tasks 7 to 12) starts after PR 23 merges.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
