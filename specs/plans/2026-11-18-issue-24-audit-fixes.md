@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. PR 1 Tasks 1 to 6 are built on `feature/issue-24-audit-fixes` (PR 26, head `fc1932d`). **Revision 1** (Task 6a) was added the same day after the review of PR 26 and approved by the owner as recommended (R1 to R6); R1 to R5 are built in `abbed40`. **Revision 2** (Task 6b) was added after the re-check at `abbed40` and approved by the owner as recommended (R7 to R11); it is not implemented. PR 2 (Tasks 7 to 12) starts after PR 23 merges.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11 and Revision 3 R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is not implemented.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -426,6 +426,20 @@ Added on 18 November 2026 after the Reviewer's re-check of PR 26 at `abbed40` (v
   - Ruff: `select = ["E", "F", "I", "PLE251"]`. Fix any finding.
   - R6 (Revision 1): the FastAPI title in `backend/app/main.py` becomes "DocVault API".
   - R11 (Revision 2): `extract_warranty_dates` returns `None` unless warranty wording is present, as Task 6b says, with its two tests.
+
+**Revision 3 (18 November 2026, before PR 2 starts).** These items go into PR 2. The owner agreed to them when deciding the third review of PR 26 and the merge order.
+
+- **R12. Warranty expiry dates are shown as calendar dates in en-IE.**
+  - `frontend/src/pages/Warranties.tsx:108` formats `expiry_date` with `new Date(...).toLocaleDateString(undefined, …)`. That uses the browser's locale and time zone, so the date can read "June 12, 2028" or even move back a day.
+  - Use `formatBillDate` (from `components/BillReview.tsx`; date-only, `en-IE`, `timeZone: 'UTC'`). It shows "Expires 12 June 2028", matching the landing card.
+  - **Test** (create `pages/Warranties.test.tsx`): `expiry_date: "2028-06-12"` renders "Expires 12 June 2028".
+- **R13. Correct the records that PR 23 and PR 26 left behind.**
+  - `specs/Repo_Current_State.md`: the issue #5 Phase 2 row says hosted CI was not run. Record what PR 23 actually ran:
+    - hosted CI passed on `c20c018` (run 44396089130) and on its final head `7a294fa`
+    - merged as `b86a27f` on 18 November 2026
+  - `specs/plans/2026-11-16-issue-5-assistant-tools.md`: the status line still ends at Phase 1. Add that Phase 2 (Tasks 6 to 9 and Revision 7) was merged as PR 23 (`b86a27f`) on 18 November 2026, and that issue #5 stays open until the owner closes it.
+  - This plan's status line: PR 1 was merged as PR 26 (`57d4ea4`) with R1 to R5 and R7 to R10. PR 2 holds Tasks 7 to 12, plus R6, R11, R12 and R13.
+
 - [ ] **Tests:** `no key stores no summary`: with every provider key empty, `_generate_summary("text")` is `None`. Update any test that expected the fallback JSON.
 - [ ] Gates. Update `specs/Repo_Current_State.md`, and the README's "Document Q&A" line if its wording changes. Commit: `Store no placeholder summary and check for invisible characters`
 
