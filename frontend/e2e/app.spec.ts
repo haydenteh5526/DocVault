@@ -515,7 +515,7 @@ test.describe('Bill review and split', () => {
 
       await say("Remind me two days before it's due.");
       const proposal = page.getByRole('region', { name: 'Reminder proposal' });
-      await expect(proposal).toContainText('not saved yet', { timeout: 30_000 });
+      await expect(proposal).toContainText('not saved when proposed', { timeout: 30_000 });
       await expect(proposal).toContainText('Remind on 21 November 2026');
 
       await say('Pay this bill for me.');
@@ -527,7 +527,7 @@ test.describe('Bill review and split', () => {
       await expect(draft.getByLabel('Draft to edit')).toHaveValue(/I have a question about the amount due/);
 
       // Nothing was saved from the chat: approval happens in the bill's own panel.
-      await proposal.getByRole('button', { name: 'Open bill to approve or cancel' }).click();
+      await proposal.getByRole('button', { name: 'Open bill to see its status' }).click();
       const reminder = page.getByRole('region', { name: 'Reminder' });
       await expect(reminder.getByText('Approve this reminder', { exact: true })).toBeVisible({ timeout: 30_000 });
       await expect(reminder.getByRole('group', { name: 'History' })).toContainText('Proposed by the assistant');

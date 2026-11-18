@@ -123,16 +123,16 @@ describe('AssistantActionCard', () => {
     expect(onOpenDocument).toHaveBeenCalledWith(DOC)
   })
 
-  it('shows the pending proposal and where to approve it', () => {
+  it('shows the proposal as it was when proposed and where to see its status', () => {
     const { rerender } = render(
       <AssistantActionCard action={action({ kind: 'reminder_proposal', proposal: proposal(true) })} onOpenDocument={vi.fn()} />,
     )
     const region = screen.getByRole('region', { name: 'Reminder proposal' })
-    expect(within(region).getByText('Proposal 1 · not saved yet')).toBeInTheDocument()
+    expect(within(region).getByText('Proposal 1 · not saved when proposed')).toBeInTheDocument()
     expect(within(region).getByText('Remind on 21 November 2026')).toBeInTheDocument()
     expect(within(region).getByText('€123.47 due 23 November 2026 (revision 1)')).toBeInTheDocument()
     expect(within(region).getByText('Split 1, total €123.47')).toBeInTheDocument()
-    expect(within(region).getByRole('button', { name: 'Open bill to approve or cancel' })).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: 'Open bill to see its status' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /approve and save|^approve$/i })).not.toBeInTheDocument()
 
     rerender(<AssistantActionCard action={action({ kind: 'reminder_proposal', proposal: proposal(false) })} onOpenDocument={vi.fn()} />)

@@ -57,11 +57,11 @@ function cardBody(action: AssistantAction, onOpenDocument: (id: string) => void)
       const { details } = proposal
       return (
         <Card label="Reminder proposal">
-          <p className="font-medium">{`Proposal ${proposal.proposal_number} · not saved yet`}</p>
+          <p className="font-medium">{`Proposal ${proposal.proposal_number} · not saved when proposed`}</p>
           <p>{`Remind on ${formatBillDate(details.remind_on)}`}</p>
           <p>{`€${details.amount_due} due ${formatBillDate(details.due_date)} (revision ${details.bill_revision})`}</p>
           <p>{details.split ? `Split ${details.split.split_number}, total €${details.split.total}` : 'No split is included.'}</p>
-          {open('Open bill to approve or cancel')}
+          {open('Open bill to see its status')}
         </Card>
       )
     }
