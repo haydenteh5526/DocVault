@@ -550,3 +550,4 @@ Section titles: `chunk_text` takes heading lines out as section titles, so a chu
 - Answers written by a local model (Ollama): their own plan with an accuracy check (owner, 18 November 2026).
 - The welcome tour's "seen" flag is per browser, not per account (audit D13); the redesign removes the tour.
 - Content waits for entrance animations (audit D14); the redesign removes them.
+- When a whole passage appears word for word more than once in a document, its line range names the first copy (Revision 5, R15).
