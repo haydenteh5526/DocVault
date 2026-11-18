@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, Suspense, lazy } from 'react'
-import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
+import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, MoreVertical, Pin, Pencil, Trash2, Upload, ShieldCheck } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { useFocusTrap } from './lib/useFocusTrap'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -151,7 +151,7 @@ function AppShell() {
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`dark fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-16 overflow-hidden' : 'w-[290px]'} flex flex-col bg-[oklch(0.12_0.005_264)] text-foreground transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[290px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
+      <aside className={`dark fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-16 overflow-hidden' : 'w-[290px]'} flex flex-col bg-[oklch(0.12_0.005_264)] text-foreground transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[290px]' : '-translate-x-full'}`}>
         {/* Top: Logo + Nav */}
         <div className={`${sidebarCollapsed ? 'px-3 pt-5 pb-2' : 'px-5 pt-5 pb-2'}`}>
           {/* Logo row */}
@@ -231,6 +231,41 @@ function AppShell() {
             >
               <Upload size={18} className="shrink-0" />
               {!sidebarCollapsed && 'Upload'}
+            </button>
+
+            <button
+              onClick={() => { navigate('/app/search'); setSidebarOpen(false) }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium transition-all duration-200 ${
+                location.pathname === '/app/search'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={sidebarCollapsed ? 'Search' : undefined}
+            >
+              <Search size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Search'}
+            </button>
+
+            <button
+              onClick={() => { navigate('/app/warranties'); setSidebarOpen(false) }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium transition-all duration-200 ${
+                location.pathname === '/app/warranties'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={sidebarCollapsed ? 'Warranties' : undefined}
+            >
+              <ShieldCheck size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Warranties'}
+            </button>
+
+            <button
+              onClick={() => { setSettingsOpen(true); setSettingsTab('general'); setSidebarOpen(false) }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200`}
+              title={sidebarCollapsed ? 'Settings' : undefined}
+            >
+              <SettingsIcon size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Settings'}
             </button>
 
             {sidebarCollapsed && (
