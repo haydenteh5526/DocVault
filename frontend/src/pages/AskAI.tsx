@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Send, Bot, User, FileText, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ export default function AskAI() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // Load conversation messages when conversationId changes
   useEffect(() => {
@@ -94,6 +96,11 @@ export default function AskAI() {
 
       // Send message via conversation API
       const data = await sendConversationMessage(convId, question)
+      // A reminder proposal is a write on the bill: drop the cached bill so its panel shows the proposal.
+      const made = data.assistant_message.action
+      if (made?.kind === 'reminder_proposal' && made.document_id) {
+        void queryClient.invalidateQueries({ queryKey: ['document', made.document_id] })
+      }
       setMessages(prev => [
         ...prev,
         {
