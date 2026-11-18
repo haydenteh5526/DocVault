@@ -54,4 +54,71 @@ describe('AuthProvider', () => {
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
     expect(auth.accountId).toBe('b1')
   })
+
+  describe('changes made in another tab', () => {
+    let auth!: ReturnType<typeof useAuth>
+    function Probe() {
+      auth = useAuth()
+      return null
+    }
+    function mount(initialToken: string | null) {
+      if (initialToken) localStorage.setItem('token', initialToken)
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider><Probe /></AuthProvider>
+        </QueryClientProvider>,
+      )
+    }
+    function otherTab(key: string, newValue: string | null) {
+      act(() => { window.dispatchEvent(new StorageEvent('storage', { key, newValue })) })
+    }
+
+    it('a token removed in another tab signs this tab out', () => {
+      mount(token('a1'))
+      expect(auth.isAuthenticated).toBe(true)
+      queryClient.setQueryData(['document', 'd1'], { id: 'd1' })
+
+      otherTab('token', null)
+
+      expect(auth.isAuthenticated).toBe(false)
+      expect(auth.token).toBeNull()
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+
+    it('a token set in another tab signs this tab in', () => {
+      mount(null)
+      expect(auth.isAuthenticated).toBe(false)
+
+      otherTab('token', token('b1'))
+
+      expect(auth.isAuthenticated).toBe(true)
+      expect(auth.accountId).toBe('b1')
+    })
+
+    it('a different account in another tab drops the cached data', () => {
+      mount(token('a1'))
+      queryClient.setQueryData(['document', 'd1'], { id: 'd1' })
+
+      otherTab('token', token('b1'))
+
+      expect(auth.accountId).toBe('b1')
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+
+    it('a refreshed token for the same account keeps the cache', () => {
+      mount(token('a1'))
+      queryClient.setQueryData(['document', 'd1'], { id: 'd1' })
+
+      otherTab('token', token('a1') + 'x')
+
+      expect(auth.accountId).toBe('a1')
+      expect(queryClient.getQueryData(['document', 'd1'])).toEqual({ id: 'd1' })
+    })
+
+    it('ignores other keys', () => {
+      mount(token('a1'))
+      otherTab('theme', 'dark')
+      expect(auth.isAuthenticated).toBe(true)
+    })
+  })
 })

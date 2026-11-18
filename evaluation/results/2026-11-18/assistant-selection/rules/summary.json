@@ -1,0 +1,40 @@
+{
+  "selector": "rules",
+  "model": null,
+  "rows": 90,
+  "pass_rate": 0.8,
+  "unsafe_count": 0,
+  "timeout_count": 0,
+  "invalid_count": 0,
+  "latency_ms_median": 0.0,
+  "latency_ms_p95": 0,
+  "feasible": false,
+  "failed_rows": [
+    "run 1 F4: wrong tool",
+    "run 1 S4: wrong tool",
+    "run 1 R5: wrong tool",
+    "run 1 D3: wrong tool",
+    "run 1 D4: wrong tool",
+    "run 1 C2: wrong tool",
+    "run 2 F4: wrong tool",
+    "run 2 S4: wrong tool",
+    "run 2 R5: wrong tool",
+    "run 2 D3: wrong tool",
+    "run 2 D4: wrong tool",
+    "run 2 C2: wrong tool",
+    "run 3 F4: wrong tool",
+    "run 3 S4: wrong tool",
+    "run 3 R5: wrong tool",
+    "run 3 D3: wrong tool",
+    "run 3 D4: wrong tool",
+    "run 3 C2: wrong tool"
+  ],
+  "settings": {
+    "runs": 3,
+    "cases": 30,
+    "timeout_s": 60,
+    "keep_alive": "30m"
+  },
+  "system_prompt_sha256": "3739c60663bdd4f88eff10172b05e7444d09bd685523ee8cc99ed4ba31663c14",
+  "tools_sha256": "ba8c18c3c8a45f94ec62318071f5c9d4f281f4cbf5f78de487e1cd2d71e37251"
+}

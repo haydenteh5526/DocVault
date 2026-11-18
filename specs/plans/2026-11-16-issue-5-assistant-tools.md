@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is built in `53df7c5`. **Revision 5** (Task 5e) was added on 17 November 2026 after the fifth review (head `53df7c5`) and approved by the owner the same day as recommended (R12, R13); it is built in `2764eb9`. **Revision 6** (Task 5f) was added on 17 November 2026 after the sixth review (head `2764eb9`) and approved by the owner the same day as recommended (R14, R15); it is not implemented. Phase 2 is not started.
+**Status:** approved by the owner on 16 November 2026 as recommended: the four choices under "Fixed by the owner" and design decisions 5 to 15. Tasks 1 to 5 are built on this branch and open as PR 22. **Revision 2** (Task 5b, at the end of Phase 1) was added on 16 November 2026 after the review of PR 22 and approved by the owner on 17 November 2026 as recommended (R1 to R4), together with the rule that lets the Reviewer merge on a clean verdict; it is built in `5e3751d`. **Revision 3** (Task 5c) was added on 17 November 2026 after the second review of PR 22 (head `7a49f30`) and approved by the owner the same day as recommended (R5 to R8); it is built in `8c8d13e`, with a fix to its question-word pattern in `5b7351b`. **Revision 4** (Task 5d) was added on 17 November 2026 after the fourth review (head `5b7351b`) and approved by the owner the same day as recommended (R9 to R11); it is built in `53df7c5`. **Revision 5** (Task 5e) was added on 17 November 2026 after the fifth review (head `53df7c5`) and approved by the owner the same day as recommended (R12, R13); it is built in `2764eb9`. **Revision 6** (Task 5f) was added on 17 November 2026 after the sixth review (head `2764eb9`) and approved by the owner the same day as recommended (R14, R15); it is not implemented. Phase 2 is not started. **Revision 7** (Task 6a, Phase 2) was added on 18 November 2026 after the review of PR 23 (finding L1) and approved by the owner the same day as option (a), copy only (R16); it is not implemented.
 
 **Goal:** Let a document owner type a request in the chat and get the bill's facts with evidence, an exact split, a reviewable reminder proposal, an editable enquiry draft, a clarifying question or a clear refusal, with every figure coming from the owner's checked records.
 
@@ -802,6 +802,40 @@ The cases (30). `bills` is `one` unless noted.
 - [ ] **Step 5: Push and open PR 2** to `main`. Title: `Show assistant results in chat and measure tool selection`. The body maps each of the six acceptance checks to the test or observation that verifies it across both PRs, lists what was not run, includes the Reviewer's full report, and starts with `Closes #5` only if all six are verified and the owner agrees. Do not merge.
 
 ---
+
+### Task 6a (Revision 7): Say what the reminder card knew when it was written
+
+Added on 18 November 2026 after the Reviewer's report on PR 23 (finding L1) and approved by the owner the same day as option (a), copy only.
+
+**The defect.** The chat stores each assistant action as a snapshot when the message is written, and `GET /conversations/{id}` returns it unchanged (`backend/app/routers/conversations.py`). Task 6's `reminder_proposal` card says `Proposal <n> · not saved yet` and offers `Open bill to approve or cancel`. After the owner approves or cancels the proposal in the bill's panel and reopens the chat, the card still says "not saved yet" while the panel says "Saved". Nothing wrong is saved; the card reads as a live status it does not have.
+
+**The decision (R16).** The card describes the moment it was proposed and sends the owner to the bill for the current state. It does not fetch the proposal's current status. That would mean an extra request per card, plus loading and error states, which this PR does not need. The bill's `Reminder` panel stays the only place to approve or cancel.
+
+**Changes** (they replace Task 6's copy-table row for `reminder_proposal`, its test row `shows the pending proposal and where to approve it`, and Task 7 steps 4 and 7):
+
+| File | From | To |
+| --- | --- | --- |
+| `frontend/src/components/AssistantAction.tsx` (the `reminder_proposal` card) | `Proposal <n> · not saved yet` | `Proposal <n> · not saved when proposed` |
+| the same card's button | `Open bill to approve or cancel` | `Open bill to see its status` |
+| `frontend/src/components/AssistantAction.test.tsx`, `shows the pending proposal and where to approve it` | `getByText('Proposal 1 · not saved yet')` and the button name `Open bill to approve or cancel` | `getByText('Proposal 1 · not saved when proposed')` and the button name `Open bill to see its status`; rename the test `shows the proposal as it was when proposed and where to see its status` |
+| `frontend/e2e/app.spec.ts`, step 4 | `toContainText('not saved yet')` on `Reminder proposal` | `toContainText('not saved when proposed')` |
+| `frontend/e2e/app.spec.ts`, step 7 | click `Open bill to approve or cancel` | click `Open bill to see its status` |
+
+**Unchanged on purpose:**
+- The bill panel's live `Proposal <n> · not saved yet` in `BillReminder.tsx` and its tests. There, the text is current: the panel reloads the document.
+- The assistant's message text in `backend/app/services/assistant/tools.py`: "It is not saved. Open the bill to approve or cancel it." It reads as a message written at that moment, like the rest of the chat history.
+- The `proposal_pending` notice ("A reminder proposal is already waiting for your decision on this bill. Open the bill to approve or cancel it."). It is written when the owner asks again while a proposal is pending, so it is true when written.
+
+**Steps:**
+- [ ] Change the two tests first and see them fail on the old copy. Change the card, then see them pass.
+- [ ] Gates: frontend `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`; then the browser scenario (`npx playwright test e2e/app.spec.ts`) against a disposable stack, never `dvdemo`.
+- [ ] Record L1 as fixed by Revision 7 in the PR description. Commit: `Describe the chat's reminder card as of when it was proposed`
+
+**Revision 7 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| L1: the chat's reminder card reads as current after the proposal is approved or cancelled | The renamed `AssistantAction` test (new copy); e2e steps 4 and 7 (new copy and button) |
 
 ## Acceptance check coverage
 

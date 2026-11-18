@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import { queryClient } from './queryClient'
 
 /** The account id is the access token's `sub` claim. Returns null for a missing or malformed token. */
@@ -29,10 +29,30 @@ const AuthContext = createContext<AuthContextType>(null!)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
 
+  const tokenRef = useRef(token)
+
   useEffect(() => {
+    tokenRef.current = token
     if (token) localStorage.setItem('token', token)
     else localStorage.removeItem('token')
   }, [token])
+
+  // Another tab signed in, signed out or switched account: follow it. The event
+  // only fires in the other tabs, so this tab's own writes never loop back.
+  useEffect(() => {
+    function onStorage(event: StorageEvent) {
+      if (event.key !== 'token') return
+      const next = event.newValue
+      const previous = tokenRef.current
+      if (next === previous) return
+      // Cached data belongs to the previous account. A refreshed token keeps the same account.
+      if (next === null || accountIdFromToken(previous) !== accountIdFromToken(next)) queryClient.clear()
+      tokenRef.current = next
+      setToken(next)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   function login(accessToken: string, refreshToken?: string | null) {
     // Cached data belongs to the previous account; drop all of it before the new token is used.

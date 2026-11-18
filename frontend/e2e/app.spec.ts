@@ -95,15 +95,15 @@ async function billImage(page: Page): Promise<Buffer> {
 }
 
 /** Upload the bill fixture and leave its document detail open. Returns the document id. */
-async function uploadBillImage(page: Page, image: Buffer): Promise<string> {
+async function uploadBillImage(page: Page, image: Buffer, fileName = 'playwright-bill.png'): Promise<string> {
   await goInApp(page, '/app/upload');
   await expect(page.getByRole('heading', { name: 'Upload Documents' })).toBeVisible();
   await page.locator('input[type="file"]').first().setInputFiles({
-    name: 'playwright-bill.png',
+    name: fileName,
     mimeType: 'image/png',
     buffer: image,
   });
-  await expect(page.getByText('playwright-bill.png')).toBeVisible();
+  await expect(page.getByText(fileName)).toBeVisible();
 
   const uploadResponse = page.waitForResponse(response =>
     response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST'
@@ -114,7 +114,7 @@ async function uploadBillImage(page: Page, image: Buffer): Promise<string> {
   const id = (await response.json()).id as string;
 
   await expect(page.getByRole('heading', { name: 'Upload Complete!' })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: /playwright-bill\.png/i }).click();
+  await page.getByRole('button', { name: fileName }).click();
   return id;
 }
 
@@ -467,6 +467,84 @@ test.describe('Bill review and split', () => {
       expect(after).toEqual([{ number: 2, reminder: null }, { number: 1, reminder: repeated.first }]);
     } finally {
       if (documentId) await deleteDocument(page, documentId);
+    }
+  });
+
+  test('the assistant answers from a confirmed bill and leaves approval to the owner', async ({ page }) => {
+    test.setTimeout(120_000);
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
+    test.skip(!email || !password, 'CI seed credentials are required for this integration test');
+
+    const image = await billImage(page);
+    await signIn(page, email!, password!);
+    await clearHousemates(page);
+
+    const say = async (text: string) => {
+      await page.getByPlaceholder(/Ask a question/).fill(text);
+      await page.getByRole('button', { name: 'Send message' }).click();
+    };
+
+    // A name no other run or scenario uses, so a bill left behind by a crashed run cannot match the title too.
+    const fileName = `playwright-assistant-${Date.now()}.png`;
+    let documentId: string | undefined;
+    let conversationId: string | undefined;
+    try {
+      documentId = await uploadBillImage(page, image, fileName);
+      const review = page.getByRole('region', { name: 'Bill review' });
+      await review.getByRole('button', { name: 'Review and confirm' }).click({ timeout: 30_000 });
+      await review.getByRole('button', { name: 'Check values' }).click();
+      await review.getByRole('button', { name: 'Confirm and save' }).click();
+      await expect(review).toContainText('Confirmed · revision 1');
+
+      // Name the bill by its title, which is unique to this run, so the request holds when the account has other bills.
+      const title = ((await page.getByRole('heading', { name: fileName }).first().textContent()) ?? '').trim();
+      expect(title).not.toBe('');
+
+      await goInApp(page, '/app/ask');
+      await say(`How much is ${title} and when is it due?`);
+      await page.waitForURL(/\/app\/ask\/[0-9a-f-]{36}$/);
+      conversationId = page.url().split('/').pop();
+      const facts = page.getByRole('region', { name: 'Bill facts' });
+      await expect(facts).toContainText('Confirmed · revision 1', { timeout: 30_000 });
+      await expect(facts).toContainText('€123.47');
+      await expect(facts).toContainText('23 November 2026');
+
+      await say('Split it between the four of us.');
+      await expect(page.getByText('You have no saved housemates yet.')).toBeVisible({ timeout: 30_000 });
+
+      await say("Remind me two days before it's due.");
+      const proposal = page.getByRole('region', { name: 'Reminder proposal' });
+      await expect(proposal).toContainText('not saved when proposed', { timeout: 30_000 });
+      await expect(proposal).toContainText('Remind on 21 November 2026');
+
+      await say('Pay this bill for me.');
+      await expect(page.getByText("I can't pay bills or move money.")).toBeVisible({ timeout: 30_000 });
+
+      await say('Draft a question for the supplier about the amount due.');
+      const draft = page.getByRole('region', { name: 'Enquiry draft' });
+      await expect(draft).toBeVisible({ timeout: 30_000 });
+      await expect(draft.getByLabel('Draft to edit')).toHaveValue(/I have a question about the amount due/);
+
+      // Nothing was saved from the chat: approval happens in the bill's own panel.
+      await proposal.getByRole('button', { name: 'Open bill to see its status' }).click();
+      const reminder = page.getByRole('region', { name: 'Reminder' });
+      await expect(reminder.getByText('Approve this reminder', { exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(reminder.getByRole('group', { name: 'History' })).toContainText('Proposed by the assistant');
+      await reminder.getByRole('button', { name: 'Approve and save' }).click();
+      await expect(reminder.getByText('Saved · reminder for 21 November 2026', { exact: true })).toBeVisible();
+    } finally {
+      // The seeded account persists: leave no bill, housemates or chat behind for the next scenario.
+      if (conversationId) {
+        await page.evaluate(async id => {
+          await fetch(`/api/v1/conversations/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          });
+        }, conversationId);
+      }
+      if (documentId) await deleteDocument(page, documentId);
+      await clearHousemates(page);
     }
   });
 });

@@ -676,12 +676,52 @@ export interface Conversation {
   message_count?: number
 }
 
+export interface AssistantSelection {
+  tool: 'get_bill_facts' | 'split_bill' | 'propose_reminder' | 'draft_enquiry' | 'answer_from_documents' | 'decline'
+  document_ref: string | null
+  people: string[]
+  count: number | null
+  days_before_due: number | null
+  topic: string | null
+  decline_reason: 'payment' | 'external_sending' | 'other' | null
+}
+
+export interface AssistantBillFacts {
+  confirmed: boolean
+  revision: number | null
+  amount_due: string | null
+  due_date: string | null
+  billing_period_start: string | null
+  billing_period_end: string | null
+  evidence: BillReview | null
+}
+
+/** What the assistant did for a chat message. Mirrors `AssistantAction` in `backend/app/schemas/assistant.py`. */
+export interface AssistantAction {
+  kind: 'answer' | 'bill_facts' | 'split_preview' | 'reminder_proposal' | 'enquiry_draft' | 'question' | 'notice' | 'declined'
+  meta: { selector: 'model' | 'rules' | 'pending'; model: string | null; fallback_reason: string | null }
+  document_id?: string | null
+  document_title?: string | null
+  facts?: AssistantBillFacts | null
+  preview?: BillSplitPreview | null
+  proposal?: ReminderProposal | null
+  draft?: string | null
+  topic?: string | null
+  evidence?: { line: number; text: string }[] | null
+  missing?: 'which_bill' | 'which_people' | 'how_many_days' | 'what_topic' | null
+  options?: string[] | null
+  option_ids?: string[] | null
+  pending?: AssistantSelection | null
+  reason?: string | null
+}
+
 export interface ConversationMessage {
   id: string
   conversation_id: string
   role: 'user' | 'assistant'
   content: string
   sources: AskResponse['sources'] | null
+  action?: AssistantAction | null
   created_at: string
 }
 
