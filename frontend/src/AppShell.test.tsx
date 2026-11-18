@@ -127,6 +127,19 @@ describe('AppShell navigation', () => {
     expect(backdrop(container)).toBeNull()
   })
 
+  it('the logo closes the phone sidebar on the Ask page', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    const { container } = renderShell('/app')
+    await screen.findByText('Ask page')
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+    expect(aside(container)).not.toHaveClass('-translate-x-full')
+
+    await user.click(screen.getByRole('button', { name: 'DocVault' }))
+    await waitFor(() => expect(aside(container)).toHaveClass('-translate-x-full'))
+    expect(backdrop(container)).toBeNull()
+  })
+
   it('on a desktop the sidebar is in place', async () => {
     const { container } = renderShell()
     await screen.findByText('Documents page')

@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { Document } from '@/lib/api'
-import { isGeneratedSummary } from '@/lib/summary'
+import { isGeneratedSummary, summaryOverview } from '@/lib/summary'
 
 interface Props {
   doc: Document | null
@@ -120,10 +120,10 @@ export function DocumentPreviewModal({ doc, onClose }: Props) {
                   <dd className="text-xs font-medium">{new Date(doc.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}</dd>
                 </dl>
 
-                {isGeneratedSummary(doc.summary) && (
+                {isGeneratedSummary(doc.summary) && summaryOverview(doc.summary) !== null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-1.5">Summary</p>
-                    <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4">{doc.summary}</p>
+                    <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4">{summaryOverview(doc.summary)}</p>
                   </div>
                 )}
 

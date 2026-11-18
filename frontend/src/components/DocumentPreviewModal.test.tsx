@@ -52,8 +52,14 @@ describe('DocumentPreviewModal', () => {
   })
 
   it('quick preview shows a generated summary', () => {
-    show({ summary: 'A short electricity bill.', brand: 'Example Energy', document_type: 'bill' })
+    const container = show({
+      summary: JSON.stringify({ overview: 'An electricity bill.', key_topics: ['Charges'] }),
+      brand: 'Example Energy',
+      document_type: 'bill',
+    })
     expect(screen.getByText('Summary')).toBeInTheDocument()
+    expect(screen.getByText('An electricity bill.')).toBeInTheDocument()
+    expect(container.textContent).not.toContain('{"')
     expect(screen.queryByText('Extracted text')).toBeNull()
     expect(screen.getByText('Brand')).toBeInTheDocument()
     expect(screen.getByText('Type')).toBeInTheDocument()

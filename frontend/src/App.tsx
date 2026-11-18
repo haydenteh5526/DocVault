@@ -170,7 +170,7 @@ function AppShell() {
               </button>
             ) : (
               <>
-                <button onClick={() => navigate('/app')} className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
+                <button onClick={() => { navigate('/app'); setSidebarOpen(false) }} className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
                   <Layers size={20} className="text-primary transition-transform duration-300 group-hover:rotate-12" />
                   <span className="text-[17px] font-semibold text-foreground">DocVault</span>
                 </button>

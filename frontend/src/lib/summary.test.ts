@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isGeneratedSummary } from './summary'
+import { isGeneratedSummary, summaryOverview } from './summary'
 
 const empty = {
   overview: 'EXAMPLE ENERGY electricity bill',
@@ -8,6 +8,23 @@ const empty = {
   safety_warnings: [],
   quick_facts: [],
 }
+
+describe('summaryOverview', () => {
+  it('returns the overview of a JSON summary', () => {
+    expect(summaryOverview('{"overview":"An electricity bill.","key_topics":["Charges"]}')).toBe('An electricity bill.')
+  })
+
+  it('returns plain text as it is', () => {
+    expect(summaryOverview('A short electricity bill.')).toBe('A short electricity bill.')
+  })
+
+  it('returns null when there is nothing to show', () => {
+    expect(summaryOverview(null)).toBeNull()
+    expect(summaryOverview('')).toBeNull()
+    expect(summaryOverview('{"overview":"","key_topics":["a"]}')).toBeNull()
+    expect(summaryOverview('{"key_topics":["a"]}')).toBeNull()
+  })
+})
 
 describe('isGeneratedSummary', () => {
   it('rejects the no-key fallback JSON', () => {

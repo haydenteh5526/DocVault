@@ -8,7 +8,7 @@ import Footer from '@/components/Footer'
 const faqs = [
   { q: 'What file formats are supported?', a: 'JPEG, PNG, WebP, and multi-page PDF.' },
   { q: 'How is my data protected?', a: 'The app uses JWT authentication, bcrypt password hashing, per-user query isolation, and access-controlled object storage.' },
-  { q: 'How does the AI Q&A work?', a: 'We split your documents into chunks, embed them semantically using vector search (pgvector), and use RAG (Retrieval-Augmented Generation) to answer questions grounded in your actual content.' },
+  { q: 'How does asking a question work?', a: 'Your documents are split into passages and indexed by meaning (pgvector) and by their words (PostgreSQL full-text search). Questions about a bill are answered from the values you confirmed. Other questions show the passages that match, with the document they came from. Writing a free-text answer needs a language-model key, which this build does not set.' },
   { q: 'What AI models are used?', a: 'Text is read with Tesseract OCR and searched with the nomic-embed-text model on Ollama, all on your own computer. Answers written by a language model need a provider key, which this build does not set.' },
   { q: 'Is this a commercial product?', a: 'No — this is a final year project for TUS Athlone (Software Design with AI for Cloud Computing). It demonstrates a tested local architecture and cloud infrastructure definition.' },
 ]
@@ -16,7 +16,7 @@ const faqs = [
 const features = [
   { icon: <Camera size={20} />, title: 'OCR Extraction', desc: 'Automatic text extraction from images and PDFs using Tesseract OCR with multi-page support.', gradient: 'icon-gradient-blue' },
   { icon: <Search size={20} />, title: 'Semantic Search', desc: 'Find "drainage issue" even when the manual says "blocked filter". Vector embeddings understand context.', gradient: 'icon-gradient-purple' },
-  { icon: <MessageSquare size={20} />, title: 'AI Q&A', desc: 'Ask natural questions, get sourced answers. Grounded in your documents with cited references.', gradient: 'icon-gradient-blue', featured: true },
+  { icon: <MessageSquare size={20} />, title: 'Ask your documents', desc: 'Bill questions are answered from the values you confirmed. Other questions show the matching passages and where they came from.', gradient: 'icon-gradient-blue', featured: true },
   { icon: <Shield size={20} />, title: 'Secure by Default', desc: 'JWT auth, bcrypt hashing, per-user data isolation. Your documents are only accessible by you.', gradient: 'icon-gradient-green' },
   { icon: <Cloud size={20} />, title: 'Cloud-Ready', desc: 'Dockerised with Terraform modules for AWS deployment. S3 storage, PostgreSQL with pgvector.', gradient: 'icon-gradient-amber' },
   { icon: <Zap size={20} />, title: 'Background Processing', desc: 'Upload returns instantly. OCR, categorisation, and embedding run asynchronously via ARQ workers.', gradient: 'icon-gradient-purple' },
@@ -152,13 +152,13 @@ export default function Landing() {
       <section className="py-24 px-6 bg-muted/20 border-t border-border/30">
         <div className="max-w-5xl mx-auto space-y-20">
           <FeatureRow
-            title="Ask questions, get real answers"
-            desc="Stop flipping through pages. Type your question in plain English and get an instant, sourced answer pulled directly from your stored documents. Each answer shows which document it came from."
+            title="Ask in your own words"
+            desc="Ask when a bill is due or how much it is, and DocVault answers from the values you confirmed. For anything else, it shows the passages in your documents that match your question, with the document each came from."
             visual={
               <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
                 <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto w-fit text-right">When is this bill due?</div>
                 <div className="bg-muted/60 rounded-lg p-3 text-sm max-w-[85%]">
-                  The bill is due on 23 November 2026.
+                  €123.47 is due on 23 November 2026. These are the values you confirmed (revision 1).
                   <span className="block text-[10px] text-muted-foreground mt-1.5">🔗 Example Energy bill</span>
                 </div>
               </div>
@@ -166,17 +166,17 @@ export default function Landing() {
           />
           <FeatureRow
             title="Warranty dates found for you"
-            desc="DocVault reads every upload with OCR and finds warranty periods in receipts and warranty cards, so the Warranties page shows what expires and when. Group everything else with folders and tags."
+            desc={'DocVault reads every upload with OCR and picks up warranty periods written like "2 year warranty" next to a purchase date, so the Warranties page shows what expires and when. Group everything else with folders and tags.'}
             visual={
               <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3 text-sm">
                 <div className="flex items-center gap-3 pb-3 border-b border-border/30">
                   <div className="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center"><FileText size={14} className="text-white" /></div>
-                  <div><p className="font-medium">Washer-dryer warranty card</p><p className="text-[11px] text-muted-foreground">Warranty: 2 years, expires June 2028</p></div>
+                  <div><p className="font-medium">Washer-dryer warranty card</p><p className="text-[11px] text-muted-foreground">Purchased 12/06/2026, 2 year warranty</p></div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
                   <div className="rounded-md bg-primary/[0.06] px-2 py-1.5 text-center text-primary font-medium">Washer-dryer</div>
                   <div className="rounded-md bg-muted px-2 py-1.5 text-center">Warranty card</div>
-                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">Expires June 2028</div>
+                  <div className="rounded-md bg-muted px-2 py-1.5 text-center">Expires 12 June 2028</div>
                 </div>
               </div>
             }

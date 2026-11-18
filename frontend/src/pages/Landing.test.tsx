@@ -33,6 +33,18 @@ describe('Landing', () => {
     expect(text).toContain('warranty dates found for you')
   })
 
+  it('describes Ask as it works today and the warranty copy as the extractor reads it', () => {
+    const text = pageText()
+    for (const phrase of ['get real answers', 'instant, sourced answer', 'RAG (Retrieval-Augmented Generation) to answer']) {
+      expect(text).not.toContain(phrase)
+    }
+    expect(text).toContain('Ask in your own words')
+    expect(text).toContain('Ask your documents')
+    expect(text).toContain('How does asking a question work?')
+    expect(text).toContain('2 year warranty')
+    expect(text).toContain('Expires 12 June 2028')
+  })
+
   it('says what runs locally', () => {
     const text = pageText()
     expect(text).toContain(
