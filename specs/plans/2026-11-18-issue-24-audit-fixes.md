@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11, R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is built on `feature/issue-24-server-fixes`.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. **PR 1** (Tasks 1 to 6, plus Revision 1 R1 to R5 and Revision 2 R7 to R10) was merged as PR 26 (`57d4ea4`) on 18 November 2026, after the owner lifted the Demo 1 merge freeze. **PR 2** (Tasks 7 to 12, plus R6, R11, R12 and R13) starts from `main` after PR 23 merged (`b86a27f`, 18 November 2026); it is built on `feature/issue-24-server-fixes` and open as PR 27. **Revision 4** (Task 7a, R14) was added the same day after the review of PR 27 (finding M1) and approved by the owner; it is not implemented.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -348,6 +348,43 @@ Added on 18 November 2026 after the Reviewer's re-check of PR 26 at `abbed40` (v
   - `sources carry the OCR line`: chunk "Total amount due: EUR 123.47…" in a `raw_text` where that is line 15 → `line == 15`.
   - `the no-key answer names each passage`: it starts with "No answer could be written", contains "Example Energy, line 15:", and does not contain "[Dev mode".
 - [ ] Gates. Commit: `Say when nothing was found and name each passage's line`
+
+### Task 7a (Revision 4, PR 2): Find a passage's lines in real chunks
+
+Added on 18 November 2026 after the review of PR 27 (finding M1). It replaces Task 7's item 3 and the test `sources carry the OCR line`.
+
+**The defect in the plan.**
+- `chunking_service._split_sentences` replaces every newline with a space (`chunking_service.py:52`), so a stored chunk never contains a line break. Task 7's rule ("the first line that the chunk's first non-blank line starts with") therefore never matches, and `line` is always `None` for real documents.
+- The plan's tests used chunks with newlines, which the chunker never produces.
+- A second flaw: a short bill fits in one chunk, so a single line number would always be 1. That number is true but useless.
+
+**R14. Sources carry the range of OCR lines the passage covers.**
+- **File:** `backend/app/services/rag_service.py`, `backend/tests/test_rag_service.py`.
+- **Interface:** `ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None`. Line numbers are 1-based, the same numbering as the bill review's "OCR line" (`raw_text.splitlines()`).
+  1. Build `collapsed`, plus a list `origin` of original indices: walk `raw_text`; each run of whitespace becomes one space mapped to the run's first index, and every other character maps to its own index.
+  2. `flat = " ".join(chunk_text.split())`. If it is empty, return `None`.
+  3. `head = flat[:40]`, and `start = collapsed.find(head)`. If it is `-1`, return `None`.
+  4. `tail = flat[-40:]`, and `end = collapsed.find(tail, start)`. If it is `-1`, use `start`. The end index is `end + len(tail) - 1`.
+  5. Return `(raw_text.count("\n", 0, origin[start]) + 1, raw_text.count("\n", 0, origin[end_index]) + 1)`.
+- `Source` gains `line_start: int | None` and `line_end: int | None` in place of Task 7's `line`, and `to_dict` includes both.
+- **No-key answer format** (replaces Task 7 item 4's label):
+  - `"{title}, lines {a}–{b}:"` when `a != b`
+  - `"{title}, line {a}:"` when they are equal
+  - `"{title}:"` when unknown
+  - The rest of item 4 is unchanged: the first line "No answer could be written because no language model is set up. These passages match your question:", then 200 characters of each chunk, and no "[Dev mode".
+- **No migration, no re-chunking:** the lines are found at answer time from `documents.raw_text`, which Task 7 already selects.
+- **Tests** (replace `sources carry the OCR line` and every test that builds chunks containing newlines):
+  - `lines of the real bill`: the synthetic Example Energy text (the e2e fixture's lines) goes through `chunk_text()`. Each chunk gets a range whose first line contains the chunk's first ten collapsed characters, and whose last line contains its last ten. A one-chunk bill gives `(1, n)`, where `n` is the line of the last non-blank text.
+  - `lines of a later chunk`: 30 lines of `"Item {i}: the part number is PN-{i:04d} and it fits model WD8."` give at least three chunks. The second chunk's `line_start` is greater than 1 and at most its `line_end`. The overlap tail that starts that chunk is found on its `line_start`.
+  - `unknown text gives None`: a chunk that is not in `raw_text` → `None`.
+  - `the no-key answer names the line range`: a two-chunk document → the answer contains `"Manual, lines "` and the `–` range for each passage. A single-line chunk gives `"line {a}:"`.
+- Task 7's other tests (the floor, scoped questions, keyword matches, "not found") are unchanged.
+
+**Revision 4 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| M1: the OCR-line rule fails on real chunks; the tests used impossible chunks | R14 tests, built from `chunk_text()` output |
 
 ### Task 8: Two-factor sign-in turns on only after a correct code
 
