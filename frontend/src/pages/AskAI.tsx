@@ -230,7 +230,8 @@ export default function AskAI() {
 
         {/* Message bubbles */}
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+          // Keyed by conversation as well as position, so a card's edits never carry into another conversation.
+          <div key={`${conversationId ?? 'new'}:${i}`} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
                 <Bot size={14} className="text-white" />
