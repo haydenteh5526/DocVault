@@ -226,7 +226,14 @@ export interface SearchResult {
 
 export interface AskResponse {
   answer: string
-  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number }[]
+  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number; line?: number | null }[]
+}
+
+/** Which optional sign-in methods the server offers. Public call: no session is needed. */
+export async function getAuthProviders(): Promise<{ google: boolean }> {
+  const res = await fetch(`${BASE}/auth/providers`)
+  if (!res.ok) throw new Error('Could not load sign-in options')
+  return res.json()
 }
 
 export async function registerUser(email: string, password: string, displayName?: string): Promise<{ message: string }> {

@@ -156,3 +156,27 @@ async def test_ai_status_reports_providers():
     body = res.json()
     for key in ("groq", "gemini", "ollama", "ocr_backend", "mode"):
         assert key in body
+
+
+@pytest.mark.asyncio
+async def test_auth_providers_reports_google_unset(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.get("/api/v1/auth/providers")
+    assert res.status_code == 200
+    assert res.json() == {"google": False}
+
+
+@pytest.mark.asyncio
+async def test_auth_providers_reports_google_only_when_fully_configured(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "client-id")
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        half = await c.get("/api/v1/auth/providers")
+        monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET", "client-secret")
+        both = await c.get("/api/v1/auth/providers")
+    assert half.json() == {"google": False}
+    assert both.json() == {"google": True}

@@ -340,6 +340,12 @@ async def delete_account(
         await db.commit()
 
 
+@router.get("/providers")
+async def auth_providers():
+    """Which optional sign-in methods this server can offer. Public: no session."""
+    return {"google": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)}
+
+
 @router.get("/oauth/google")
 async def oauth_google_redirect():
     """Kick off Google OAuth: redirect the browser to Google's consent screen."""
