@@ -200,8 +200,10 @@ async def setup_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_curr
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
 
+    # The secret stays pending until the owner types a correct code
+    # (POST /2fa/confirm), so an abandoned setup can never lock them out.
     secret = pyotp.random_base32()
-    user.totp_secret = secret
+    user.totp_pending_secret = secret
     await db.commit()
 
     totp = pyotp.TOTP(secret)
@@ -216,11 +218,39 @@ async def setup_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_curr
     return {"secret": secret, "qr_code": f"data:image/png;base64,{qr_b64}", "uri": uri}
 
 
+class Confirm2FARequest(BaseModel):
+    code: str
+
+
+@router.post("/2fa/confirm")
+async def confirm_2fa(
+    req: Confirm2FARequest,
+    db: AsyncSession = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    import pyotp
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one()
+
+    if not user.totp_pending_secret:
+        raise HTTPException(409, "Start two-factor setup first.")
+
+    if not pyotp.TOTP(user.totp_pending_secret).verify(req.code, valid_window=1):
+        raise HTTPException(400, "That code didn't match. Check the time on your phone and try again.")
+
+    user.totp_secret = user.totp_pending_secret
+    user.totp_pending_secret = None
+    await db.commit()
+    return {"message": "Two-factor sign-in is on."}
+
+
 @router.post("/2fa/disable")
 async def disable_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
     user.totp_secret = None
+    user.totp_pending_secret = None
     await db.commit()
     return {"message": "2FA disabled"}
 
