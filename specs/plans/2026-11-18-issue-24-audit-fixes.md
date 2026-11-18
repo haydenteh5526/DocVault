@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. Nothing in it is implemented yet. PR 1 (Tasks 1 to 6) may start now; PR 2 (Tasks 7 to 12) starts after PR 23 merges.
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions D1 to D6 as recommended. PR 1 Tasks 1 to 6 are built on `feature/issue-24-audit-fixes` (PR 26, head `fc1932d`). **Revision 1** (Task 6a) was added the same day after the review of PR 26 and approved by the owner as recommended (R1 to R6); it is not implemented. PR 2 (Tasks 7 to 12) starts after PR 23 merges.
 
 **Issue:** [#24](https://github.com/haydenteh5526/DocVault/issues/24). The evidence for every defect is in the audit record (`feature-audit-2026-11-18.md`, side-session notes, Architect session). The audit ran on `main` at `84730f9`, on the local `dvdemo` stack.
 
@@ -184,7 +184,78 @@ PR 2 (server and its screens):
   - `e2e/accessibility.spec.ts` (landing `h1` visible, no axe violations) passes unchanged.
 - [ ] Gates, including Playwright on a disposable stack. Update `specs/Repo_Current_State.md` with a verified-results row. Commit: `Show timestamps in Irish time and describe the local build truthfully`
 
-**PR 1:** the Reviewer checks Tasks 1 to 6 against the acceptance checks they cover. The body starts `Part of #24`.
+### Task 6a (Revision 1, PR 1): Close the gaps found in the review of PR 26
+
+Added on 18 November 2026 after the Reviewer's report on PR 26 (head `fc1932d`, verdict "merge after fixes"). The report found no defect in what Tasks 1 to 6 built. M1 and M2 are gaps in this plan; L1, L2, N1 and N5 are small and fixed here. The owner approves this revision before it is built.
+
+**R1 (M1). Quick preview shows no placeholder summary and no empty fields.**
+- **File:** `frontend/src/components/DocumentPreviewModal.tsx`; create `DocumentPreviewModal.test.tsx`.
+- **Change:**
+  - The "Summary" block renders only when `isGeneratedSummary(doc.summary)` (from `lib/summary.ts`, Task 3). The "Extracted text" block's condition becomes `!isGeneratedSummary(doc.summary) && doc.raw_text`.
+  - The "Brand" and "Type" rows are drawn only when they have a value. "Size" and "Uploaded" stay.
+- **Tests:**
+  - `quick preview shows the extracted text, not a placeholder summary`: a document with the fallback summary JSON shows "Extracted text". It shows no "Summary" label, no text containing `{"`, and no "—" for Brand or Type.
+  - `quick preview shows a generated summary`: a summary with one key topic shows the "Summary" label.
+
+**R2 (M2). The landing page claims only what the local build does (D5 widened).**
+- **Files:** `frontend/src/pages/Landing.tsx`, `frontend/src/components/Footer.tsx`, `Landing.test.tsx`.
+- **Copy:**
+  - Hero paragraph (`Landing.tsx:55`): "Upload or snap any document — photos, PDFs, manuals. DocVault reads the text, makes it searchable by its words or its meaning, and shows the passages that answer your questions."
+  - The "Automatic organisation" feature row becomes:
+    - title "Warranty dates found for you"
+    - description "DocVault reads every upload with OCR and finds warranty periods in receipts and warranty cards, so the Warranties page shows what expires and when. Group everything else with folders and tags."
+    - its card: "Washer-dryer warranty card" with the line "Warranty: 2 years, expires June 2028", and the chips "Washer-dryer", "Warranty card" and "Expires June 2028" (no Bosch, no "Auto-categorised").
+  - Footer line (`Footer.tsx:15`): "A personal document assistant that runs on your own computer. Digitise, search and query your household documents."
+- **Test:** `Landing.test.tsx` adds that the page text contains none of "Bosch", "model number", "auto-creates" or "cloud document vault" (case-insensitive), and that it contains "runs on your own computer".
+- *Why this is true:* warranty dates come from `warranty_extraction.py`, which uses regular expressions, not a hosted model. No category is ever created automatically (`document_processor.py`).
+
+**R3 (L1). The phone sidebar closes on every route change.**
+- **File:** `frontend/src/App.tsx`, `AppShell.test.tsx`.
+- **Change:** in `AppShell`, add `useEffect(() => { setSidebarOpen(false) }, [location.pathname])`. This covers the logo button, browser back and any other navigation.
+- **Test:** `the phone sidebar closes when the logo opens a page`. At 390 px: open the menu, click the "DocVault" logo button, and expect `-translate-x-full` on the `aside` and no backdrop.
+
+**R4 (L2). Grid cards show the document type once.**
+- **File:** `frontend/src/pages/Dashboard.tsx`, `Dashboard.test.tsx`.
+- **Change:** remove the muted document-type line that Task 2 added to grid cards, and keep the existing badge. List rows keep Task 2's line; they have no badge.
+- **Test:** `a grid card shows the type once`. A document with `document_type: "Bill"` renders "Bill" exactly once in its card.
+
+**R5 (N1).** The sidebar "Search" item uses the `FileSearch` icon from `lucide-react`, so it differs from "Search chats". No test.
+
+**R6 (N5).** In PR 2, Task 12 also changes the FastAPI title in `backend/app/main.py` from "AI Cloud Document Vault" to "DocVault API".
+
+**Evidence (L3).** On a disposable stack, the Issue session checks the flow in a browser:
+1. open Documents
+2. upload the synthetic bill on the Upload page
+3. within 30 seconds, click "View Documents"
+4. the bill is listed without a refresh
+
+It records the result in the PR description. If it cannot run the check, it lists it under "Not verified".
+
+**Left, with reasons:**
+- N3: the test's seed shape is harmless; the test asserts only the invalidation.
+- N4: after a failed reload, the split and reminder panels show their own saved state. The "may be out of date" notice belongs to the Bill review panel, where the reload failed.
+
+**Steps:**
+- [ ] Write the R1 to R4 tests, see them fail, implement R1 to R5, then run the frontend gates.
+- [ ] Run the L3 browser check.
+- [ ] Put the Reviewer's full report in the PR description, with what was fixed by this revision and what was left.
+- [ ] Commit: `Close the gaps the review of PR 26 found`
+- [ ] The Reviewer re-checks the PR at its new head.
+
+**Revision 1 coverage**
+
+| Finding | Covered by |
+| --- | --- |
+| M1: Quick preview shows the placeholder summary and empty fields | R1 tests |
+| M2: the landing hero, the "Automatic organisation" row and the footer overclaim | R2 test |
+| L1: the phone sidebar stays open after the logo or back | R3 test |
+| L2: the type shows twice on grid cards | R4 test |
+| L3: no browser check for "View Documents" | The recorded browser check |
+| N1: two identical search icons | R5 |
+| N2: the plan's status line is out of date | This revision's status line |
+| N5: the API title | R6, in PR 2 Task 12 |
+
+**PR 1:** the Reviewer checks Tasks 1 to 6 and Task 6a against the acceptance checks they cover. The body starts `Part of #24`.
 
 ---
 
