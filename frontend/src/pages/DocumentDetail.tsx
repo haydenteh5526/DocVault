@@ -16,6 +16,7 @@ import { confirmBillAndRefresh } from '@/lib/billConfirm'
 import { storeReminderProposal } from '@/lib/billReminder'
 import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSplit'
 import { useAuth } from '@/lib/auth'
+import { isGeneratedSummary } from '@/lib/summary'
 import { useHousemates } from '@/lib/housemates'
 
 /**
@@ -349,14 +350,14 @@ export default function DocumentDetail() {
                 <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
                   <Loader2 size={28} className="animate-spin text-primary mb-4" />
                   <p className="text-sm font-medium">Analysing document...</p>
-                  <p className="text-xs text-muted-foreground mt-1">Extracting text, detecting brand, model, and document type.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Extracting the text and indexing it for search.</p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <>
               {/* AI Summary */}
-              {doc.summary && (
+              {isGeneratedSummary(doc.summary) && doc.summary && (
                 <RichSummary summary={doc.summary} onTopicClick={(topic) => { setPendingQuestion(`Tell me about ${topic} in this document`); setTab('ask') }} />
               )}
 
@@ -367,18 +368,24 @@ export default function DocumentDetail() {
                     <Info size={15} className="text-primary" /> Key Information
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Brand</p>
-                      <p className="text-sm font-semibold">{doc.brand || '—'}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Model</p>
-                      <p className="text-sm font-semibold">{doc.model || '—'}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Type</p>
-                      <p className="text-sm font-semibold">{doc.document_type || '—'}</p>
-                    </div>
+                    {doc.document_type && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Type</p>
+                        <p className="text-sm font-semibold">{doc.document_type}</p>
+                      </div>
+                    )}
+                    {doc.brand && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Brand</p>
+                        <p className="text-sm font-semibold">{doc.brand}</p>
+                      </div>
+                    )}
+                    {doc.model && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Model</p>
+                        <p className="text-sm font-semibold">{doc.model}</p>
+                      </div>
+                    )}
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">File size</p>
                       <p className="text-sm font-semibold">{formatFileSize(doc.file_size)}</p>
