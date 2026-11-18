@@ -164,7 +164,11 @@ export default function Dashboard() {
 
   async function handleRenameDoc(docId: string) {
     const name = renameValue.trim()
-    if (!name) { setRenamingDoc(null); return }
+    if (!name) {
+      setRenamingDoc(null)
+      toast('Title cannot be blank.', 'error')
+      return
+    }
     try {
       await renameDocument(docId, name)
       setDocs(docs => docs.map(d => d.id === docId ? { ...d, title: name } : d))

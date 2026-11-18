@@ -304,3 +304,20 @@ async def test_a_blank_title_is_rejected_and_a_padded_one_is_trimmed():
             assert row.title == "October bill"
     finally:
         await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_null_title_means_not_changing():
+    from app.services.auth_service import create_access_token
+    from tests.accounts import create_users_and_document, delete_users
+
+    owner_id, other_id, document_id = await create_users_and_document()
+    headers = {"Authorization": f"Bearer {create_access_token(owner_id)}"}
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+            res = await c.patch(f"/api/v1/documents/{document_id}", headers=headers, json={"title": None, "brand": "Acme"})
+        assert res.status_code == 200
+        assert res.json()["title"] == "Owner only"
+        assert res.json()["brand"] == "Acme"
+    finally:
+        await delete_users(owner_id, other_id)

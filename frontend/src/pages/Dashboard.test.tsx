@@ -96,4 +96,17 @@ describe('renaming a document', () => {
     await waitFor(() => expect(screen.getByText('Title cannot be blank.')).toBeInTheDocument())
     expect(screen.queryByText('Document renamed')).not.toBeInTheDocument()
   })
+
+  it('says so when the new title is blank, without calling the API', async () => {
+    localStorage.setItem('docvault-view', 'grid')
+    renderDashboard()
+    await userEvent.dblClick(await screen.findByText('October electricity bill'))
+    const input = screen.getByDisplayValue('October electricity bill')
+    await userEvent.clear(input)
+    await userEvent.type(input, '   ')
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => expect(screen.getByText('Title cannot be blank.')).toBeInTheDocument())
+    expect(renameDocument).not.toHaveBeenCalled()
+  })
 })
