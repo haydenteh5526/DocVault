@@ -696,8 +696,8 @@ export default function Dashboard() {
                       onDoubleClick={(e) => { e.stopPropagation(); setRenamingDoc(doc.id); setRenameValue(doc.title) }}
                     >{doc.title}</h3>
                   )}
-                  {doc.summary && (
-                    <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{doc.summary}</p>
+                  {doc.document_type && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{doc.document_type}</p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {doc.processing_status && doc.processing_status !== 'complete' && (
