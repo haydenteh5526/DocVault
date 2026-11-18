@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking. Also load the `frontend-design`, `ui-ux-pro-max` and `modern-web-design` skills before Task R1.
 
-**Status:** proposed on 18 November 2026; waiting for the owner's approval of the decisions below. Nothing in this plan is implemented. No GitHub issue exists yet (Decision D6).
+**Status:** proposed on 18 November 2026. The same day, the owner asked for a shadcn/ui look, and Section 3R replaces the first identity (Sections 3 and 7). The plan is waiting for the owner's approval of the decisions below. Nothing in it is implemented. No GitHub issue exists yet (Decision D6).
 
 **Goal:** Give DocVault a recognisable visual identity built around what people do with it: find a household document, check what it says, and decide what needs attention. Retire the purple and indigo gradient branding, glows, frosted surfaces and colourful feature cards. Every function, check and piece of evidence the app has today stays.
 
@@ -167,7 +167,7 @@ DESKTOP 1366 — first screen                                      [B]
 
 ---
 
-## 3. The identity (Frontend Design)
+## 3. The identity (Frontend Design) — palette, typefaces and surfaces superseded by Section 3R
 
 **Subject:** household paperwork — bills, receipts, manuals, warranties — and the moment of checking a figure on paper before paying, sharing or filing it.
 
@@ -203,6 +203,97 @@ DESKTOP 1366 — first screen                                      [B]
 ```
 
 **Example — plain account form** (identity at rest): one column, 400 px wide on desktop and full width minus 16 px gutters on a phone. The wordmark and the heading are "Welcome back" (unchanged copy). Fields have visible labels above them, 44 px tall, with a 6 px radius and the `rule-strong` border. The primary button is full width and ink-filled. No gradient panel and no animated background: the left half of the screen shows the sheet from the landing page, still, on `sunken`, and only on desktop.
+
+---
+
+## 3R. Identity, revised 18 November 2026: the shadcn/ui look
+
+The owner asked for a look "like shadcn/ui: clean, professional, minimalistic, modern, premium". This section **replaces Section 3's palette, typefaces and surfaces, and Section 7's tokens**. Kept from Section 3:
+- the subject and the source-tie idea (every value read from a document sits beside its line)
+- the restraint on motion
+- the navigation structure
+- the dense-list and account-form patterns
+
+Sections 1, 2 (the copy of both directions), 4, 5, 6 and the implementation sequence still hold. Where they say "highlighter", "marker", "ink" or "paper", read them through the mapping at the end of this section.
+
+**Why it fits this codebase:** the app already uses the shadcn pattern. That covers `class-variance-authority` buttons in `components/ui/`, Radix primitives (`@radix-ui/react-dialog`, `react-dropdown-menu`, `react-slot`, `react-tabs`), `cmdk`, `tailwind-merge`, and token names in `index.css` that are shadcn's (`background`, `foreground`, `primary`, `muted-foreground`, `border`, `ring`). The redesign moves those tokens to shadcn's **neutral** base colour and writes the missing components by hand in shadcn's API, so no new dependency is added.
+
+**Principles**
+
+1. **Monochrome first.** Neutral greys and one near-black primary. Colour appears only to mean something: destructive red, saved green, and amber for "needs attention". Each always comes with its words.
+2. **Hierarchy by type weight, size and muted text, not by colour.** Headings `font-semibold tracking-tight`; supporting text `text-muted-foreground`.
+3. **Cards with a 1 px border and a barely-there shadow** (`shadow-xs`), a 10 px radius, and generous padding. No gradients, glows or blur.
+4. **The source tie, shadcn style.** The value sits on top (`text-2xl font-semibold tabular-nums`). Under it is an outline badge "Line 15", then the quoted line in a muted block: `bg-muted` with a 2 px left border in `border-foreground/20`, `text-sm`, regular weight. It stays a `blockquote`. Quiet, but unmistakably evidence.
+5. **Motion as shadcn does it:** 150–200 ms colour and opacity transitions on interaction, and dialogs and menus that fade and zoom in at 95%. Nothing on page load and nothing looping. Section 5's upload states keep their behaviour; the highlighter sweep becomes a progress bar and a `Skeleton` pulse on the new row, which stop when processing ends.
+
+**Typeface:** **Geist** (Google Fonts, weights 400, 500 and 600) for everything, replacing Inter, with `tabular-nums` for amounts and dates. A single family keeps it minimal. The serif document voice from Section 3 is dropped; the muted quote block carries that distinction instead.
+
+**Type scale** (Tailwind classes):
+
+| Role | Class | Size / line height |
+| --- | --- | --- |
+| Landing display | `text-4xl md:text-6xl font-semibold tracking-tight` | 36 / 40 → 60 / 60 |
+| Landing lead | `text-lg md:text-xl text-muted-foreground` | 18 → 20 |
+| Page title (app) | `text-2xl font-semibold tracking-tight` | 24 / 32 |
+| Card title | `text-base font-semibold` (`CardTitle`) | 16 / 24 |
+| Card description, meta | `text-sm text-muted-foreground` | 14 / 20 |
+| Body and controls | `text-sm` | 14 / 20 |
+| Value in review | `text-2xl font-semibold tabular-nums` | 24 / 32 |
+| Badge, table header | `text-xs font-medium` | 12 / 16 (never body text) |
+
+**Tokens** (replace the `:root` and `.dark` values in `index.css`; names unchanged, so every component picks them up; `--radius: 0.625rem`):
+
+| Token | Light (oklch → hex) | Dark (oklch → hex) |
+| --- | --- | --- |
+| `--background` | 1 0 0 → #FFFFFF | 0.145 0 0 → #0A0A0A |
+| `--foreground` | 0.145 0 0 → #0A0A0A | 0.985 0 0 → #FAFAFA |
+| `--card`, `--popover` | 1 0 0 → #FFFFFF | 0.205 0 0 → #171717 |
+| `--primary` | 0.205 0 0 → #171717 | 0.922 0 0 → #E5E5E5 |
+| `--primary-foreground` | 0.985 0 0 → #FAFAFA | 0.205 0 0 → #171717 |
+| `--secondary`, `--muted`, `--accent` | 0.97 0 0 → #F5F5F5 | 0.269 0 0 → #262626 |
+| `--secondary-foreground`, `--accent-foreground` | 0.205 0 0 → #171717 | 0.985 0 0 → #FAFAFA |
+| `--muted-foreground` | **0.52 0 0 → #6B6B6B** (shadcn's 0.556 fails on `muted`) | 0.708 0 0 → #A1A1A1 |
+| `--border` (cards, separators) | 0.922 0 0 → #E5E5E5 | 1 0 0 / 10% → #2E2E2E on background |
+| `--input` (control borders) | **0.64 0 0 → #8F8F8F** (3:1 for controls, WCAG 1.4.11) | **0.52 0 0 → #6B6B6B** |
+| `--ring` | 0.708 0 0 → #A1A1A1 (shown as a 3 px ring at 50% plus the border) | 0.556 0 0 → #737373 |
+| `--destructive` | 0.577 0.245 27.3 → #DC2626 | 0.704 0.191 22.2 → #FF6467 |
+| `--success` (new) | 0.527 0.154 150 → #15803D | 0.792 0.209 151.7 → #4ADE80 |
+| `--attention` (new) | 0.555 0.163 48.998 → #B45309 (text); 0.987 0.022 95 → #FFFBEB (wash) | 0.837 0.164 84.4 → #FBBF24 (text); 0.279 0.077 45.6 → #451A03 (wash) |
+| `--sidebar` | 0.985 0 0 → #FAFAFA | 0.205 0 0 → #171717 |
+
+**Contrast** (computed 18 November 2026 from the hex values; the Reviewer re-measures on the built CSS):
+
+| Pair | Light | Dark | Needs |
+| --- | --- | --- | --- |
+| foreground on background | 19.8 | 19.0 | 4.5 |
+| muted-foreground on background | 5.3 | 7.7 | 4.5 |
+| muted-foreground on muted | 4.9 | 5.9 | 4.5 |
+| muted-foreground on card | 5.3 | 6.9 | 4.5 |
+| primary-foreground on primary | 17.2 | 14.2 | 4.5 |
+| destructive on background | 4.8 | 6.9 | 4.5 |
+| success on background | 5.0 | 11.4 | 4.5 |
+| attention on background | 5.0 | 11.9 | 4.5 |
+| attention on attention wash | 4.8 | 9.0 | 4.5 |
+| input on background (control border) | 3.2 | 3.7 | 3.0 |
+
+**Components** (shadcn's API, written by hand in `components/ui/`; no new packages):
+- **Kept and restyled:** `button.tsx` (variants `default`, `secondary`, `outline`, `ghost`, `destructive`, `link`; sizes `sm`, `default`, `lg`, `icon`), `card.tsx` (`Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardAction`), `input.tsx`.
+- **Added:** `badge.tsx` (`default`, `secondary`, `outline`, `destructive`, plus `attention` and `success`), `label.tsx`, `separator.tsx` (a styled `div role="separator"`, no Radix package), `skeleton.tsx`, `table.tsx` (`Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `tabs.tsx` (wraps the installed `@radix-ui/react-tabs`), `dialog.tsx` and `dropdown-menu.tsx` (wrap the installed Radix packages), `kbd.tsx`.
+- **Product components built from them:** `SourceTie`, `StatusTag` (now a thin wrapper over `Badge`), `Wordmark` and `AppNav`, as in Section 8.
+
+**Wordmark:** "DocVault" in Geist 600 with `tracking-tight`, after a 20 px glyph. The glyph is a rounded square in `primary` with a white folded-corner sheet cut out. There is no second colour.
+
+**Navigation:**
+- **Desktop:** shadcn's sidebar pattern. A 240 px `sidebar` panel with a 1 px right border, links as `ghost` buttons (`h-9`, `text-sm`), the current link `bg-accent font-medium`. A header strip on each page has the page title and the page's actions (search, Upload).
+- **Phone:** Section 3's top bar and three-item bottom tab bar, unchanged.
+
+**Mapping from Sections 4 to 6:**
+- "highlighter band" or "marker" on evidence → the muted quote block
+- "highlighter" for attention → an amber `attention` badge or dot with its words
+- "ink" button → `default` button
+- "paper" → `background`
+- "sheet" (the document page) → a `Card` with `shadow-sm` showing the page in `text-sm`
+- the search match highlight → `bg-attention-wash` with `text-foreground`
 
 ---
 
@@ -362,7 +453,7 @@ BILL REVIEW — PHONE 390
 
 ---
 
-## 7. Design tokens
+## 7. Design tokens — superseded by Section 3R (kept for the record)
 
 Replace the `@theme` block and the `.dark` block in `frontend/src/index.css` with these. Tailwind v4 reads `--color-*`, `--font-*`, `--radius-*` and `--shadow-*` from `@theme`. The old names (`background`, `foreground`, `primary`, `muted-foreground`, `border`, `ring` and so on) stay as aliases, so untouched components keep working during the migration (Task R1).
 
@@ -475,7 +566,7 @@ Any pair under its threshold on the built CSS is a defect.
 
 1. **D1. Landing direction.** *Recommended:* A, "The check". Alternative: B, "The question".
 2. **D2. Signed-in home.** *Recommended:* `/app` opens Documents with Needs attention; Ask stays in the navigation. Six browser-test assertions expect the heading "Ask anything about your documents" right after sign-in, and they change to expect the heading "Documents". This is the only test change outside new tests. Alternative: keep Ask as the home; the rest of the plan is unchanged.
-3. **D3. Typefaces.** *Recommended:* Public Sans for the interface and Source Serif 4 for document text, loaded from Google Fonts exactly as Inter is today (no new dependency, €0).
+3. **D3. Typeface.** *Recommended (Section 3R):* Geist for everything, loaded from Google Fonts exactly as Inter is today (no new dependency, €0). The Section 3 pairing of Public Sans and Source Serif 4 is withdrawn.
 4. **D4. Themes.** *Recommended:* follow the system setting, with a manual override in Settings (today's `lib/theme.ts` behaviour). The rail is no longer forced dark.
 5. **D5. Remove `canvas-confetti`.** *Recommended:* yes; it is used only for the upload celebration that Section 5 replaces.
 6. **D6. A GitHub issue and two pull requests.** *Recommended:* I open an issue, "Redesign the website around finding, checking and deciding", with the acceptance checks at the end of this plan.
@@ -507,14 +598,14 @@ Any pair under its threshold on the built CSS is a defect.
 
 - **Files:** `frontend/src/index.css`, `frontend/index.html`; create `frontend/src/designGuard.test.ts`.
 - [ ] **Step 1: failing test.** `designGuard.test.ts` reads every file under `src/` and fails on any of: `gradient-bg`, `gradient-text`, `animated-gradient`, `icon-gradient-`, `hover-lift`, `glass`, `from-purple`, `to-purple`, `from-violet`, `to-violet`, `from-indigo`, `canvas-confetti`, `animate-float`, `animate-slide-up`, `animate-fade-in`, `animate-scale-in`, `blur-2xl`, `blur-xl`, `shadow-primary/`. It lists each file and match. Expected now: fails with many matches. It stays failing until Task R10, so mark it `test.todo` until then, then switch it to a real test in R10 Step 1.
-- [ ] **Step 2:** replace the `@theme` and `.dark` blocks with Section 7's tokens and aliases. Delete the retired utilities and their keyframes. Keep the reduced-motion block. Add `--ease-out` and the durations, and the marker keyframes (`marker-sweep`, `ready-flash`).
-- [ ] **Step 3:** replace the Inter font link with Public Sans and Source Serif 4.
-- [ ] **Step 4:** the Reviewer measures every pair in Section 7's contrast table from the built CSS and records the numbers.
+- [ ] **Step 2:** replace the token values in `index.css` with Section 3R's table: the same names, plus `--success`, `--attention`, `--attention-wash`, `--sidebar` and `--radius: 0.625rem`, mapped into `@theme` as `--color-*`. Delete the retired utilities and their keyframes. Keep the reduced-motion block. Add only the keyframes shadcn's dialogs, menus and `Skeleton` need.
+- [ ] **Step 3:** replace the Inter font link with Geist (weights 400, 500 and 600) and set `--font-sans: 'Geist', system-ui, sans-serif`.
+- [ ] **Step 4:** the Reviewer measures every pair in Section 3R's contrast table from the built CSS and records the numbers.
 - [ ] Gates. Commit: `Replace the purple theme with paper, ink and highlighter tokens`
 
 ### Task R2: Shared components
 
-- **Files:** `components/ui/button.tsx`, `input.tsx`, `card.tsx`; create `SourceTie.tsx`, `StatusTag.tsx`, `Wordmark.tsx` and their `*.test.tsx`.
+- **Files:** `components/ui/button.tsx`, `input.tsx`, `card.tsx`; create `components/ui/badge.tsx`, `label.tsx`, `separator.tsx`, `skeleton.tsx`, `table.tsx`, `tabs.tsx`, `dialog.tsx`, `dropdown-menu.tsx` and `kbd.tsx` (shadcn's API, Section 3R, no new packages); create `SourceTie.tsx`, `StatusTag.tsx`, `Wordmark.tsx` and their `*.test.tsx`. Where Section 8 describes a variant by the Section 3 names (ink, marker, quiet), use Section 3R's mapping.
 - [ ] Failing tests:
   - `SourceTie` renders the label, value, "OCR line 15" and the quote inside a `blockquote`, and with `corrected="€123.47"` shows "Corrected from €123.47".
   - `StatusTag` renders its text for every tone.
