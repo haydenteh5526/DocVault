@@ -95,15 +95,15 @@ async function billImage(page: Page): Promise<Buffer> {
 }
 
 /** Upload the bill fixture and leave its document detail open. Returns the document id. */
-async function uploadBillImage(page: Page, image: Buffer): Promise<string> {
+async function uploadBillImage(page: Page, image: Buffer, fileName = 'playwright-bill.png'): Promise<string> {
   await goInApp(page, '/app/upload');
   await expect(page.getByRole('heading', { name: 'Upload Documents' })).toBeVisible();
   await page.locator('input[type="file"]').first().setInputFiles({
-    name: 'playwright-bill.png',
+    name: fileName,
     mimeType: 'image/png',
     buffer: image,
   });
-  await expect(page.getByText('playwright-bill.png')).toBeVisible();
+  await expect(page.getByText(fileName)).toBeVisible();
 
   const uploadResponse = page.waitForResponse(response =>
     response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST'
@@ -114,7 +114,7 @@ async function uploadBillImage(page: Page, image: Buffer): Promise<string> {
   const id = (await response.json()).id as string;
 
   await expect(page.getByRole('heading', { name: 'Upload Complete!' })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: /playwright-bill\.png/i }).click();
+  await page.getByRole('button', { name: fileName }).click();
   return id;
 }
 
@@ -485,18 +485,20 @@ test.describe('Bill review and split', () => {
       await page.getByRole('button', { name: 'Send message' }).click();
     };
 
+    // A name no other run or scenario uses, so a bill left behind by a crashed run cannot match the title too.
+    const fileName = `playwright-assistant-${Date.now()}.png`;
     let documentId: string | undefined;
     let conversationId: string | undefined;
     try {
-      documentId = await uploadBillImage(page, image);
+      documentId = await uploadBillImage(page, image, fileName);
       const review = page.getByRole('region', { name: 'Bill review' });
       await review.getByRole('button', { name: 'Review and confirm' }).click({ timeout: 30_000 });
       await review.getByRole('button', { name: 'Check values' }).click();
       await review.getByRole('button', { name: 'Confirm and save' }).click();
       await expect(review).toContainText('Confirmed · revision 1');
 
-      // Name the bill by its title so the request holds even if the seeded account has other bills.
-      const title = ((await page.getByRole('heading', { name: /playwright-bill/ }).first().textContent()) ?? '').trim();
+      // Name the bill by its title, which is unique to this run, so the request holds when the account has other bills.
+      const title = ((await page.getByRole('heading', { name: fileName }).first().textContent()) ?? '').trim();
       expect(title).not.toBe('');
 
       await goInApp(page, '/app/ask');

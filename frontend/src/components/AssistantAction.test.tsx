@@ -166,6 +166,23 @@ describe('AssistantActionCard', () => {
     expect(await within(region).findByText('Copied')).toBeInTheDocument()
   })
 
+  it('shows the new draft, not the old one, when another conversation is opened', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const draftFor = (topic: string, line: string) =>
+      action({ kind: 'enquiry_draft', draft: `I have a question about ${topic}`, topic, evidence: [{ line: 1, text: line }] })
+    const { rerender } = render(<AssistantActionCard action={draftFor('the standing charge', 'Standing charge: EUR 18.20')} onOpenDocument={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Copy draft' }))
+    expect(await screen.findByText('Copied')).toBeInTheDocument()
+
+    rerender(<AssistantActionCard action={draftFor('the billing period', 'Billing period: 1 October 2026')} onOpenDocument={vi.fn()} />)
+    expect(screen.getByLabelText('Draft to edit')).toHaveValue('I have a question about the billing period')
+    expect(screen.queryByText('Copied')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Copy draft' }))
+    expect(writeText).toHaveBeenLastCalledWith('I have a question about the billing period')
+  })
+
   it('tells the owner when copying fails', async () => {
     const user = userEvent.setup()
     const writeText = vi.fn().mockRejectedValue(new Error('denied'))

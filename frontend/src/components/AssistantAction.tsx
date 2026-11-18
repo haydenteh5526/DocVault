@@ -66,7 +66,8 @@ function cardBody(action: AssistantAction, onOpenDocument: (id: string) => void)
       )
     }
     case 'enquiry_draft':
-      return <DraftCard draft={action.draft ?? ''} evidence={action.evidence ?? []} />
+      // Keyed by its text so a card reused for another conversation's draft starts from that draft, not the old edit.
+      return <DraftCard key={action.draft ?? ''} draft={action.draft ?? ''} evidence={action.evidence ?? []} />
     case 'notice':
       return documentId ? <div>{open('Open bill')}</div> : null
     default:

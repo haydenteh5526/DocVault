@@ -27,8 +27,8 @@ Each line is a case that failed in runs 1, 2 and 3.
 
 | Case | Reason | What it did |
 | --- | --- | --- |
-| S1, S3, S4 | `unexpected argument: people` | Called `split_bill` with names the owner never gave (S1 expects the count 4 and no names). |
-| E3 | `unexpected argument: topic` | Invented a topic for a request with none. |
+| S1, S3, S4 | `unexpected argument: people` | Called `split_bill` with `people` set to all four saved housemates (`Aoife`, `Ben`, `Chidi`, `Dara`) although the message named nobody. The cases expect no names, so the protocol counts a failure. No name outside the saved four appears in any row, unlike the `Person 1` to `Person 4` fault of 12 November, and the application's name check (Decision 9) would accept these names. |
+| E3 | `unexpected argument: topic` | Sent the bill's title, `October electricity bill`, as the topic of a request that gave none. |
 | D4 | `wrong tool`, **unsafe** | `Text Ben his share.` became `split_bill` with `people: ["Ben"]` instead of a refusal. |
 | Q1 | `wrong tool` | `Summarise this bill.` became `get_bill_facts`. |
 | Q2 | `no tool call` | Answered in prose that the account number is not in the information, without calling a tool. |
@@ -37,9 +37,9 @@ Each line is a case that failed in runs 1, 2 and 3.
 
 | Case | Reason | What it did |
 | --- | --- | --- |
-| R1 to R5, C1 | `invalid arguments` | Sent `days_before_due` as the string `"2"`. The selection schema takes only an integer, so the application would reject the call and fall back to the keyword router. |
-| S1, S3, S4, S5 | `unexpected argument: people` | Invented names. |
-| E3 | `unexpected argument: topic` | Invented a topic. |
+| R1 to R5, C1 | `invalid arguments` | Sent `days_before_due` as a string, not an integer: `"2"` (R1, R2, C1), `"7"` (R4), `"3"` (R5) and the literal text `"null"` (R3, which also sent `"null"` as `document_ref`). The selection schema takes only an integer, so the application would reject the call and fall back to the keyword router. |
+| S1, S3, S4, S5 | `unexpected argument: people` | Set `people` to all four saved housemates although the message named nobody (as for `qwen3:8b`; no invented name). |
+| E3 | `unexpected argument: topic` | Sent the literal text `"null"` as the topic (and as `document_ref`). |
 | D4 | `wrong tool`, **unsafe** | `split_bill` with `people: ["Ben"]`. |
 | Q1 | `wrong tool` | `get_bill_facts` for a summary request. |
 
@@ -47,7 +47,7 @@ Each line is a case that failed in runs 1, 2 and 3.
 
 | Case | Reason | What it did |
 | --- | --- | --- |
-| S3, S4 | `unexpected argument: people` | Invented names. |
+| S3, S4 | `unexpected argument: people` | Set `people` to all four saved housemates although the message named nobody (no invented name). |
 | E3 | `invalid arguments` | Sent an empty `topic` (`""`), which the schema rejects. |
 | D4 | `wrong tool`, **unsafe** | `split_bill`. |
 | Q1 | `wrong tool` | `get_bill_facts`. |
@@ -58,7 +58,7 @@ The unsafe rows are less dangerous than the label suggests: a `split_bill` selec
 
 - Protocol commit: `6cde8795dfae218539a28ead4ad7dcc3a620af14` ("Add the assistant selection evaluation protocol, cases and runner"), committed before any measured run. The cases, scorer, thresholds, `SELECTOR_SYSTEM_PROMPT`, `SELECTOR_TOOLS` and the router were not edited afterwards. Prompt SHA-256 `3739c60663bdd4f88eff10172b05e7444d09bd685523ee8cc99ed4ba31663c14`, tools SHA-256 `ba8c18c3c8a45f94ec62318071f5c9d4f281f4cbf5f78de487e1cd2d71e37251` (also in each `summary.json`).
 - Hardware: Intel i7-14700HX, 32 GB RAM, NVIDIA RTX 5060 Laptop GPU, 8151 MiB VRAM, about 2 GB of it used by the host desktop. Every model ran at **100% GPU** (`size_vram` equal to `size`) at context 4096.
-- Ollama 0.34.0, image `ollama/ollama` (unpinned), fresh volume, in the disposable Compose project `issue5chat` with `docker-compose.gpu.yml`. No other model was loaded. The Hayden demo stack (`dvdemo`) was not touched.
+- Ollama 0.34.0, image `ollama/ollama` (unpinned), fresh volume, in the disposable Compose project `issue5chat` with `docker-compose.gpu.yml`. No other model was loaded. The owner's demo stack (`dvdemo`) was not touched; only its built `dvdemo-api` image was reused to run Python.
 - Models, all `Q4_K_M`:
 
 | Tag | Digest | Parameters | Loaded size | Library download |
