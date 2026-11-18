@@ -10,12 +10,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services import embedding_service
 
 
+# Cosine similarity a chunk must reach when a question is asked across all
+# documents. Provisional (D1 of the issue 24 plan): the retrieval benchmark
+# calibrates it on a frozen set. A question scoped to one document has no floor.
+SIMILARITY_FLOOR = 0.55
+
+NOT_FOUND_ANSWER = "I couldn't find this in your documents."
+NO_KEY_HEADER = (
+    "No answer could be written because no language model is set up. "
+    "These passages match your question:"
+)
+
+
 class Source:
-    def __init__(self, document_id: str, document_title: str, chunk_text: str, similarity: float):
+    def __init__(
+        self,
+        document_id: str,
+        document_title: str,
+        chunk_text: str,
+        similarity: float,
+        line: int | None = None,
+    ):
         self.document_id = document_id
         self.document_title = document_title
         self.chunk_text = chunk_text
         self.similarity = similarity
+        self.line = line
 
     def to_dict(self) -> dict:
         return {
@@ -23,6 +43,7 @@ class Source:
             "document_title": self.document_title,
             "chunk_text": self.chunk_text,
             "similarity": self.similarity,
+            "line": self.line,
         }
 
 
@@ -30,6 +51,27 @@ class RAGResult:
     def __init__(self, answer: str, sources: list[Source]):
         self.answer = answer
         self.sources = sources
+
+
+def ocr_line_of(chunk_text: str, raw_text: str | None) -> int | None:
+    """1-based index, in raw_text.splitlines(), of the line the chunk starts at.
+
+    This is the numbering the bill review shows as "OCR line". The first
+    non-blank line of the chunk is matched against the document's lines.
+    """
+    if not raw_text:
+        return None
+    first = next((ln.strip() for ln in chunk_text.splitlines() if ln.strip()), None)
+    if first is None:
+        return None
+    for number, line in enumerate(raw_text.splitlines(), start=1):
+        if line.strip().startswith(first):
+            return number
+    return None
+
+
+def _passage_label(title: str, line: int | None) -> str:
+    return f"{title}, line {line}:" if line is not None else f"{title}:"
 
 
 class ChatTurn:
@@ -75,6 +117,7 @@ async def generate_rag_answer(
     vec_result = await db.execute(
         text(f"""
             SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
+                   d.raw_text,
                    1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
@@ -94,6 +137,7 @@ async def generate_rag_answer(
     kw_result = await db.execute(
         text(f"""
             SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
+                   d.raw_text,
                    ts_rank(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', :q)) as rank
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
@@ -122,6 +166,7 @@ async def generate_rag_answer(
                 "chunk_text": row.chunk_text,
                 "document_id": row.document_id,
                 "document_title": row.document_title,
+                "raw_text": row.raw_text,
                 "rrf": 0.0,
                 "similarity": 0.0,
             })
@@ -133,12 +178,16 @@ async def generate_rag_answer(
     _add(vec_rows, lambda r: (r.similarity if r.similarity == r.similarity else 0.0))
     _add(kw_rows, lambda r: None)  # keyword rows carry no cosine similarity
 
-    # 2d. Relevance floor: keep chunks that clear a semantic similarity
-    #     threshold. This filters out near-irrelevant chunks that would
-    #     otherwise pad the context and invite hallucination.
-    SIMILARITY_FLOOR = 0.25
+    # 2d. Relevance floor: across all documents, keep chunks that clear a
+    #     semantic similarity threshold. This filters out near-irrelevant
+    #     chunks that would otherwise pad the context and invite
+    #     hallucination. Inside one document the owner already chose where to
+    #     look, so every fused chunk counts.
     ranked = sorted(fused.values(), key=lambda e: e["rrf"], reverse=True)
-    relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
+    if document_id:
+        relevant = ranked
+    else:
+        relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
     if not relevant:
         # No chunk cleared the semantic floor. If keyword search still produced
         # matches (exact terms/model numbers), trust the top fused hits;
@@ -146,12 +195,12 @@ async def generate_rag_answer(
         if kw_rows:
             relevant = ranked[:5]
         else:
-            return RAGResult(
-                answer="I don't have information about that in your documents.",
-                sources=[],
-            )
+            return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
 
     top = relevant[:5]
+
+    for e in top:
+        e["line"] = ocr_line_of(e["chunk_text"], e["raw_text"])
 
     # 3. Build context from retrieved chunks
     context = "\n\n---\n\n".join(
@@ -179,7 +228,7 @@ async def generate_rag_answer(
             context += warranty_context
 
     # 4. Generate answer via LLM (with conversation history)
-    answer = _generate_answer(question, context, history)
+    answer = _generate_answer(question, context, history, passages=top)
 
     # 5. Build sources from the fused top chunks
     sources = [
@@ -188,6 +237,7 @@ async def generate_rag_answer(
             document_title=e["document_title"],
             chunk_text=e["chunk_text"][:200],
             similarity=round(e["similarity"], 4),
+            line=e["line"],
         )
         for e in top
     ]
@@ -195,7 +245,26 @@ async def generate_rag_answer(
     return RAGResult(answer=answer, sources=sources)
 
 
-def _generate_answer(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
+def _no_key_answer(context: str, passages: list[dict] | None) -> str:
+    if not passages:
+        return f"{NO_KEY_HEADER}\n\n{context[:500]}"
+    parts = [NO_KEY_HEADER]
+    for passage in passages:
+        label = _passage_label(passage["document_title"], passage.get("line"))
+        parts.append(f"{label}\n{passage['chunk_text'][:200]}")
+    answer = "\n\n".join(parts)
+    warranty_at = context.find("[Warranty Information]")
+    if warranty_at != -1:
+        answer += "\n\n---\n\n" + context[warranty_at:]
+    return answer
+
+
+def _generate_answer(
+    question: str,
+    context: str,
+    history: list[ChatTurn] | None = None,
+    passages: list[dict] | None = None,
+) -> str:
     from app.config import settings
     from app.services.observability import trace_generation
 
@@ -204,7 +273,7 @@ def _generate_answer(question: str, context: str, history: list[ChatTurn] | None
     elif settings.GEMINI_API_KEY:
         model = "gemini-2.0-flash"
     else:
-        return f"[Dev mode - no AI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
+        return _no_key_answer(context, passages)
 
     with trace_generation(
         name="rag_answer",

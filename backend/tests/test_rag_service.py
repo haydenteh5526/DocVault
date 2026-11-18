@@ -27,12 +27,13 @@ class _Database:
         return next(self._results)
 
 
-def _chunk(chunk_id="chunk-1", similarity=0.8, title="Manual", text="Reset with the red button"):
+def _chunk(chunk_id="chunk-1", similarity=0.8, title="Manual", text="Reset with the red button", raw_text=None):
     return SimpleNamespace(
         chunk_id=chunk_id,
         chunk_text=text,
         document_id=uuid.uuid4(),
         document_title=title,
+        raw_text=raw_text,
         similarity=similarity,
     )
 
@@ -54,8 +55,114 @@ async def test_generate_rag_answer_rejects_irrelevant_vectors(monkeypatch):
 
     result = await rag_service.generate_rag_answer("unrelated", uuid.uuid4(), db)
 
-    assert result.answer == "I don't have information about that in your documents."
+    assert result.answer == "I couldn't find this in your documents."
     assert result.sources == []
+
+
+def _no_key(monkeypatch, similarity=0.5):
+    monkeypatch.setattr(rag_service.embedding_service, "get_embedding", lambda question: [0.1])
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "")
+
+
+async def test_an_unscoped_question_below_the_floor_is_not_found(monkeypatch):
+    _no_key(monkeypatch)
+    db = _Database([_chunk(similarity=0.45)], [])
+
+    result = await rag_service.generate_rag_answer("When does my tenancy end?", uuid.uuid4(), db)
+
+    assert result.answer == "I couldn't find this in your documents."
+    assert result.sources == []
+
+
+async def test_an_unscoped_question_above_the_floor_answers(monkeypatch):
+    _no_key(monkeypatch)
+    db = _Database([_chunk(similarity=0.62)], [], [])
+
+    result = await rag_service.generate_rag_answer("When is this bill due?", uuid.uuid4(), db)
+
+    assert len(result.sources) == 1
+    assert result.sources[0].similarity == 0.62
+
+
+async def test_a_scoped_question_has_no_floor(monkeypatch):
+    _no_key(monkeypatch)
+    chunk = _chunk(similarity=0.30)
+    db = _Database([chunk], [], [])
+
+    result = await rag_service.generate_rag_answer(
+        "Anything?", uuid.uuid4(), db, document_id=str(chunk.document_id)
+    )
+
+    assert len(result.sources) == 1
+
+
+async def test_a_keyword_match_still_answers_below_the_floor(monkeypatch):
+    _no_key(monkeypatch)
+    vector = _chunk(chunk_id="v", similarity=0.45, text="Unrelated")
+    keyword = SimpleNamespace(
+        chunk_id="k",
+        chunk_text="Model ZX-42 reset procedure",
+        document_id=uuid.uuid4(),
+        document_title="Boiler Manual",
+        raw_text=None,
+    )
+    db = _Database([vector], [keyword], [])
+
+    result = await rag_service.generate_rag_answer("ZX-42", uuid.uuid4(), db)
+
+    assert {s.document_title for s in result.sources} == {"Manual", "Boiler Manual"}
+
+
+RAW_TEXT = "\n".join(
+    [f"Header line {n}" for n in range(1, 14)]
+    + ["", "Total amount due: EUR 123.47", "Payment due date: 23 November 2026"]
+)
+
+
+async def test_sources_carry_the_ocr_line(monkeypatch):
+    _no_key(monkeypatch)
+    chunk = _chunk(
+        title="Example Energy",
+        text="\nTotal amount due: EUR 123.47\nPayment due date: 23 November 2026",
+        raw_text=RAW_TEXT,
+    )
+    assert RAW_TEXT.splitlines()[14] == "Total amount due: EUR 123.47"
+    db = _Database([chunk], [], [])
+
+    result = await rag_service.generate_rag_answer("What is due?", uuid.uuid4(), db)
+
+    assert result.sources[0].line == 15
+    assert result.sources[0].to_dict()["line"] == 15
+
+
+async def test_a_source_without_a_matching_line_has_none(monkeypatch):
+    _no_key(monkeypatch)
+    chunk = _chunk(text="Not in the text", raw_text="Something else entirely")
+    db = _Database([chunk], [], [])
+
+    result = await rag_service.generate_rag_answer("What?", uuid.uuid4(), db)
+
+    assert result.sources[0].line is None
+
+
+async def test_the_no_key_answer_names_each_passage(monkeypatch):
+    _no_key(monkeypatch)
+    chunk = _chunk(
+        title="Example Energy",
+        text="Total amount due: EUR 123.47\nPayment due date: 23 November 2026",
+        raw_text=RAW_TEXT,
+    )
+    other = _chunk(chunk_id="chunk-2", title="Washer", text="Unlocated passage", raw_text="x")
+    db = _Database([chunk, other], [], [])
+
+    result = await rag_service.generate_rag_answer("What is due?", uuid.uuid4(), db)
+
+    assert result.answer.startswith("No answer could be written")
+    assert "Example Energy, line 15:" in result.answer
+    assert "\nWasher:\nUnlocated passage" in result.answer
+    assert "Total amount due: EUR 123.47" in result.answer
+    assert "[Dev mode" not in result.answer
 
 
 async def test_generate_rag_answer_uses_keyword_fallback_and_warranty(monkeypatch):
@@ -74,7 +181,7 @@ async def test_generate_rag_answer_uses_keyword_fallback_and_warranty(monkeypatc
         document_id=str(keyword.document_id),
     )
 
-    assert result.answer.startswith("[Dev mode - no AI key]")
+    assert result.answer.startswith("No answer could be written")
     assert "Warranty Information" in result.answer
     assert result.sources[0].document_title == "Boiler Manual"
     assert result.sources[0].similarity == 0.0
@@ -92,6 +199,7 @@ async def test_generate_rag_answer_fuses_duplicate_chunks(monkeypatch):
         chunk_text=shared.chunk_text,
         document_id=shared.document_id,
         document_title=shared.document_title,
+        raw_text=None,
     )
     lower = _chunk(chunk_id="chunk-2", similarity=float("nan"), text="Noise")
     db = _Database([shared, lower], [duplicate_keyword], [])
@@ -104,14 +212,16 @@ async def test_generate_rag_answer_fuses_duplicate_chunks(monkeypatch):
         "document_title": "Manual",
         "chunk_text": "Primary answer",
         "similarity": 0.9,
+        "line": None,
     }
 
 
-def test_generate_answer_without_provider_is_explicit_dev_fallback(monkeypatch):
+def test_generate_answer_without_provider_says_no_answer_was_written(monkeypatch):
     monkeypatch.setattr(settings, "GROQ_API_KEY", "")
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "")
     result = rag_service._generate_answer("Question", "x" * 600)
-    assert result.startswith("[Dev mode - no AI key]")
+    assert result.startswith("No answer could be written because no language model is set up.")
+    assert "[Dev mode" not in result
     assert len(result) < 600
 
 
