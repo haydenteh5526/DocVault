@@ -238,3 +238,59 @@ describe('DocumentDetail bill split', () => {
     expect(region()).not.toHaveTextContent('€123.47')
   })
 })
+
+describe('DocumentDetail facts', () => {
+  const fallbackSummary = JSON.stringify({
+    overview: 'EXAMPLE ENERGY electricity bill',
+    key_topics: [],
+    specifications: [],
+    safety_warnings: [],
+    quick_facts: [],
+  })
+
+  it('shows no empty AI fields for a bill with the fallback summary', async () => {
+    vi.mocked(getDocument).mockResolvedValue({
+      ...bill('x', '123.47'),
+      document_type: null,
+      summary: fallbackSummary,
+      file_size: 2048,
+    } as Document)
+    renderPage('/app/documents/x')
+    const keyInfo = (await screen.findByText('Key Information')).closest('[class*="p-6"]') as HTMLElement
+
+    expect(screen.queryByText('AI Summary')).toBeNull()
+    expect(within(keyInfo).queryByText('—')).toBeNull()
+    expect(within(keyInfo).queryByText('Brand')).toBeNull()
+    expect(within(keyInfo).queryByText('Model')).toBeNull()
+    expect(within(keyInfo).queryByText('Type')).toBeNull()
+    expect(within(keyInfo).getByText('File size')).toBeInTheDocument()
+    expect(within(keyInfo).getByText('2.0 KB')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Bill review' })).toHaveTextContent('123.47')
+  })
+
+  it('shows the fields that have a value, and a real summary', async () => {
+    vi.mocked(getDocument).mockResolvedValue({
+      ...bill('x', '123.47'),
+      brand: 'Example Energy',
+      model: 'EE-1',
+      document_type: 'bill',
+      summary: JSON.stringify({ overview: 'A bill', key_topics: ['Billing'], specifications: [], safety_warnings: [], quick_facts: [] }),
+      file_size: 2048,
+    } as Document)
+    renderPage('/app/documents/x')
+    const keyInfo = (await screen.findByText('Key Information')).closest('[class*="p-6"]') as HTMLElement
+
+    expect(screen.getByText('AI Summary')).toBeInTheDocument()
+    expect(within(keyInfo).getByText('Brand')).toBeInTheDocument()
+    expect(within(keyInfo).getByText('Example Energy')).toBeInTheDocument()
+    expect(within(keyInfo).getByText('Model')).toBeInTheDocument()
+    expect(within(keyInfo).getByText('Type')).toBeInTheDocument()
+  })
+
+  it('describes processing without promising brand and model detection', async () => {
+    vi.mocked(getDocument).mockResolvedValue({ ...bill('x', '123.47'), processing_status: 'processing' } as Document)
+    renderPage('/app/documents/x')
+    expect(await screen.findByText('Extracting the text and indexing it for search.')).toBeInTheDocument()
+    expect(screen.queryByText(/detecting brand/)).toBeNull()
+  })
+})

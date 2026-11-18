@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { Document } from '@/lib/api'
+import { isGeneratedSummary, summaryOverview } from '@/lib/summary'
 
 interface Props {
   doc: Document | null
@@ -101,24 +102,32 @@ export function DocumentPreviewModal({ doc, onClose }: Props) {
               {/* Text/metadata pane */}
               <div className="p-4 space-y-4">
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-muted-foreground text-xs">Brand</dt>
-                  <dd className="text-xs font-medium truncate">{doc.brand || '—'}</dd>
-                  <dt className="text-muted-foreground text-xs">Type</dt>
-                  <dd className="text-xs font-medium truncate">{doc.document_type || '—'}</dd>
+                  {doc.brand && (
+                    <>
+                      <dt className="text-muted-foreground text-xs">Brand</dt>
+                      <dd className="text-xs font-medium truncate">{doc.brand}</dd>
+                    </>
+                  )}
+                  {doc.document_type && (
+                    <>
+                      <dt className="text-muted-foreground text-xs">Type</dt>
+                      <dd className="text-xs font-medium truncate">{doc.document_type}</dd>
+                    </>
+                  )}
                   <dt className="text-muted-foreground text-xs">Size</dt>
                   <dd className="text-xs font-medium">{doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : '—'}</dd>
                   <dt className="text-muted-foreground text-xs">Uploaded</dt>
                   <dd className="text-xs font-medium">{new Date(doc.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}</dd>
                 </dl>
 
-                {doc.summary && (
+                {isGeneratedSummary(doc.summary) && summaryOverview(doc.summary) !== null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-1.5">Summary</p>
-                    <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4">{doc.summary}</p>
+                    <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4">{summaryOverview(doc.summary)}</p>
                   </div>
                 )}
 
-                {!doc.summary && doc.raw_text && (
+                {!isGeneratedSummary(doc.summary) && doc.raw_text && (
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-1.5">Extracted text</p>
                     <p className="text-[12px] text-foreground/70 leading-relaxed line-clamp-5 font-mono">{doc.raw_text.slice(0, 300)}{doc.raw_text.length > 300 ? '…' : ''}</p>

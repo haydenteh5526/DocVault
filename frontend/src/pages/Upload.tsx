@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { CheckCircle, Loader2, FileImage, FileText, X, Upload, CloudUpload, ArrowRight, RotateCcw, Camera } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { uploadDocument } from '@/lib/api'
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [dragging, setDragging] = useState(false)
   const [queue, setQueue] = useState<UploadItem[]>([])
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { toast } = useToast()
 
   const addFiles = useCallback((files: File[]) => {
@@ -64,6 +66,7 @@ export default function UploadPage() {
       try {
         const doc = await uploadDocument(item.file)
         clearInterval(progressInterval)
+        queryClient.invalidateQueries({ queryKey: ['documents'] })
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'done', progress: 100, docId: doc.id } : q))
         if (!localStorage.getItem('docvault-first-upload')) {
           localStorage.setItem('docvault-first-upload', '1')
@@ -329,7 +332,7 @@ export default function UploadPage() {
             </p>
 
             <div className="flex flex-col gap-2.5">
-              <Button className="w-full rounded-xl gradient-bg border-0 text-white shadow-md h-11 font-medium transition-all hover:-translate-y-0.5" onClick={() => navigate('/app')}>
+              <Button className="w-full rounded-xl gradient-bg border-0 text-white shadow-md h-11 font-medium transition-all hover:-translate-y-0.5" onClick={() => navigate('/app/documents')}>
                 View Documents <ArrowRight size={15} className="ml-2" />
               </Button>
               <Button variant="outline" className="w-full rounded-xl h-11 font-medium" onClick={() => setQueue([])}>

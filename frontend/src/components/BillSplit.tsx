@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { formatTimestamp } from '@/lib/dates'
 import {
   ApiError,
   type BillRevision,
@@ -398,7 +399,7 @@ export function BillSplitPanel({
     body = (
       <>
         <p className="text-sm text-muted-foreground">
-          Saved · split {displayed.split_number} · {formatCreatedAt(displayed.created_at)}
+          Saved · split {displayed.split_number} · {formatTimestamp(displayed.created_at)}
         </p>
         {displayed.stale && (
           <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
@@ -479,10 +480,3 @@ function SharesView({ heading, shares, remainder, totalLine }: {
   )
 }
 
-function formatCreatedAt(value: string) {
-  // The API sends UTC timestamps without an offset.
-  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z'
-  return new Date(utc).toLocaleDateString('en-IE', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  })
-}
