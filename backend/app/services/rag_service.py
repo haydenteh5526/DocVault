@@ -2,6 +2,7 @@
 
 Used by both the /api/v1/ai/ask endpoint and the conversations endpoint.
 """
+import bisect
 import uuid
 
 from sqlalchemy import text
@@ -55,44 +56,69 @@ class RAGResult:
         self.sources = sources
 
 
+class _LineIndex:
+    """A document's text prepared once, so each passage is located without rescanning it.
+
+    `collapsed` is raw_text with every run of whitespace turned into one space,
+    `origin[i]` is the index in raw_text that collapsed[i] came from, and
+    `starts` are the offsets where `raw_text.splitlines()` begins each line, so a
+    character is numbered exactly as the bill review's "OCR line" numbers it.
+    """
+
+    def __init__(self, raw_text: str):
+        chars: list[str] = []
+        self.origin: list[int] = []
+        in_space = False
+        for index, char in enumerate(raw_text):
+            if char.isspace():
+                if not in_space and chars:
+                    chars.append(" ")
+                    self.origin.append(index)
+                in_space = True
+            else:
+                chars.append(char)
+                self.origin.append(index)
+                in_space = False
+        self.collapsed = "".join(chars)
+        self.starts = [0]
+        for piece in raw_text.splitlines(keepends=True):
+            self.starts.append(self.starts[-1] + len(piece))
+
+    def _line_of(self, collapsed_index: int) -> int:
+        return bisect.bisect_right(self.starts, self.origin[collapsed_index])
+
+    def lines_of(self, chunk_text: str) -> tuple[int, int] | None:
+        flat = " ".join(chunk_text.split())
+        if not flat or not self.collapsed:
+            return None
+
+        # A stored chunk is a contiguous run of the document's text once
+        # whitespace is collapsed, so it normally matches whole. If the same
+        # passage appears more than once word for word, the first copy is used:
+        # that is a known limit, since the text alone cannot tell the copies apart.
+        start = self.collapsed.find(flat)
+        if start != -1:
+            return self._line_of(start), self._line_of(start + len(flat) - 1)
+
+        # Fallback: the chunk's first and last 40 characters.
+        start = self.collapsed.find(flat[:40])
+        if start == -1:
+            return None
+        tail = flat[-40:]
+        end = self.collapsed.find(tail, start)
+        end_index = (end + len(tail) - 1) if end != -1 else start
+        return self._line_of(start), self._line_of(end_index)
+
+
 def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
     """The 1-based first and last line of raw_text that a chunk covers.
 
-    This is the numbering the bill review shows as "OCR line"
-    (raw_text.splitlines()). The chunker joins lines with spaces, so a stored
-    chunk has no line breaks: both texts are whitespace-collapsed, the chunk's
-    first and last 40 characters are found in the collapsed document, and the
-    positions are mapped back to the original text.
+    The chunker joins lines with spaces, so a stored chunk has no line breaks;
+    see _LineIndex for how it is found and numbered.
     """
-    flat = " ".join(chunk_text.split())
-    if not raw_text or not flat:
+    if not raw_text:
         return None
-
-    collapsed: list[str] = []
-    origin: list[int] = []
-    in_space = False
-    for index, char in enumerate(raw_text):
-        if char.isspace():
-            if not in_space and collapsed:
-                collapsed.append(" ")
-                origin.append(index)
-            in_space = True
-        else:
-            collapsed.append(char)
-            origin.append(index)
-            in_space = False
-    document = "".join(collapsed)
-
-    start = document.find(flat[:40])
-    if start == -1:
-        return None
-    tail = flat[-40:]
-    end = document.find(tail, start)
-    end_index = (end + len(tail) - 1) if end != -1 else start
-    return (
-        raw_text.count("\n", 0, origin[start]) + 1,
-        raw_text.count("\n", 0, origin[end_index]) + 1,
-    )
+    return _LineIndex(raw_text).lines_of(chunk_text)
 
 
 def _passage_label(title: str, line_start: int | None, line_end: int | None) -> str:
@@ -228,8 +254,13 @@ async def generate_rag_answer(
 
     top = relevant[:5]
 
+    # Prepared once per document, not once per passage.
+    _line_indexes: dict = {}
     for e in top:
-        lines = ocr_lines_of(e["raw_text"], e["chunk_text"])
+        if e["raw_text"] and e["document_id"] not in _line_indexes:
+            _line_indexes[e["document_id"]] = _LineIndex(e["raw_text"])
+    for e in top:
+        lines = _line_indexes[e["document_id"]].lines_of(e["chunk_text"]) if e["raw_text"] else None
         e["line_start"], e["line_end"] = lines if lines else (None, None)
 
     # 3. Build context from retrieved chunks

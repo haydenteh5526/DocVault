@@ -116,14 +116,10 @@ async def test_a_keyword_match_still_answers_below_the_floor(monkeypatch):
 
 
 EXAMPLE_ENERGY = "\n".join([
-    "EXAMPLE ENERGY",
     "Electricity bill",
-    "Account number: 0042 1187",
-    "Billing period: 1 October 2026 to 31 October 2026",
-    "",
     "Total amount due: EUR 123.47",
+    "Billing period: 1 October 2026 to 31 October 2026",
     "Payment due date: 23 November 2026",
-    "Pay online or by direct debit.",
 ])
 
 PARTS = "\n".join(
@@ -142,6 +138,7 @@ def _line_text(raw_text: str, number: int) -> str:
 def test_lines_of_the_real_bill():
     chunks = chunk_text(EXAMPLE_ENERGY)
     assert chunks
+    assert rag_service.ocr_lines_of(EXAMPLE_ENERGY, chunks[0]["text"]) == (1, 4)
     for chunk in chunks:
         flat = _collapsed(chunk["text"])
         start, end = rag_service.ocr_lines_of(EXAMPLE_ENERGY, chunk["text"])
@@ -149,11 +146,23 @@ def test_lines_of_the_real_bill():
         assert flat[-10:] in _line_text(EXAMPLE_ENERGY, end)
 
 
+def _oracle(raw_text: str, chunk_text_value: str) -> tuple[int, int]:
+    """The shortest run of lines (numbered like splitlines) whose collapsed text holds the chunk."""
+    lines = [(number, _collapsed(line)) for number, line in enumerate(raw_text.splitlines(), start=1)]
+    lines = [(number, text) for number, text in lines if text]
+    flat = _collapsed(chunk_text_value)
+    for span in range(len(lines)):
+        for start in range(len(lines) - span):
+            run = lines[start:start + span + 1]
+            if flat in " ".join(text for _, text in run):
+                return run[0][0], run[-1][0]
+    raise AssertionError("chunk is not in the text")
+
+
 def test_a_one_chunk_bill_covers_all_its_text():
-    # Line 1 ("EXAMPLE ENERGY") is read as a heading, which the chunker keeps out of the chunk text.
     chunks = chunk_text(EXAMPLE_ENERGY)
     assert len(chunks) == 1
-    assert rag_service.ocr_lines_of(EXAMPLE_ENERGY, chunks[0]["text"]) == (2, 8)
+    assert rag_service.ocr_lines_of(EXAMPLE_ENERGY, chunks[0]["text"]) == (1, 4)
 
 
 def test_lines_of_a_later_chunk():
@@ -171,6 +180,55 @@ def test_unknown_text_gives_none():
     assert rag_service.ocr_lines_of("", "text") is None
 
 
+REPEATED = "\n".join(
+    line
+    for month in range(1, 6)
+    for line in (
+        "EXAMPLE ENERGY \u00b7 account ending 0042",
+        "Account number: 0042 1187 Customer: J Smith.",
+        "Keep this document for your records and do not share it.",
+        f"Charges for month {month}: EUR {month * 7}.00 including standing charge.",
+    )
+)
+
+
+def test_repeated_lines_do_not_move_the_range():
+    chunks = chunk_text(REPEATED)
+    assert len(chunks) >= 3
+    for chunk in chunks:
+        assert rag_service.ocr_lines_of(REPEATED, chunk["text"]) == _oracle(REPEATED, chunk["text"])
+
+
+def test_numbering_matches_the_bill_review():
+    lines = [f"Item {i}: the part number is PN-{i:04d} and it fits model WD8." for i in range(1, 35)]
+    raw = "\n".join(lines[:30]) + "\f" + "\n".join(lines[30:])  # the form feed is a line break for splitlines()
+    chunks = chunk_text(raw)
+    start, end = rag_service.ocr_lines_of(raw, chunks[-1]["text"])
+    assert (start, end) == _oracle(raw, chunks[-1]["text"])
+    assert end == 34  # counting only newlines would say 33
+
+
+def test_blank_lines_before_a_later_passage():
+    lines = []
+    for i in range(1, 31):
+        lines.append(f"Item {i}: the part number is PN-{i:04d} and it fits model WD8.")
+        if i % 4 == 0:
+            lines.extend(["", "      ", ""])
+    raw = "\n".join(lines)
+    chunks = chunk_text(raw)
+    assert len(chunks) >= 3
+    for chunk in chunks[1:]:
+        start, end = rag_service.ocr_lines_of(raw, chunk["text"])
+        assert (start, end) == _oracle(raw, chunk["text"])
+        assert _collapsed(chunk["text"])[:10] in _line_text(raw, start)
+
+
+def test_a_chunk_that_is_not_whole_in_the_text_falls_back_to_its_ends():
+    head = _line_text(PARTS, 5)
+    tail = _line_text(PARTS, 9)
+    assert rag_service.ocr_lines_of(PARTS, f"{head} an altered middle {tail}") == (5, 9)
+
+
 async def test_sources_carry_the_line_range(monkeypatch):
     _no_key(monkeypatch)
     chunk = chunk_text(EXAMPLE_ENERGY)[0]
@@ -179,9 +237,9 @@ async def test_sources_carry_the_line_range(monkeypatch):
 
     result = await rag_service.generate_rag_answer("What is due?", uuid.uuid4(), db)
 
-    assert (result.sources[0].line_start, result.sources[0].line_end) == (2, 8)
-    assert result.sources[0].to_dict()["line_start"] == 2
-    assert result.sources[0].to_dict()["line_end"] == 8
+    assert (result.sources[0].line_start, result.sources[0].line_end) == (1, 4)
+    assert result.sources[0].to_dict()["line_start"] == 1
+    assert result.sources[0].to_dict()["line_end"] == 4
 
 
 async def test_the_no_key_answer_names_the_line_range(monkeypatch):
