@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed and approved by the owner on 18 November 2026, with decisions E1 to E5 as recommended. Nothing in it is implemented. The build starts after issue #24's PR 2 (PR 27) merges, because both change `backend/app/services/bill_split.py` and `frontend/src/lib/api.ts` (E5).
+**Status:** proposed and approved by the owner on 18 November 2026, with decisions E1 to E5 as recommended. Nothing in it is implemented. PR 27 merged on 18 November 2026 (`9939121`), so the build may start; Task 0 (two record fixes) was added the same day. The order mattered because both change `backend/app/services/bill_split.py` and `frontend/src/lib/api.ts` (E5).
 
 **Issue:** [#25](https://github.com/haydenteh5526/DocVault/issues/25). It builds on #2 (equal split, `2026-11-12-issue-2-bill-split.md`).
 
@@ -53,6 +53,14 @@
 - `specs/Repo_Current_State.md`, `README.md` (the "Bill split" feature line)
 
 ---
+
+### Task 0: Two record fixes left by issue #24
+
+Agreed by the owner on 18 November 2026, when PR 27 merged with these as nits 1 and 2. They are documentation only and are committed first, separately.
+
+- [ ] In `specs/plans/2026-11-18-issue-24-audit-fixes.md`, add this bullet under "Found while planning, not in this plan": "When a whole passage appears word for word more than once in a document, its line range names the first copy (Revision 5, R15)."
+- [ ] In `specs/Repo_Current_State.md`, the issue #24 PR 2 row's sentence "the range starts at line 2, not 1, because the chunker treats the heading line…" gets "(superseded: the test now uses the e2e fixture and asserts (1, 4), Revision 5)".
+- [ ] Commit: `Record the line-range limit and correct the issue 24 evidence row`
 
 ### Task 1: The integer-cent calculator
 
