@@ -226,7 +226,7 @@ export interface SearchResult {
 
 export interface AskResponse {
   answer: string
-  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number; line?: number | null }[]
+  sources: { document_id: string; document_title: string; chunk_text: string; similarity: number; line_start?: number | null; line_end?: number | null }[]
 }
 
 /** Which optional sign-in methods the server offers. Public call: no session is needed. */

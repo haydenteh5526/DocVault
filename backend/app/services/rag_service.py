@@ -28,13 +28,15 @@ class Source:
         document_title: str,
         chunk_text: str,
         similarity: float,
-        line: int | None = None,
+        line_start: int | None = None,
+        line_end: int | None = None,
     ):
         self.document_id = document_id
         self.document_title = document_title
         self.chunk_text = chunk_text
         self.similarity = similarity
-        self.line = line
+        self.line_start = line_start
+        self.line_end = line_end
 
     def to_dict(self) -> dict:
         return {
@@ -42,7 +44,8 @@ class Source:
             "document_title": self.document_title,
             "chunk_text": self.chunk_text,
             "similarity": self.similarity,
-            "line": self.line,
+            "line_start": self.line_start,
+            "line_end": self.line_end,
         }
 
 
@@ -52,25 +55,52 @@ class RAGResult:
         self.sources = sources
 
 
-def ocr_line_of(chunk_text: str, raw_text: str | None) -> int | None:
-    """1-based index, in raw_text.splitlines(), of the line the chunk starts at.
+def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
+    """The 1-based first and last line of raw_text that a chunk covers.
 
-    This is the numbering the bill review shows as "OCR line". The first
-    non-blank line of the chunk is matched against the document's lines.
+    This is the numbering the bill review shows as "OCR line"
+    (raw_text.splitlines()). The chunker joins lines with spaces, so a stored
+    chunk has no line breaks: both texts are whitespace-collapsed, the chunk's
+    first and last 40 characters are found in the collapsed document, and the
+    positions are mapped back to the original text.
     """
-    if not raw_text:
+    flat = " ".join(chunk_text.split())
+    if not raw_text or not flat:
         return None
-    first = next((ln.strip() for ln in chunk_text.splitlines() if ln.strip()), None)
-    if first is None:
+
+    collapsed: list[str] = []
+    origin: list[int] = []
+    in_space = False
+    for index, char in enumerate(raw_text):
+        if char.isspace():
+            if not in_space and collapsed:
+                collapsed.append(" ")
+                origin.append(index)
+            in_space = True
+        else:
+            collapsed.append(char)
+            origin.append(index)
+            in_space = False
+    document = "".join(collapsed)
+
+    start = document.find(flat[:40])
+    if start == -1:
         return None
-    for number, line in enumerate(raw_text.splitlines(), start=1):
-        if line.strip().startswith(first):
-            return number
-    return None
+    tail = flat[-40:]
+    end = document.find(tail, start)
+    end_index = (end + len(tail) - 1) if end != -1 else start
+    return (
+        raw_text.count("\n", 0, origin[start]) + 1,
+        raw_text.count("\n", 0, origin[end_index]) + 1,
+    )
 
 
-def _passage_label(title: str, line: int | None) -> str:
-    return f"{title}, line {line}:" if line is not None else f"{title}:"
+def _passage_label(title: str, line_start: int | None, line_end: int | None) -> str:
+    if line_start is None or line_end is None:
+        return f"{title}:"
+    if line_start == line_end:
+        return f"{title}, line {line_start}:"
+    return f"{title}, lines {line_start}\u2013{line_end}:"
 
 
 class ChatTurn:
@@ -199,7 +229,8 @@ async def generate_rag_answer(
     top = relevant[:5]
 
     for e in top:
-        e["line"] = ocr_line_of(e["chunk_text"], e["raw_text"])
+        lines = ocr_lines_of(e["raw_text"], e["chunk_text"])
+        e["line_start"], e["line_end"] = lines if lines else (None, None)
 
     # 3. Build context from retrieved chunks
     context = "\n\n---\n\n".join(
@@ -236,7 +267,8 @@ async def generate_rag_answer(
             document_title=e["document_title"],
             chunk_text=e["chunk_text"][:200],
             similarity=round(e["similarity"], 4),
-            line=e["line"],
+            line_start=e["line_start"],
+            line_end=e["line_end"],
         )
         for e in top
     ]
@@ -249,7 +281,7 @@ def _no_key_answer(context: str, passages: list[dict] | None) -> str:
         return f"{NO_KEY_HEADER}\n\n{context[:500]}"
     parts = [NO_KEY_HEADER]
     for passage in passages:
-        label = _passage_label(passage["document_title"], passage.get("line"))
+        label = _passage_label(passage["document_title"], passage.get("line_start"), passage.get("line_end"))
         parts.append(f"{label}\n{passage['chunk_text'][:200]}")
     answer = "\n\n".join(parts)
     warranty_at = context.find("[Warranty Information]")

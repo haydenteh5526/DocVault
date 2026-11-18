@@ -28,7 +28,8 @@ class Source(BaseModel):
     document_title: str
     chunk_text: str
     similarity: float
-    line: int | None = None
+    line_start: int | None = None
+    line_end: int | None = None
 
 
 class AskResponse(BaseModel):
@@ -75,7 +76,8 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user
             document_title=s.document_title,
             chunk_text=s.chunk_text,
             similarity=s.similarity,
-            line=s.line,
+            line_start=s.line_start,
+            line_end=s.line_end,
         )
         for s in rag_result.sources
     ]
