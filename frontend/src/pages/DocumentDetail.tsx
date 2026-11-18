@@ -12,7 +12,7 @@ import { BillReviewPanel } from '@/components/BillReview'
 import { BillSplitPanel } from '@/components/BillSplit'
 import { BillReminderPanel } from '@/components/BillReminder'
 import { ApiError, addHousemate, removeHousemate, previewBillSplit, saveBillSplit, proposeReminder, approveReminder, cancelReminder, type BillConfirmation } from '@/lib/api'
-import { confirmBillAndRefresh } from '@/lib/billConfirm'
+import { confirmBillAndRefresh, reloadDocument } from '@/lib/billConfirm'
 import { storeReminderProposal } from '@/lib/billReminder'
 import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSplit'
 import { useAuth } from '@/lib/auth'
@@ -287,6 +287,7 @@ export default function DocumentDetail() {
               processing={!!isProcessing}
               onViewOriginal={() => setTab('preview')}
               onConfirm={confirmBill}
+              onRefresh={() => reloadDocument(queryClient, doc.id)}
             />
           )}
           {(doc.bill_review || doc.confirmed_bill) && (

@@ -2,9 +2,10 @@
 import type { ReactNode } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, within, fireEvent, act } from '@testing-library/react'
+import { render, screen, cleanup, within, fireEvent, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApiError, type BillReview, type BillRevision } from '@/lib/api'
+import { ReloadFailedError } from '@/lib/billConfirm'
 import { BillReviewPanel } from './BillReview'
 
 afterEach(cleanup)
@@ -224,6 +225,49 @@ describe('BillReviewPanel', () => {
     )
     expect(region()).toHaveTextContent('Confirmed · revision 1')
     expect(region()).toHaveTextContent('€126.50')
+  })
+
+  describe('when the reload after a save fails', () => {
+    const NOTICE =
+      'Saved as revision 2. The latest version could not be loaded, so this page may be out of date.'
+
+    async function saveWithFailedReload(onRefresh: () => Promise<void>) {
+      const saved = confirmedRevision(2, '125.00')
+      let rerender: (ui: ReactNode) => void = () => {}
+      const onConfirm = vi.fn(async () => {
+        // The saved revision is already in the cache, so the panel's props carry it.
+        rerender(panel({ confirmed: saved, onConfirm, onRefresh }))
+        throw new ReloadFailedError(saved)
+      })
+      ;({ rerender } = render(panel({ onConfirm, onRefresh })))
+      await userEvent.click(button('Review and confirm'))
+      await userEvent.click(button('Check values'))
+      await userEvent.click(button('Confirm and save'))
+    }
+
+    it('shows the saved revision when the reload fails', async () => {
+      const onRefresh = vi.fn().mockResolvedValue(undefined)
+      await saveWithFailedReload(onRefresh)
+
+      expect(await screen.findByRole('status')).toHaveTextContent(NOTICE)
+      expect(region()).toHaveTextContent('Confirmed · revision 2')
+      expect(screen.queryByText('Could not save. Try again.')).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Confirm these values' })).not.toBeInTheDocument()
+
+      await userEvent.click(button('Load latest'))
+      expect(onRefresh).toHaveBeenCalledOnce()
+      await waitFor(() => expect(screen.queryByText(NOTICE, { exact: false })).not.toBeInTheDocument())
+      expect(screen.queryByRole('button', { name: 'Load latest' })).not.toBeInTheDocument()
+    })
+
+    it('keeps the notice when Load latest fails too', async () => {
+      const onRefresh = vi.fn().mockRejectedValue(new Error('down'))
+      await saveWithFailedReload(onRefresh)
+      await userEvent.click(await screen.findByRole('button', { name: 'Load latest' }))
+
+      expect(await screen.findByRole('status')).toHaveTextContent(NOTICE)
+      expect(button('Load latest')).toBeEnabled()
+    })
   })
 
   it('other save errors keep the draft', async () => {
