@@ -585,6 +585,19 @@ export async function setup2FA(): Promise<{ secret: string; qr_code: string; uri
   return res.json()
 }
 
+/** Turn two-factor sign-in on by proving the authenticator app shows the right code. */
+export async function confirm2FA(code: string): Promise<void> {
+  const res = await authorizedFetch(`${BASE}/auth/2fa/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  if (!res.ok) {
+    const body = safeJson(await res.text().catch(() => ''))
+    throw new Error(detailMessage(body?.detail, 'Could not turn on two-factor sign-in. Try again.'))
+  }
+}
+
 export async function disable2FA(): Promise<void> {
   await authorizedFetch(`${BASE}/auth/2fa/disable`, { method: 'POST' })
 }
