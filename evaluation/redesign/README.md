@@ -61,3 +61,9 @@ bill in `app.spec.ts`. Their titles in the list end in `.png` because the title 
 - Stack: a disposable Compose project (`rdsn1`) on ports 3300 (web), 8300 (API), 9300 (storage) and
   8325 (mail). The `dvdemo` project was not touched.
 - Result: one test passed, 44 screenshots (11 screens, 2 widths, 2 themes).
+
+## Identity, landing and Documents verification
+
+On 19 November 2026 the first redesign branch ran the gates at `dbdcf0f`. Windows Node 24.11.1 ran npm ci, TypeScript, ESLint, 228 Vitest tests and the production build. Chromium ran all 14 ordinary scenarios on the disposable `rdsn1` stack, using ports 3300, 8300, 8325 and 9300. The nine app scenarios covered OCR, evidence, equal splits, two accounts and the exact reminder approval. The other five covered accessibility, sign-in and account recovery.
+
+The first local inbox scenario failed because verification links used port 3000. Setting the disposable API's `FRONTEND_URL` to port 3300 and rerunning all five accessibility and recovery scenarios passed. At 390 and 1366 pixels, Chromium measured the landing page's scroll width equal to the viewport and the hero's account link inside the first screen.
