@@ -85,6 +85,7 @@ function previewFor(total: string): BillSplitPreview {
     bill_revision: 1,
     rule: 'equal',
     total,
+    period_days: 31,
     remainder_cents: 0,
     shares: four.map(h => ({ housemate_id: h.id, label: h.label, amount: '30.87' })),
   }

@@ -42,6 +42,7 @@ const split: BillSplit = {
   bill_revision: 1,
   rule: 'equal',
   total: '123.47',
+  period_days: 31,
   remainder_cents: 3,
   shares: [
     { housemate_id: 'h1', label: 'Aoife', amount: '30.87' },
