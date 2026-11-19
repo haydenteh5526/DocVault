@@ -67,3 +67,12 @@ bill in `app.spec.ts`. Their titles in the list end in `.png` because the title 
 On 19 November 2026 the first redesign branch ran the gates at `dbdcf0f`. Windows Node 24.11.1 ran npm ci, TypeScript, ESLint, 228 Vitest tests and the production build. Chromium ran all 14 ordinary scenarios on the disposable `rdsn1` stack, using ports 3300, 8300, 8325 and 9300. The nine app scenarios covered OCR, evidence, equal splits, two accounts and the exact reminder approval. The other five covered accessibility, sign-in and account recovery.
 
 The first local inbox scenario failed because verification links used port 3000. Setting the disposable API's `FRONTEND_URL` to port 3300 and rerunning all five accessibility and recovery scenarios passed. At 390 and 1366 pixels, Chromium measured the landing page's scroll width equal to the viewport and the hero's account link inside the first screen.
+
+## PR 1 verification
+
+On 19 November 2026, at the head of branch `feature/website-redesign-pr1`:
+
+- **Frontend gates** (Windows, Node 24.11.1): `npm ci`, `npx tsc -b`, `npm run lint`, `npm test` (31 files, 228 tests) and `npm run build` all passed.
+- **Browser suite** (Chromium, disposable `rdsn1` stack on ports 3300, 8300, 8325 and 9300; `dvdemo` untouched): all 14 ordinary scenarios passed with `--workers=1 --retries=0`, run per spec file (`app` 9, `accessibility` 3, `password-reset` 2). The screenshot spec was skipped, as intended.
+- **Rate limit, not a defect:** the API allows 10 sign-ins a minute per address. Running all specs together with four workers exceeds it, so scenarios failed on a 429 and passed on retry in three full-suite runs. The per-file run above waited a minute between files.
+- **Not run in PR 1:** the "after" screenshots (Task R11, PR 2) and the backend gates, because nothing under `backend/` changed.
