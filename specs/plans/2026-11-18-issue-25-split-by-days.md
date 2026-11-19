@@ -114,6 +114,10 @@ Agreed by the owner on 18 November 2026, when PR 27 merged with these as nits 1 
 - [ ] **Test:** `a reminder includes a days-at-home split as saved`. Save the Task 2 split, then propose a reminder 2 days before → `details.split.shares[i].days_home == [31, 17, 31, 31][i]`, with the amounts as saved. A newer revision makes the split stale, and the proposal is not recalculated (the existing rule).
 - [ ] Gates. Commit: `Carry days at home into reminder proposals`
 
+#### Clarification on 19 November 2026 — the reminder details
+
+The owner delegated this decision to the Architect. Before approval and in the saved reminder, the Reminder panel shows each stored day count alongside its housemate and amount when the saved split uses days at home. Use the same “{label}, {d} days at home” wording as the split panel, including zero days. An equal share and a share from an older proposal omit attendance. Both views use the existing details snapshot and approval path. Add component assertions for the pending and saved details in `BillReminder.test.tsx` before changing `BillReminder.tsx`.
+
 ### Task 4: The Bill split panel
 
 - **Files:** `lib/api.ts` (types: `rule: 'equal' | 'days_home'`, `days_home?: number[]` on the request, `days_home?: number | null` on `BillShare`, `period_days` on the preview); `components/BillSplit.tsx`, `BillSplit.test.tsx`.
