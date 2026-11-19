@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Layers, Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ExampleBill } from '@/components/ExampleBill'
+import { Wordmark } from '@/components/Wordmark'
+import './landing.css'
 import { PasswordStrength } from '@/components/PasswordStrength'
 import { PinInput } from '@/components/PinInput'
 import { useAuth } from '@/lib/auth'
@@ -74,45 +77,28 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
   return (
     <div className="min-h-screen flex">
-      {/* Left pane — animated gradient */}
-      <div className="hidden lg:flex lg:w-1/2 animated-gradient relative overflow-hidden flex-col justify-between p-12">
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/[0.05] rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/4 -left-12 w-64 h-64 bg-white/[0.03] rounded-full blur-[80px] pointer-events-none" />
-
-        <div className="relative">
-          <Link to="/" className="flex items-center gap-2">
-            <Layers size={20} className="text-white/70" />
-            <span className="text-white/80 font-semibold">DocVault</span>
-          </Link>
-        </div>
-
-        <div className="relative">
-          <p className="text-white/80 text-xl font-medium leading-relaxed max-w-md">
-            Turn manuals, warranties and receipts into a private, searchable document library with grounded AI answers.
-          </p>
-          <p className="mt-5 text-white/80 text-sm">OCR · hybrid retrieval · source-backed Q&amp;A</p>
-        </div>
-
-        <p className="relative text-white/80 text-xs">© 2027 DocVault. All rights reserved.</p>
-      </div>
-
+      <a href="#account-form" className="skip-link">Skip to content</a>
+      <aside className="hidden w-1/2 flex-col justify-between border-r bg-muted p-12 lg:flex">
+        <Link to="/" className="self-start"><Wordmark /></Link>
+        <ExampleBill />
+        <p className="text-sm text-muted-foreground">Synthetic Example Energy bill</p>
+      </aside>
       {/* Right pane */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12 relative bg-background">
-        <Link to="/" className="absolute top-6 left-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-          <ArrowLeft size={15} /> Home
+      <main id="account-form" tabIndex={-1} className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12 relative bg-background">
+        <Link to="/" className="lg:hidden absolute top-6 left-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+          <Wordmark />
         </Link>
         <Link to={isRegister ? '/login' : '/register'} className="absolute top-6 right-6 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
           {isRegister ? 'Sign in' : 'Create account'}
         </Link>
 
-        <div className="w-full max-w-sm mx-auto animate-fade-in">
+        <div className="w-full max-w-sm mx-auto">
 
           {/* Verification sent screen */}
           {step === 'verify-sent' ? (
-            <div className="text-center animate-scale-in">
+            <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-5">
-                <CheckCircle className="h-7 w-7 text-green-600" />
+                <CheckCircle className="h-7 w-7 text-success" />
               </div>
               <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
               <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
@@ -128,7 +114,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
               </div>
             </div>
           ) : step === '2fa' ? (
-            <div className="text-center animate-scale-in">
+            <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/[0.07] flex items-center justify-center mx-auto mb-5">
                 <ShieldCheck className="h-7 w-7 text-primary" />
               </div>
@@ -147,8 +133,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                 } finally { setLoading(false) }
               }} className="mt-6 space-y-4">
                 <PinInput value={totpCode} onChange={setTotpCode} autoFocus />
-                {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
-                <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white" disabled={loading || totpCode.length !== 6}>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button type="submit" className="w-full h-11 bg-primary border-0 text-primary-foreground" disabled={loading || totpCode.length !== 6}>
                   {loading ? <Loader2 size={16} className="animate-spin" /> : 'Verify'}
                 </Button>
               </form>
@@ -169,8 +155,9 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
               {step === 'email' ? (
                 <form onSubmit={handleEmailContinue} className="space-y-4">
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required autoFocus className="h-11" />
-                  <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200">
+                  <label htmlFor="auth-email" className="block text-sm font-medium">Email address</label>
+                  <Input id="auth-email" autoComplete="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required className="h-11" />
+                  <Button type="submit" className="w-full h-11 bg-primary border-0 text-primary-foreground transition-all duration-200">
                     <Mail size={15} className="mr-2" /> Continue with Email
                   </Button>
                   {googleEnabled && (
@@ -187,7 +174,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   )}
                 </form>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/40">
                     <Mail size={14} className="text-muted-foreground" />
                     <span className="text-sm">{email}</span>
@@ -195,12 +182,13 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   </div>
 
                   {isRegister && (
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="h-11" />
+                    <label className="block text-sm font-medium">Full name<Input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="mt-1 h-11" /></label>
                   )}
 
                   <div>
+                    <label htmlFor="auth-password" className="mb-1 block text-sm font-medium">Password</label>
                     <div className="relative">
-                      <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
+                      <Input id="auth-password" autoComplete={isRegister ? "new-password" : "current-password"} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -219,7 +207,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                     )}
                   </div>
 
-                  {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
+                  {error && <p className="text-sm text-destructive">{error}</p>}
 
                   {!isRegister && (
                     <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
@@ -233,7 +221,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                     </label>
                   )}
 
-                  <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 disabled:opacity-70" disabled={loading}>
+                  <Button type="submit" className="w-full h-11 bg-primary border-0 text-primary-foreground transition-all duration-200 disabled:opacity-70" disabled={loading}>
                     {loading ? <Loader2 size={16} className="animate-spin" /> : isRegister ? 'Create account' : 'Sign in'}
                   </Button>
 
@@ -251,7 +239,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
             </>
           )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }
@@ -259,8 +247,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 /** Password requirement line with animated check transition */
 function PasswordReq({ met, children }: { met: boolean; children: React.ReactNode }) {
   return (
-    <li className={`flex items-center gap-1.5 transition-all duration-300 ${met ? 'text-green-600' : 'text-muted-foreground'}`}>
-      <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full transition-all duration-300 ${met ? 'bg-green-600 scale-100' : 'bg-transparent scale-90 border border-border'}`}>
+    <li className={`flex items-center gap-1.5 transition-all duration-300 ${met ? 'text-success' : 'text-muted-foreground'}`}>
+      <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full transition-all duration-300 ${met ? 'bg-success scale-100' : 'bg-transparent scale-90 border border-border'}`}>
         {met && <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
       </span>
       {children}

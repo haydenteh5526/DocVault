@@ -1,6 +1,7 @@
+import { Wordmark } from '@/components/Wordmark'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Layers, Loader2, Mail, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { forgotPassword } from '@/lib/api'
@@ -32,10 +33,9 @@ export default function ForgotPassword() {
         <ArrowLeft size={15} /> Back to sign in
       </Link>
 
-      <div className="w-full max-w-sm mx-auto animate-fade-in">
+      <div className="w-full max-w-sm mx-auto">
         <div className="flex items-center gap-2 mb-8">
-          <Layers size={22} className="text-primary" />
-          <span className="text-lg font-semibold gradient-text tracking-tight">DocVault</span>
+          <Wordmark />
         </div>
 
         {sent ? (
@@ -67,8 +67,8 @@ export default function ForgotPassword() {
                 autoFocus
                 className="h-11"
               />
-              {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
-              <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white shadow-md shadow-primary/20" disabled={loading}>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button type="submit" className="w-full h-11 bg-primary border-0 text-primary-foreground" disabled={loading}>
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <><Mail size={15} className="mr-2" /> Send reset link</>}
               </Button>
             </form>

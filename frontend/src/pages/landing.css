@@ -31,7 +31,7 @@
 .paper-bill .source-tie>div:first-child { color:#545866; font-size:.8rem; margin:0; }
 .paper-bill .source-value { grid-column:2; grid-row:1/3; align-self:end; margin:0; padding:.3rem .5rem; color:#ffd83d; background:#14171f; border-radius:6px; font-size:clamp(.88rem,1.5vw,1.3rem); }
 .paper-bill .source-line { color:#545866; font-size:.72rem; }
-.paper-bill blockquote { margin:0; font-size:clamp(.79rem,.98vw,1rem); color:#14171f; background:#ffe98a; border-left:4px solid #14171f; padding:.4rem .5rem; }
+.paper-bill blockquote p { margin:0; font-size:clamp(.79rem,.98vw,1rem); color:#14171f; background:#ffe98a; border-left:4px solid #14171f; padding:.4rem .5rem; }
 .poster h2 { font-size:clamp(2.8rem,5.3vw,6rem); line-height:.96; letter-spacing:-.045em; margin-bottom:1.5rem; max-width:14ch; }
 .poster-section > div > p,.privacy-band details { color:var(--copy); }
 .poster-section { border-top:2px dashed #8b8b8b; min-height:min(740px,85svh); }

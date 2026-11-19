@@ -51,7 +51,7 @@ export default function OAuthCallback() {
         </p>
         <button
           onClick={() => navigate('/login', { replace: true })}
-          className="mt-6 h-10 px-6 rounded-lg gradient-bg text-white text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
+          className="mt-6 h-10 px-6 rounded-lg bg-primary text-white text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
         >
           Back to sign in
         </button>

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { getAuthProviders } from '@/lib/api'
 import AuthPage from './Auth'
@@ -53,4 +54,13 @@ describe('Google sign-in button', () => {
     await waitFor(() => expect(getAuthProviders).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument()
   })
+})
+
+it('labels the email and password where the owner registers', async () => {
+  vi.mocked(getAuthProviders).mockResolvedValue({google:false})
+  render(<MemoryRouter><AuthPage mode="register" /></MemoryRouter>)
+  await userEvent.type(screen.getByLabelText('Email address'), 'demo@example.com')
+  await userEvent.click(screen.getByRole('button',{name:'Continue with Email'}))
+  expect(screen.getByLabelText('Password', {exact:true})).toHaveAttribute('placeholder','Password')
+  cleanup()
 })
