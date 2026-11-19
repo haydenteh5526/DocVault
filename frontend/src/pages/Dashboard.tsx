@@ -5,7 +5,7 @@ import { FileText, Trash2, FolderOpen, FolderPlus, Upload, Pencil, Star, Eye, Se
 import { attentionReason, DocumentStatus } from '@/components/DocumentStatus'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { authorizedFetch, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
+import { retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { AnalyticsWidgets } from '@/components/AnalyticsWidgets'
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
@@ -290,8 +290,7 @@ export default function Dashboard() {
 
   async function retryProcessing(id: string) {
     try {
-      const res = await authorizedFetch('/api/v1/documents/' + id + '/reprocess', {method:'POST'})
-      if (!res.ok) throw new Error()
+      await retryDocumentProcessing(id)
       await docsQuery.refetch()
     } catch {toast('Could not retry processing. Try again.', 'error')}
   }
