@@ -13,8 +13,6 @@ vi.mock('@/lib/api', async importOriginal => {
   return { ...actual, uploadDocument: vi.fn() }
 })
 
-vi.mock('canvas-confetti', () => ({ default: vi.fn() }))
-
 function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>
 }
@@ -68,4 +66,14 @@ describe('UploadPage', () => {
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['documents'] }))
     expect(queryClient.getQueryState(['documents'])?.isInvalidated).toBe(true)
   })
+})
+
+it('keeps the file available to retry after a failed upload', async () => {
+  vi.mocked(uploadDocument).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({id:'doc-1'} as Document)
+  const {container} = renderUpload()
+  await userEvent.upload(container.querySelector('input[type=file]')!,new File(['x'],'bill.pdf',{type:'application/pdf'}))
+  await userEvent.click(screen.getByRole('button',{name:'Upload'}))
+  expect(await screen.findByText('Could not read this file')).toBeVisible()
+  await userEvent.click(screen.getByRole('button',{name:'Try again'}))
+  expect(await screen.findByRole('heading',{name:'Upload Complete!'})).toBeVisible()
 })
