@@ -585,6 +585,16 @@ test.describe('Bill review and split', () => {
       await expect(split).toContainText('Split by days at home');
       await expect(split).toContainText('Ben, 17 days at home');
       await expect(split).toContainText('€19.08');
+
+      const reminder = page.getByRole('region', { name: 'Reminder' });
+      await reminder.getByLabel('Days before the due date').fill('2');
+      await reminder.getByRole('button', { name: 'Propose reminder' }).click();
+      const ben = reminder.getByRole('listitem').filter({ hasText: 'Ben, 17 days at home' });
+      await expect(ben).toContainText('€19.08');
+      await reminder.getByRole('button', { name: 'Approve and save' }).click();
+      await expect(reminder).toContainText('Saved · reminder for 21 November 2026');
+      await page.reload();
+      await expect(ben).toContainText('€19.08');
     } finally {
       if (id) await deleteDocument(page, id);
       await clearHousemates(page);

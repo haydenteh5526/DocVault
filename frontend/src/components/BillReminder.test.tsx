@@ -660,3 +660,15 @@ describe('BillReminderPanel', () => {
     expect(props.onApprove).toHaveBeenCalledTimes(1)
   })
 })
+
+it.each([pending, saved])('shows stored attendance beside each amount in a $status reminder', proposal => {
+  const shares = [
+    { housemate_id: 'h1', label: 'Aoife', amount: '123.47', days_home: 31 },
+    { housemate_id: 'h2', label: 'Ben', amount: '0.00', days_home: 0 },
+  ]
+  const { region } = setup({ proposals: [{
+    ...proposal, details: { ...details, split: { split_number: 1, total: '123.47', shares } },
+  }] })
+  const rows = within(region().querySelector('dl') as HTMLElement).getAllByRole('listitem')
+  expect(rows.map(row => row.textContent)).toEqual(['Aoife, 31 days at home€123.47', 'Ben, 0 days at home€0.00'])
+})
