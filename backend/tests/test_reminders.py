@@ -59,8 +59,8 @@ async def _housemates(client, user_id, *labels):
     return ids
 
 
-async def _split(client, document_id, user_id, ids, base_split=0, bill_revision=1):
-    request = {"bill_revision": bill_revision, "rule": "equal", "housemate_ids": ids}
+async def _split(client, document_id, user_id, ids, base_split=0, bill_revision=1, **options):
+    request = {"bill_revision": bill_revision, "rule": "equal", "housemate_ids": ids, **options}
     preview = await client.post(
         f"/api/v1/documents/{document_id}/bill-splits/preview", headers=_headers(user_id), json=request
     )
@@ -753,3 +753,39 @@ async def test_an_approval_for_a_document_deleted_during_the_save_is_not_found(b
         assert response.status_code == 404
         assert response.json() == {"detail": "Document not found"}
     assert await _rows(Reminder, document_id) == []
+
+@pytest.mark.asyncio
+async def test_proposal_records_the_saved_days_and_omits_a_superseded_split(bill):
+    owner, _, doc = bill
+    async with _client() as client:
+        await _confirm(client, doc, owner)
+        ids = await _housemates(client, owner, "Aoife", "Ben", "Chidi", "Dara")
+        days = [31, 17, 31, 31]
+        split = await _split(client, doc, owner, ids, rule="days_home", days_home=days)
+        response = await _propose(client, doc, owner, bill_split=1)
+        assert response.status_code == 201
+        proposal = response.json()
+        shares = proposal["details"]["split"]["shares"]
+        assert shares == split["shares"]
+        assert [s["days_home"] for s in shares] == days
+        assert [s["amount"] for s in shares] == ["34.80", "19.08", "34.80", "34.79"]
+        await _confirm(client, doc, owner, amount="130.00", base_revision=1)
+        updated = (await _get(client, doc, owner)).json()
+        assert updated["bill_split"]["stale"] is True
+        assert updated["reminder_proposals"][0]["details"] == proposal["details"]
+
+
+@pytest.mark.asyncio
+async def test_equal_proposal_from_before_days_at_home_can_still_be_approved(bill):
+    owner, _, doc = bill
+    async with _client() as client:
+        proposal = await _proposed(client, owner, doc, with_split=True)
+        legacy = copy.deepcopy(proposal["details"])
+        for share in legacy["split"]["shares"]:
+            share.pop("days_home", None)
+        async with async_session() as db:
+            await db.execute(update(ReminderProposal).where(ReminderProposal.document_id == doc).values(details=legacy))
+            await db.commit()
+        response = await _approve(client, doc, owner, proposal, reviewed=legacy)
+        assert response.status_code == 201
+        assert response.json()["status"] == "saved"
