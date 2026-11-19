@@ -665,6 +665,33 @@ describe('days at home', () => {
     expect(calc).toBeEnabled()
   })
 
+  it('says why Calculate shares is disabled', async () => {
+    const s = await chooseDays()
+    const fields = screen.getAllByRole('spinbutton')
+    expect(screen.queryByText(/for this billing period|At least one person/)).toBeNull()
+    await s.user.clear(fields[1])
+    await s.user.type(fields[1], '32')
+    expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
+    expect(fields[1]).toBeInvalid()
+    expect(fields[0]).toBeValid()
+    await s.user.clear(fields[1])
+    expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
+    await s.user.type(fields[1], '17')
+    expect(s.region()).not.toHaveTextContent('for this billing period.')
+    for (const field of fields) {
+      await s.user.clear(field)
+      await s.user.type(field, '0')
+    }
+    expect(s.region()).toHaveTextContent('At least one person must have been at home.')
+    await s.user.type(fields[0], '1')
+    expect(s.region()).not.toHaveTextContent('At least one person')
+    await s.user.click(screen.getByRole('checkbox', { name: 'Ben' }))
+    await s.user.click(screen.getByRole('checkbox', { name: 'Chidi' }))
+    await s.user.click(screen.getByRole('checkbox', { name: 'Dara' }))
+    expect(s.region()).toHaveTextContent('Choose at least two people.')
+    expect(screen.getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+  })
+
   it('reviews days, amounts and remainder and sends the exact shares only on save', async () => {
     const onPreview = vi.fn(async () => byDays)
     const onSave = vi.fn(async () => ({ ...saved, ...byDays }))

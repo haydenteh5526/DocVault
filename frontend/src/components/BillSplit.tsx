@@ -156,10 +156,13 @@ export function BillSplitPanel({
   const periodDays = session ? (Date.parse(session.periodEnd) - Date.parse(session.periodStart)) / 86_400_000 + 1 : 0
   const daysFor = (id: string) => session?.days[id] ?? String(periodDays)
   const days = tickedIds.map(id => daysFor(id).trim() === '' ? NaN : Number(daysFor(id)))
-  const invalidDays = session?.rule === 'days_home' && (
-    tickedIds.length < 2 || !days.some(day => day > 0) ||
-    days.some(day => !Number.isInteger(day) || day < 0 || day > periodDays)
-  )
+  const badDay = (day: number) => !Number.isInteger(day) || day < 0 || day > periodDays
+  const daysProblem = session?.rule !== 'days_home' ? null
+    : tickedIds.length < 2 ? 'Choose at least two people.'
+      : days.some(badDay) ? `Enter days at home from 0 to ${periodDays} for this billing period.`
+        : !days.some(day => day > 0) ? 'At least one person must have been at home.'
+          : null
+  const invalidDays = daysProblem !== null
 
   function toggle(id: string) {
     if (!session) return
@@ -387,6 +390,7 @@ export function BillSplitPanel({
                 <label className="flex items-center gap-2 text-sm">
                   Days at home for {h.label}
                   <Input type="number" className="w-20" min={0} max={periodDays} step={1} inputMode="numeric"
+                    aria-invalid={badDay(days[tickedIds.indexOf(h.id)])}
                     value={daysFor(h.id)} onChange={event => setSession({
                       ...session, days: { ...session.days, [h.id]: event.target.value },
                     })} />
@@ -417,6 +421,7 @@ export function BillSplitPanel({
             ? 'Rule: equal split. Everyone pays the same. Leftover cents go one each to the first people in the order shown.'
             : 'Shares follow days at home. Leftover cents go to the largest fractional remainders, with ties in the order shown.'}
         </p>
+        {daysProblem && <p role="alert" className="text-sm text-destructive">{daysProblem}</p>}
         <div className="flex gap-2">
           <Button
             size="sm"
