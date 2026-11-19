@@ -47,6 +47,7 @@ const preview: BillSplitPreview = {
   bill_revision: 1,
   rule: 'equal',
   total: '123.47',
+  period_days: 31,
   remainder_cents: 3,
   shares: [
     { housemate_id: 'h1', label: 'Aoife', amount: '30.87' },
@@ -379,6 +380,18 @@ describe('BillSplitPanel', () => {
     expect(region()).not.toHaveTextContent('The latest version is shown here.')
   })
 
+  it('keeps the blocked explanation when the split method is switched', async () => {
+    const { region, click, user } = await reachBlockedReview()
+    await click('Back')
+    expect(within(region()).getByRole('alert')).toHaveTextContent(BLOCKED_ALERT)
+    for (const name of ['Split by days at home', 'Split equally']) {
+      await user.click(within(region()).getByRole('radio', { name }))
+      expect(within(region()).getByRole('alert')).toHaveTextContent(BLOCKED_ALERT)
+      expect(within(region()).getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+      expect(within(region()).getByRole('button', { name: 'Load latest' })).toBeInTheDocument()
+    }
+  })
+
   it('load latest can be retried, then the owner recalculates before saving again', async () => {
     const { props, region, rerender, click, onPreview, onSave, onRefresh } = await reachBlockedReview()
     void props
@@ -620,5 +633,127 @@ describe('BillSplitPanel', () => {
     expect(region()).toHaveTextContent('Not split yet')
     expect(props.onPreview).not.toHaveBeenCalled()
     expect(props.onSave).not.toHaveBeenCalled()
+  })
+})
+
+describe('days at home', () => {
+  const days = [31, 17, 31, 31]
+  const amounts = ['34.80', '19.08', '34.80', '34.79']
+  const byDays = {
+    ...preview, rule: 'days_home', period_days: 31, remainder_cents: 2,
+    shares: preview.shares.map((s, i) => ({ ...s, amount: amounts[i], days_home: days[i] })),
+  }
+
+  async function chooseDays(extra: Partial<Props> = {}) {
+    const s = setup(extra)
+    await s.click('Split this bill')
+    expect(screen.getByRole('radio', { name: 'Split equally' })).toBeChecked()
+    await s.user.click(screen.getByRole('radio', { name: 'Split by days at home' }))
+    return s
+  }
+
+  it('shows the inclusive period and defaults every selected person to the full period', async () => {
+    const s = await chooseDays()
+    expect(s.region()).toHaveTextContent('Billing period: 1 October 2026 to 31 October 2026 (31 days)')
+    for (const { label } of four) expect(screen.getByLabelText(`Days at home for ${label}`)).toHaveValue(31)
+    await s.user.click(screen.getByRole('checkbox', { name: 'Dara' }))
+    expect(screen.queryByLabelText('Days at home for Dara')).toBeNull()
+  })
+
+  it('rejects missing, excessive and all-zero attendance before preview', async () => {
+    const s = await chooseDays()
+    const calc = screen.getByRole('button', { name: 'Calculate shares' })
+    const fields = screen.getAllByRole('spinbutton')
+    await s.user.clear(fields[0])
+    expect(calc).toBeDisabled()
+    await s.user.type(fields[0], '32')
+    expect(calc).toBeDisabled()
+    for (const field of fields) {
+      await s.user.clear(field)
+      await s.user.type(field, '0')
+    }
+    expect(calc).toBeDisabled()
+    await s.user.type(fields[0], '1')
+    expect(calc).toBeEnabled()
+  })
+
+  it('says why Calculate shares is disabled', async () => {
+    const s = await chooseDays()
+    const fields = screen.getAllByRole('spinbutton')
+    expect(screen.queryByText(/for this billing period|At least one person/)).toBeNull()
+    await s.user.clear(fields[1])
+    await s.user.type(fields[1], '32')
+    expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
+    expect(fields[1]).toHaveAttribute('aria-invalid', 'true')
+    expect(fields[0]).toHaveAttribute('aria-invalid', 'false')
+    await s.user.clear(fields[1])
+    // A cleared field passes the browser's own check, so only aria-invalid marks it.
+    expect(fields[1]).toHaveAttribute('aria-invalid', 'true')
+    expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
+    await s.user.type(fields[1], '17')
+    expect(s.region()).not.toHaveTextContent('for this billing period.')
+    for (const field of fields) {
+      await s.user.clear(field)
+      await s.user.type(field, '0')
+    }
+    expect(s.region()).toHaveTextContent('At least one person must have been at home.')
+    await s.user.type(fields[0], '1')
+    expect(s.region()).not.toHaveTextContent('At least one person')
+    await s.user.click(screen.getByRole('checkbox', { name: 'Ben' }))
+    await s.user.click(screen.getByRole('checkbox', { name: 'Chidi' }))
+    await s.user.click(screen.getByRole('checkbox', { name: 'Dara' }))
+    expect(s.region()).toHaveTextContent('Choose at least two people.')
+    expect(screen.getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+  })
+
+  it('shows no days message while the housemates are loading or could not be loaded', async () => {
+    for (const overrides of [{ housemates: undefined }, { housemates: undefined, housematesFailed: true }]) {
+      const s = setup(overrides)
+      await s.click('Split this bill')
+      await s.user.click(screen.getByRole('radio', { name: 'Split by days at home' }))
+      expect(screen.queryByText('Choose at least two people.')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+      cleanup()
+    }
+  })
+
+  it('does not repeat an old message when the method changes', async () => {
+    const s = setup()
+    await s.click('Split this bill')
+    for (const label of ['Ben', 'Chidi', 'Dara']) await s.user.click(screen.getByRole('checkbox', { name: label }))
+    await s.click('Calculate shares')
+    expect(screen.getAllByText('Choose at least two people.')).toHaveLength(1)
+    await s.user.click(screen.getByRole('radio', { name: 'Split by days at home' }))
+    expect(screen.getAllByText('Choose at least two people.')).toHaveLength(1)
+    await s.user.click(screen.getByRole('checkbox', { name: 'Ben' }))
+    expect(screen.queryByText('Choose at least two people.')).toBeNull()
+  })
+
+  it('reviews days, amounts and remainder and sends the exact shares only on save', async () => {
+    const onPreview = vi.fn(async () => byDays)
+    const onSave = vi.fn(async () => ({ ...saved, ...byDays }))
+    const s = await chooseDays({ onPreview, onSave })
+    const ben = screen.getByLabelText('Days at home for Ben')
+    await s.user.clear(ben)
+    await s.user.type(ben, '17')
+    await s.click('Calculate shares')
+    const request = { bill_revision: 1, rule: 'days_home', housemate_ids: four.map(h => h.id), days_home: days }
+    expect(onPreview).toHaveBeenCalledWith(request)
+    expect(s.region()).toHaveTextContent('Ben, 17 days at home')
+    expect(s.region()).toHaveTextContent('€19.08')
+    expect(s.region()).toHaveTextContent('2 leftover cents went one each to the 2 people closest to the next cent.')
+    expect(onSave).not.toHaveBeenCalled()
+    await s.click('Save split')
+    expect(onSave).toHaveBeenCalledWith({ ...request, base_split: 0, reviewed: byDays.shares })
+    expect(s.region()).toHaveTextContent('Saved · split 1')
+    expect(s.region()).toHaveTextContent('Split by days at home')
+    expect(s.region()).toHaveTextContent('Ben, 17 days at home')
+  })
+
+  it('shows the range message returned by the server', async () => {
+    const error = new ApiError(422, 'Enter days at home from 0 to 28 for this billing period.', 'days_out_of_range')
+    const s = await chooseDays({ onPreview: vi.fn().mockRejectedValue(error) })
+    await s.click('Calculate shares')
+    expect(screen.getByRole('alert')).toHaveTextContent(error.message)
   })
 })
