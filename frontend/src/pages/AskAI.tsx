@@ -1,3 +1,4 @@
+import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
@@ -27,6 +28,7 @@ export default function AskAI() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const navigate = useNavigate()
+  const goTo = useTransitionNavigate()
   const queryClient = useQueryClient()
 
   // Load conversation messages when conversationId changes
@@ -250,7 +252,7 @@ export default function AskAI() {
                 )}
               </div>
               {msg.role === 'assistant' && msg.action && (
-                <AssistantActionCard action={msg.action} onOpenDocument={id => navigate(`/app/documents/${id}`)} />
+                <AssistantActionCard action={msg.action} onOpenDocument={id => goTo(`/app/documents/${id}`)} />
               )}
               {/* Citation pills */}
               {uniqueSources(msg.sources).length > 0 && (

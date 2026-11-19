@@ -1,3 +1,4 @@
+import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { lazy, Suspense, useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
+  const goTo = useTransitionNavigate()
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -352,7 +354,7 @@ export default function Dashboard() {
     </div>}
     <ul className={viewMode === 'grid' ? 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'divide-y border-y'}>
       {docsInFolder.map(doc => <li key={doc.id} draggable onDragStart={() => handleDragStart(doc.id)} onDragEnd={() => {setDragDocId(null);setDragOverFolder(null)}}
-        className={viewMode === 'grid' ? 'rounded-lg border bg-card p-4' : 'flex flex-wrap items-center gap-x-3 gap-y-1 py-3'}>
+        className={viewMode === 'grid' ? 'rounded-lg border bg-card p-4 transition-colors duration-150 hover:bg-accent/50' : 'flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition-colors duration-150 hover:bg-accent/50'}>
         <div className="flex min-w-0 basis-full items-center gap-2 sm:flex-1">
           <input type="checkbox" aria-label={'Select ' + doc.title} checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} />
           <FileText size={18} className="shrink-0 text-muted-foreground"/>
@@ -361,7 +363,7 @@ export default function Dashboard() {
               <Link to={'/app/documents/' + doc.id} className="block truncate font-medium hover:underline" title={doc.title} onClick={e => {if (viewMode === 'grid' && e.detail > 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
                 e.preventDefault()
                 clearTimeout(titleClick.current)
-                if (e.detail === 1) titleClick.current = setTimeout(() => navigate('/app/documents/' + doc.id), 300)
+                if (e.detail === 1) titleClick.current = setTimeout(() => goTo('/app/documents/' + doc.id), 300)
               }}} onDoubleClick={e => {if(viewMode === 'grid'){e.preventDefault();clearTimeout(titleClick.current);setRenamingDoc(doc.id);setRenameValue(doc.title)}}}><Highlight text={doc.title} query={query}/></Link>}
             {query && excerpts.get(doc.id) && <p className="truncate text-sm text-muted-foreground"><Highlight text={excerpts.get(doc.id)!} query={query}/></p>}
           </div>

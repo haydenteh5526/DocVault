@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Archive, ChevronsUpDown, FileSearch, FileText, MessageSquare, MoreHorizontal, Search, ShieldCheck, Upload, UserRound } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { deleteConversation, getProfile, listConversations, renameConversation, togglePinConversation, type Conversation } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { Wordmark } from './Wordmark'
@@ -23,6 +24,7 @@ const menuButton = 'block w-full px-3 py-2 text-left text-sm rounded-md hover:bg
 function RecentChats() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const goTo = useTransitionNavigate()
   const client = useQueryClient()
   const { toast } = useToast()
   const { data = [] } = useQuery({ queryKey: ['conversations'], queryFn: listConversations })
@@ -54,7 +56,7 @@ function RecentChats() {
         {editing === chat.id ? <form onSubmit={e => { e.preventDefault(); if (name.trim()) void change(chat,'rename') }}>
           <input className="w-full rounded-md border border-input px-2 py-1" aria-label="Conversation title" autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => {if(e.key === 'Escape') setEditing('')}} />
         </form> : <div className="flex items-center">
-          <button className="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-left text-sm hover:bg-accent" onClick={() => navigate('/app/ask/' + chat.id)}>{chat.is_pinned && '★ '}{chat.title || 'New conversation'}</button>
+          <button className="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-left text-sm hover:bg-accent" onClick={() => goTo('/app/ask/' + chat.id)}>{chat.is_pinned && '★ '}{chat.title || 'New conversation'}</button>
           <button aria-label={'Conversation options for ' + chat.title} aria-expanded={actions === chat.id} onClick={() => setActions(actions === chat.id ? '' : chat.id)}><MoreHorizontal size={17}/></button>
         </div>}
         {actions === chat.id && <div className="rounded-md border bg-popover p-1">
@@ -69,6 +71,7 @@ function RecentChats() {
 }
 
 export function AppNav({ openSettings, openSearch }: {openSettings: () => void; openSearch: () => void}) {
+  const goTo = useTransitionNavigate()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { logout } = useAuth()
@@ -91,7 +94,7 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
     document.addEventListener('keydown',escape)
     return () => {document.removeEventListener('click',closeOutside); document.removeEventListener('keydown',escape)}
   }, [open])
-  const go = (path: string) => { setOpen(false); navigate(path) }
+  const go = (path: string) => { setOpen(false); goTo(path) }
   const settings = () => {setOpen(false); openSettings()}
   const accountName = profile.data?.display_name || 'Account'
   const account = <div ref={accountRef} className="relative min-w-0 flex-1">
@@ -103,16 +106,18 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
       {!desktop && more.map(item => <button key={item.path} className={menuButton} onClick={() => go(item.path)}>{item.label}</button>)}
       <button className={menuButton} onClick={settings}>Settings</button>
       <button className={menuButton} onClick={settings}>Theme</button>
-      <button className={menuButton} onClick={() => { logout(); go('/') }}>Log out</button>
+      <button className={menuButton} onClick={() => { logout(); setOpen(false); navigate('/') }}>Log out</button>
     </div>}
   </div>
   const navItems = (items: typeof primary, phone = false) => items.map(({label, path, icon: Icon}) => {
-    const current = pathname === path || pathname.startsWith(path + '/') || (pathname === '/app' && label === 'Documents')
+    const current = isCurrent(label, path)
     return <button key={path} aria-current={current ? 'page' : undefined} onClick={() => go(path)}
       className={(phone ? 'flex flex-1 flex-col items-center justify-center gap-0.5 text-[13px]' : 'flex min-h-9 w-full items-center gap-3 rounded-md px-3 text-sm') + (current ? ' bg-accent font-semibold text-foreground' : ' text-muted-foreground hover:bg-accent hover:text-foreground')}>
       <Icon size={18} strokeWidth={1.75}/>{label}
     </button>
   })
+  const isCurrent = (label: string, path: string) => pathname === path || pathname.startsWith(path + '/') || (pathname === '/app' && label === 'Documents')
+  const currentIndex = primary.findIndex(item => isCurrent(item.label, item.path))
   const brand = <button aria-label="DocVault" onClick={() => go('/app')}><Wordmark /></button>
   const bell = <NotificationCenter notifications={notifs.notifications} unreadCount={notifs.unreadCount} onMarkAllRead={notifs.markAllRead} onMarkRead={notifs.markRead} onRemove={notifs.remove}/>
   if (!desktop) return <>
@@ -124,7 +129,11 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   return <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
     <div className="px-5 py-6">{brand}</div>
     <div className="flex-1 overflow-y-auto px-3">
-      <nav aria-label="Main navigation" className="space-y-1">{navItems(primary)}</nav>
+      <nav aria-label="Main navigation" className="relative space-y-1">
+        {/* The current-item marker slides between items (each is 36 px tall with a 4 px gap). */}
+        <span aria-hidden className="pointer-events-none absolute left-0 top-0 h-9 w-0.5 rounded-full bg-foreground transition-[transform,opacity] duration-200 ease-out" style={{ transform: 'translateY(' + Math.max(currentIndex, 0) * 40 + 'px)', opacity: currentIndex < 0 ? 0 : 1 }} />
+        {navItems(primary)}
+      </nav>
       <details open className="mt-5"><summary className="mb-2 px-2 text-sm text-muted-foreground">More</summary>
         {navItems(more)}<button className={menuButton} onClick={settings}>Settings</button>
       </details>

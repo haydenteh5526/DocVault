@@ -128,6 +128,8 @@ Approved by the owner on 19 November 2026, before Demo 1. Built in PR 30 (redesi
 - `AppNav.test.tsx`: the three navigation links render with view transitions enabled.
 - The existing unit tests, e2e and `designGuard.test.ts` pass unchanged.
 
+**Built differently from the text above (PR 30, 19 November 2026).** Page transitions use the browser's `document.startViewTransition` with `flushSync`, through `useTransitionNavigate`, not React Router's `viewTransition` option. That option only works under a data router, and a data router does not follow the history entries that the unchanged browser tests add by hand (`pushState` plus `popstate`): the two-account scenario hung on the landing page. The app keeps `<BrowserRouter>`. The hook navigates plainly under reduced motion and where the API is missing. Logout navigates at once, without a transition, because a delayed transition callback pushed `/` after the test's own navigation to `/login`. The landing links do not use transitions.
+
 **Demo note.** Tomorrow's demo runs on the local preview (port 3700), which is not reviewed. After R-A to R-C are pushed, the preview is refreshed to PR 30's head merged with PR 29's head. The Reviewer's check of PR 30 at its new head follows the demo; nothing merges without it.
 
 ## 1. What is wrong today, and what stays (Impeccable critique)

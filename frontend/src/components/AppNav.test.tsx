@@ -115,4 +115,24 @@ describe('AppShell navigation', () => {
     expect(await screen.findByText('Search page')).toBeVisible()
     expect(screen.queryByRole('button',{name:'Warranties'})).not.toBeInTheDocument()
   })
+
+  it('moves between pages with a view transition', async () => {
+    const start = vi.fn((update: () => void) => {
+      update()
+      return { finished: Promise.resolve(), ready: Promise.resolve(), updateCallbackDone: Promise.resolve(), skipTransition: vi.fn() }
+    })
+    ;(document as unknown as { startViewTransition: typeof start }).startViewTransition = start
+    try {
+      const user = userEvent.setup()
+      renderShell('/app/documents')
+      await screen.findByText('Documents page')
+      const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+      expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(['Documents', 'Ask', 'Upload'])
+      await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+      expect(await screen.findByText('Ask page')).toBeVisible()
+      expect(start).toHaveBeenCalled()
+    } finally {
+      delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
+    }
+  })
 })

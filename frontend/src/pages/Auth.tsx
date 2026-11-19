@@ -226,7 +226,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
                   {!isRegister && (
                     <p className="text-center text-xs text-muted-foreground">
-                      <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
+                      <Link to="/forgot-password" className="link-draw text-primary">Forgot password?</Link>
                     </p>
                   )}
                 </form>

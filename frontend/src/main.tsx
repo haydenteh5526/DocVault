@@ -7,7 +7,9 @@ import { queryClient } from './lib/queryClient'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 import { initialiseTheme } from './lib/theme'
+import { enableMotion } from './lib/motion'
 
+enableMotion()
 const stopTheme = initialiseTheme()
 if (import.meta.hot) import.meta.hot.dispose(stopTheme)
 

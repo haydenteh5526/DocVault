@@ -1,6 +1,6 @@
+import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { useRef, useState } from 'react'
 import { ArrowRight, Camera, CheckCircle, FileText, Upload as UploadIcon, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { uploadDocument } from '@/lib/api'
@@ -20,7 +20,7 @@ export default function UploadPage() {
   const fileInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
   const uploading = useRef(false)
-  const navigate = useNavigate()
+  const goTo = useTransitionNavigate()
   const client = useQueryClient()
   const { toast } = useToast()
   const pending = queue.filter(item => item.status === 'pending')
@@ -83,9 +83,9 @@ export default function UploadPage() {
       <CheckCircle className="mb-3 text-success" size={25}/><h2 className="text-xl font-semibold">Upload Complete!</h2>
       <p className="mt-1 text-sm text-muted-foreground">{completed.length} {completed.length === 1 ? 'file' : 'files'} uploaded successfully.</p>
       <p className="mt-3 text-sm">DocVault is reading the text and indexing your documents for search.</p>
-      <div className="mt-5 flex flex-wrap gap-2"><Button onClick={() => navigate('/app/documents')}>View Documents <ArrowRight size={16}/></Button>
+      <div className="mt-5 flex flex-wrap gap-2"><Button onClick={() => goTo('/app/documents')}>View Documents <ArrowRight size={16}/></Button>
         <Button variant="outline" onClick={() => setQueue([])}>Upload More</Button></div>
-      <ul className="mt-5 divide-y border-t">{completed.map(item => <li key={item.id}><button className="flex w-full items-center justify-between gap-2 py-3 text-left text-sm" onClick={() => navigate('/app/documents/' + item.docId)}>
+      <ul className="mt-5 divide-y border-t">{completed.map(item => <li key={item.id}><button className="flex w-full items-center justify-between gap-2 py-3 text-left text-sm" onClick={() => goTo('/app/documents/' + item.docId)}>
         <span className="truncate">{item.file.name}</span><ArrowRight size={15}/></button></li>)}</ul>
     </section>}
   </div>
