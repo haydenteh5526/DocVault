@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { submitSignIn } from './signInSubmit';
 
 // These tests run against the real frontend dev server (which proxies /api to
 // the backend). Tests 1–2 are pure UI; tests 3–4 exercise the real backend
@@ -37,7 +38,7 @@ test.describe('DocVault auth flow', () => {
     await page.getByPlaceholder('name@example.com').fill(`nobody-${Date.now()}@example.com`);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill('wrongpassword123');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitSignIn(page);
     await expect(page.getByText(/Invalid email or password/i)).toBeVisible({ timeout: 10000 });
   });
 
@@ -50,7 +51,7 @@ test.describe('DocVault auth flow', () => {
     await page.getByPlaceholder('name@example.com').fill(email!);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitSignIn(page);
 
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: 'Documents', exact: true }).click();
@@ -63,7 +64,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.getByPlaceholder('name@example.com').fill(email);
   await page.getByRole('button', { name: /Continue with Email/i }).click();
   await page.getByPlaceholder('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await submitSignIn(page);
   await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
@@ -290,7 +291,7 @@ test.describe('Bill review and split', () => {
       await page.getByPlaceholder('name@example.com').fill(emailB!);
       await page.getByRole('button', { name: /Continue with Email/i }).click();
       await page.getByPlaceholder('Password').fill(passwordB!);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+      await submitSignIn(page);
       await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
       expect(await page.evaluate(() => (window as unknown as { __sameSession?: boolean }).__sameSession)).toBe(true);
 

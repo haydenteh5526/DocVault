@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
+import { submitSignIn } from './signInSubmit';
 
 test('password recovery works after a rejected login without authentication', async ({ page }) => {
   const email = `recovery-missing-${Date.now()}@example.com`;
@@ -6,7 +7,7 @@ test('password recovery works after a rejected login without authentication', as
   await page.getByPlaceholder('name@example.com').fill(email);
   await page.getByRole('button', { name: /Continue with Email/i }).click();
   await page.getByPlaceholder('Password').fill('WrongPassword123!');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await submitSignIn(page, true);
   await expect(page.getByText('Invalid email or password')).toBeVisible();
 
   await page.getByRole('link', { name: 'Forgot password?' }).click();
@@ -74,9 +75,7 @@ test('verification and password reset arrive in the local inbox and allow sign-i
     await page.getByPlaceholder('name@example.com').fill(email);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(newPassword);
-    const loginResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/auth/login'));
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    const login = await loginResponse;
+    const login = await submitSignIn(page, true);
     expect(login.status()).toBe(200);
     accessToken = (await login.json()).access_token;
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { submitSignIn } from './signInSubmit';
 
 async function expectNoWcagViolations(page: Page, include?: string) {
   await page.addStyleTag({
@@ -52,7 +53,7 @@ test.describe('WCAG regression checks', () => {
     await page.getByPlaceholder('name@example.com').fill(email!);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitSignIn(page);
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({
       timeout: 10_000,
     });

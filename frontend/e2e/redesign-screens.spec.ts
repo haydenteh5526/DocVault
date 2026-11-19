@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { submitSignIn } from './signInSubmit';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { OCTOBER_BILL, SEED_DOCUMENTS, type SeedDocument } from './fixtures/redesign/documents';
@@ -46,7 +47,7 @@ async function signIn(page: Page) {
   await page.getByPlaceholder('name@example.com').fill(email!);
   await page.getByRole('button', { name: /Continue with Email/i }).click();
   await page.getByPlaceholder('Password').fill(password!);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await submitSignIn(page);
   await page.waitForURL(/\/app/, { timeout: 15_000 });
 }
 
