@@ -75,7 +75,6 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const settingsTrapRef = useFocusTrap<HTMLDivElement>(settingsOpen)
-  const location = useLocation()
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setPaletteOpen(o => !o) }
@@ -87,7 +86,7 @@ function AppShell() {
   return (
     <div className="flex h-dvh min-w-0 flex-col bg-background lg:flex-row">
       <a className="skip-link" href="#content">Skip to content</a>
-      <AppNav key={location.pathname.split('/').slice(0,3).join('/')} openSettings={() => setSettingsOpen(true)} openSearch={() => setPaletteOpen(true)} />
+      <AppNav openSettings={() => setSettingsOpen(true)} openSearch={() => setPaletteOpen(true)} />
       <main id="content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col pb-14 lg:pb-0">
         <div className="hidden h-14 shrink-0 items-center justify-end border-b px-8 lg:flex">
           <button className="flex items-center gap-2 rounded-md border border-input px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent" aria-label="Open command palette" onClick={() => setPaletteOpen(true)}><Search size={16}/>Find a page or document <kbd>Ctrl K</kbd></button>

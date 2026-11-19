@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { SourceTie } from './SourceTie'
@@ -26,4 +26,14 @@ it('offers neutral, outlined, danger and text button variants', () => {
   const variants = ['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'] as const
   render(<>{variants.map(v => <Button key={v} variant={v}>{v}</Button>)}</>)
   for (const v of variants) expect(screen.getByRole('button', {name: v}).className).not.toContain('gradient')
+})
+
+describe('button press (N9)', () => {
+  it('eases the scale in 120 ms', () => {
+    const { getByRole } = render(<Button>Press</Button>)
+    const button = getByRole('button', { name: 'Press' })
+    expect(button.className).toMatch(/transition-\[[^\]]*scale[^\]]*\]/)
+    expect(button.className).not.toMatch(/transition-\[[^\]]*transform/)
+    expect(button).toHaveClass('duration-120', 'ease-out', 'active:scale-[0.98]')
+  })
 })

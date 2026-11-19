@@ -78,7 +78,10 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   const profile = useQuery({queryKey:['profile'], queryFn: getProfile})
   const notifs = useNotifications()
   const [desktop, setDesktop] = useState(() => matchMedia('(min-width: 1024px)').matches)
-  const [open, setOpen] = useState(false)
+  // The account menu belongs to the page it was opened on, so any change of page closes it.
+  const [openFor, setOpenFor] = useState<string | null>(null)
+  const open = openFor === pathname
+  const setOpen = (value: boolean) => setOpenFor(value ? pathname : null)
   const accountRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const media = matchMedia('(min-width: 1024px)')
@@ -88,8 +91,8 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   }, [])
   useEffect(() => {
     if (!open) return
-    const closeOutside = (e: MouseEvent) => { if (!accountRef.current?.contains(e.target as Node)) setOpen(false) }
-    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); accountRef.current?.querySelector('button')?.focus() } }
+    const closeOutside = (e: MouseEvent) => { if (!accountRef.current?.contains(e.target as Node)) setOpenFor(null) }
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpenFor(null); accountRef.current?.querySelector('button')?.focus() } }
     document.addEventListener('click',closeOutside)
     document.addEventListener('keydown',escape)
     return () => {document.removeEventListener('click',closeOutside); document.removeEventListener('keydown',escape)}

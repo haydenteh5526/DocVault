@@ -78,12 +78,12 @@
    only when the visitor has not asked for reduced motion. Only transform, opacity and clip-path move. */
 html.motion-ok .h1-line > span { animation:lineRise 700ms var(--ease) backwards; animation-delay:calc(var(--i) * 90ms); }
 html.motion-ok .poster .hero-lead { animation:fadeUp 500ms ease-out 450ms backwards; }
-html.motion-ok .example-question { animation:slideFromRight 500ms var(--ease) 500ms backwards; }
-html.motion-ok .back-sheet { animation:fanOut 600ms var(--ease) 650ms backwards; }
-html.motion-ok .sheet-1 { animation-delay:700ms; } html.motion-ok .sheet-2 { animation-delay:750ms; }
-html.motion-ok .paper-bill { animation:rise 600ms var(--ease) 850ms backwards; }
-html.motion-ok .paper-bill .source-value { animation:tagDraw 400ms ease-out 1100ms backwards; }
-html.motion-ok .paper-bill .source-tie:last-child .source-value { animation-delay:1250ms; }
+html.motion-ok .poster .example-question { animation:slideFromRight 500ms var(--ease) 500ms backwards; }
+html.motion-ok .poster .back-sheet { animation:fanOut 600ms var(--ease) 650ms backwards; }
+html.motion-ok .poster .sheet-1 { animation-delay:700ms; } html.motion-ok .poster .sheet-2 { animation-delay:750ms; }
+html.motion-ok .poster .paper-bill { animation:rise 600ms var(--ease) 850ms backwards; }
+html.motion-ok .poster .paper-bill .source-value { animation:tagDraw 400ms ease-out 1100ms backwards; }
+html.motion-ok .poster .paper-bill .source-tie:last-child .source-value { animation-delay:1250ms; }
 @keyframes lineRise { from { transform:translateY(40px); } }
 @keyframes fadeUp { from { opacity:0; } }
 @keyframes slideFromRight { from { opacity:0; transform:translateX(24px); } }

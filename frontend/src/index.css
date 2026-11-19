@@ -29,6 +29,7 @@
   --mark-text: #14171F;
   --mark-edge: #14171F;
   --radius: 0.625rem;
+  --font-display: 'Archivo', 'Arial Narrow', Arial, sans-serif;
   color-scheme: light;
 }
 .dark {
@@ -102,7 +103,13 @@
 }
 .skip-link { position: fixed; top: 8px; left: 8px; z-index: 120; padding: 8px 16px; color: var(--primary-foreground); background: var(--primary); border-radius: 8px; transform: translateY(-160%); }
 .skip-link:focus { transform: none; }
+/* Page transitions (see useTransitionNavigate): a short cross-fade with an 8 px rise on the new page. */
+::view-transition-old(root) { animation: 180ms ease-out both vtOut; }
+::view-transition-new(root) { animation: 180ms ease-out both vtIn; }
+@keyframes vtIn { from { opacity: 0; transform: translateY(8px); } }
+@keyframes vtOut { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 

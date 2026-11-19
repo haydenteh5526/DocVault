@@ -155,3 +155,76 @@ describe('Dashboard search field', () => {
     await waitFor(() => expect(searchDocuments).toHaveBeenCalledWith('when does the tenancy end'))
   })
 })
+
+function clientRender(client: QueryClient) {
+  localStorage.setItem('docvault-analytics', 'hidden')
+  return render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/app/documents']}>
+          <Dashboard />
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  )
+}
+
+describe('the status check on each visit (L2)', () => {
+  it('fetches detail only for documents that could be bills', async () => {
+    vi.mocked(getDocuments).mockResolvedValue({ documents: [
+      doc({ id: 'bill-1', title: 'Electricity', document_type: 'bill' }),
+      doc({ id: 'plain-1', title: 'Lease', document_type: null }),
+      doc({ id: 'warranty-1', title: 'Kettle', document_type: 'Warranty Card' }),
+      doc({ id: 'manual-1', title: 'Washer manual', document_type: 'User Manual' }),
+    ], total: 4 })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    clientRender(client)
+    await screen.findByText('Electricity')
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(getDocument).mock.calls.map(call => call[0]).sort()).toEqual(['bill-1', 'plain-1'])
+  })
+
+  it('does not fetch again when the page is opened again within a few seconds', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const first = clientRender(client)
+    await screen.findAllByText('October electricity bill')
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(1))
+    first.unmount()
+    clientRender(client)
+    await screen.findAllByText('October electricity bill')
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(getDocument).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('an upload turning into a document in the list (R7)', () => {
+  const review = {
+    amount_due: { value: '123.47', sources: [] },
+    due_date: { value: '2026-11-23', sources: [] },
+    billing_period: { value: '2026-10-01/2026-10-31', sources: [] },
+  }
+
+  it('goes from "Reading the text" to "Needs confirming" and announces it, with no animation class', async () => {
+    localStorage.setItem('docvault-view', 'list')
+    vi.mocked(getDocuments).mockResolvedValueOnce({ documents: [doc({ processing_status: 'processing' })], total: 1 })
+    vi.mocked(getDocument).mockResolvedValue(doc({ bill_review: review, confirmed_bill: null } as Partial<Document>))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { container } = clientRender(client)
+    expect(await screen.findByText('Reading the text')).toBeInTheDocument()
+
+    vi.mocked(getDocuments).mockResolvedValue({ documents: [doc({ processing_status: 'complete' })], total: 1 })
+    await client.invalidateQueries({ queryKey: ['documents'] })
+
+    await waitFor(() => expect(screen.getAllByText('Needs confirming').length).toBeGreaterThan(0))
+    expect(screen.queryByText('Reading the text')).not.toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent('October electricity bill is ready to review.'))
+    const row = screen.getAllByRole('listitem').find(item => item.textContent?.includes('October electricity bill'))!
+    expect(row.className).not.toMatch(/animate-|row-ready|row-sweep/)
+  })
+
+  it('shows "Could not read this file" for a failed upload', async () => {
+    vi.mocked(getDocuments).mockResolvedValue({ documents: [doc({ processing_status: 'failed' })], total: 1 })
+    renderDashboard()
+    expect((await screen.findAllByText('Could not read this file')).length).toBeGreaterThan(0)
+  })
+})

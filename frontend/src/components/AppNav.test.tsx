@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, within } from '@testing-library/react'
+import { render, screen, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
@@ -134,5 +134,54 @@ describe('AppShell navigation', () => {
     } finally {
       delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
     }
+  })
+})
+
+describe('the phone account menu (L5, M2)', () => {
+  it('closes when the page changes within the same section', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    renderShell('/app/documents/d1')
+    await screen.findByText('Document page')
+    await user.click(await screen.findByRole('button', { name: /Account/ }))
+    expect(screen.getByRole('button', { name: 'Warranties' })).toBeVisible()
+    act(() => {
+      window.history.pushState({}, '', '/app/documents')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await screen.findByText('Documents page')
+    expect(screen.queryByRole('button', { name: 'Warranties' })).not.toBeInTheDocument()
+  })
+
+  it('closes when the logo opens a page', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    renderShell()
+    await screen.findByText('Documents page')
+    await user.click(await screen.findByRole('button', { name: /Account/ }))
+    expect(screen.getByRole('button', { name: 'Warranties' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'DocVault' }))
+    expect(screen.queryByRole('button', { name: 'Warranties' })).not.toBeInTheDocument()
+  })
+
+  it('closes when you click outside it', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    renderShell()
+    await screen.findByText('Documents page')
+    await user.click(await screen.findByRole('button', { name: /Account/ }))
+    expect(screen.getByRole('button', { name: 'Warranties' })).toBeVisible()
+    await user.click(screen.getByText('Documents page'))
+    expect(screen.queryByRole('button', { name: 'Warranties' })).not.toBeInTheDocument()
+  })
+
+  it('does not remount the navigation when moving between sections', async () => {
+    const user = userEvent.setup()
+    renderShell('/app/documents')
+    await screen.findByText('Documents page')
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+    await screen.findByText('Ask page')
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(nav)
   })
 })

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Fragment, type CSSProperties, type ReactNode } from 'react'
 import { useReveal } from '@/lib/useReveal'
 import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { ExampleBill } from '@/components/ExampleBill'
@@ -66,7 +67,7 @@ export default function Landing() {
       <Reveal className="poster-section closing-section" labelledBy="closing-title">
         <h2 id="closing-title">Start with one document.</h2>
         <p>Upload a bill, a lease or a manual and ask about it in your own words.</p>
-        <Link className={buttonVariants({ size: 'lg' }) + ' mt-6 h-11 px-6 text-base'} to="/register">Create an account</Link>
+        <Link className={cn(buttonVariants({ size: 'lg' }), 'mt-6 h-11 px-6 text-base')} to="/register">Create an account</Link>
       </Reveal>
     </main>
     <Footer />

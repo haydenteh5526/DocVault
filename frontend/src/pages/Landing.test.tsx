@@ -134,3 +134,30 @@ describe('yellow is an accent (plan 0R-2)', () => {
     expect(outside).not.toMatch(/animation:/)
   })
 })
+
+describe('sizing and the header at 360 px (N1, N7)', () => {
+  it('merges the header button classes so h-9 px-3 win', () => {
+    pageText()
+    const header = screen.getByRole('banner')
+    for (const name of ['Sign in', 'Create an account']) {
+      const link = within(header).getByRole('link', { name })
+      expect(link).toHaveClass('h-9', 'px-3', 'text-sm')
+      expect(link).not.toHaveClass('h-10')
+      expect(link).not.toHaveClass('px-4')
+    }
+  })
+
+  it('names the brand link DocVault, so the wordmark text can hide on a phone', () => {
+    pageText()
+    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'DocVault' })).toHaveAttribute('href', '/')
+  })
+
+  it('merges the closing button classes so px-6 and text-base win', () => {
+    pageText()
+    const closing = screen.getByRole('region', { name: 'Start with one document.' })
+    const link = within(closing).getByRole('link', { name: 'Create an account' })
+    expect(link).toHaveClass('px-6', 'text-base')
+    expect(link).not.toHaveClass('px-8')
+    expect(link).not.toHaveClass('text-sm')
+  })
+})

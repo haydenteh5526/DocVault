@@ -30,7 +30,7 @@ export default function Warranties() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <ShieldCheck className="h-5 w-5 text-white" />
+            <ShieldCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Warranties</h2>
           {warranties.some(w => w.expiry_date) && (

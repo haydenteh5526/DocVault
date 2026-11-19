@@ -19,3 +19,9 @@ function findings(directory: string): string[] {
 it('uses the shared visual identity throughout the redesigned routes', () => {
   expect(findings(source)).toEqual([])
 })
+
+it('puts no hard-coded white text on the primary colour (dark mode makes it light)', () => {
+  for (const file of ['pages/OAuthCallback.tsx', 'components/OnboardingTour.tsx', 'pages/Warranties.tsx']) {
+    expect(readFileSync(resolve(source, file), 'utf8'), file).not.toContain('text-white')
+  }
+})
