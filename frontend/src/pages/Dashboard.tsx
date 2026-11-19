@@ -87,9 +87,8 @@ export default function Dashboard() {
 
   const search = useQuery({queryKey:['document-search', query], queryFn:() => searchDocuments(query), enabled:!!query})
   const excerpts = useMemo(() => new Map((search.data?.results ?? []).filter(r => r.similarity === 1 || r.chunk_text.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(r => [r.document_id, r.chunk_text.replace(/<\/?b>/gi,'')])), [search.data,query])
-  // Only a document that could be a bill needs its detail checked: one already typed as something else (a warranty, a manual) cannot need confirming.
-  const couldBeBill = (d: Document) => !d.document_type || /bill/i.test(d.document_type)
-  const completeIds = allDocs.filter(d => d.processing_status === 'complete' && couldBeBill(d)).map(d => d.id)
+  // Every complete document is checked: the type the categoriser gives does not say whether a bill review exists. The result is kept for 30 s and refreshed when a document's own page changes it (lib/documentStatusSync).
+  const completeIds = allDocs.filter(d => d.processing_status === 'complete').map(d => d.id)
   const details = useQuery({
     queryKey:['document-list-status',completeIds],
     enabled:completeIds.length > 0,
@@ -104,7 +103,7 @@ export default function Dashboard() {
       return records
     },
   })
-  const stateOf = (doc: Document) => details.data?.[doc.id] ?? (!couldBeBill(doc) ? doc : doc.bill_review !== undefined ? doc : undefined)
+  const stateOf = (doc: Document) => details.data?.[doc.id] ?? (doc.bill_review !== undefined ? doc : undefined)
   const attention = allDocs.map(doc => ({doc,reason:attentionReason(stateOf(doc))})).filter(row => row.reason).slice(0,3)
   const loading = docsQuery.isLoading
   const error = docsQuery.isError

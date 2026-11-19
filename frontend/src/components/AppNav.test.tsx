@@ -153,6 +153,24 @@ describe('the phone account menu (L5, M2)', () => {
     expect(screen.queryByRole('button', { name: 'Warranties' })).not.toBeInTheDocument()
   })
 
+  it('stays closed when history returns to the page it was opened on (L-B)', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    renderShell('/app/documents')
+    await screen.findByText('Documents page')
+    await user.click(await screen.findByRole('button', { name: /Account/ }))
+    expect(screen.getByRole('button', { name: 'Warranties' })).toBeVisible()
+    const goTo = (path: string) => act(() => {
+      window.history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    goTo('/app/ask')
+    await screen.findByText('Ask page')
+    goTo('/app/documents')
+    await screen.findByText('Documents page')
+    expect(screen.queryByRole('button', { name: 'Warranties' })).not.toBeInTheDocument()
+  })
+
   it('closes when the logo opens a page', async () => {
     mediaAt(390)
     const user = userEvent.setup()

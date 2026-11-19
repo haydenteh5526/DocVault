@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { syncDocumentStatus } from './documentStatusSync'
 
 /**
  * Shared React Query client. Defaults tuned for a document app:
@@ -15,3 +16,7 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+// The Documents list keeps each document's status; refresh it when a document's own page changes it.
+const stopStatusSync = syncDocumentStatus(queryClient)
+if (import.meta.hot) import.meta.hot.dispose(stopStatusSync)

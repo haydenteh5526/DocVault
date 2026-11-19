@@ -64,6 +64,7 @@ describe('deleting a document (L7)', () => {
     await userEvent.click(remove)
     await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith('d1'))
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['documents'] }))
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
     expect(await screen.findByText('Documents list')).toBeInTheDocument()
   })
 })

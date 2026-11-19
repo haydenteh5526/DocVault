@@ -80,6 +80,8 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   const [desktop, setDesktop] = useState(() => matchMedia('(min-width: 1024px)').matches)
   // The account menu belongs to the page it was opened on, so any change of page closes it.
   const [openFor, setOpenFor] = useState<string | null>(null)
+  // A change of page closes the menu for good, so history returning to this page does not bring it back.
+  if (openFor !== null && openFor !== pathname) setOpenFor(null)
   const open = openFor === pathname
   const setOpen = (value: boolean) => setOpenFor(value ? pathname : null)
   const accountRef = useRef<HTMLDivElement>(null)

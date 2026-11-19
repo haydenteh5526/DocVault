@@ -129,6 +129,7 @@ export default function DocumentDetail() {
       await deleteDocument(doc.id)
       toast('Document deleted', 'success')
       void queryClient.invalidateQueries({ queryKey: ['documents'] })
+      void queryClient.invalidateQueries({ queryKey: ['document-list-status'] })
       navigate('/app')
     } catch {
       toast('Failed to delete document', 'error')

@@ -170,20 +170,6 @@ function clientRender(client: QueryClient) {
 }
 
 describe('the status check on each visit (L2)', () => {
-  it('fetches detail only for documents that could be bills', async () => {
-    vi.mocked(getDocuments).mockResolvedValue({ documents: [
-      doc({ id: 'bill-1', title: 'Electricity', document_type: 'bill' }),
-      doc({ id: 'plain-1', title: 'Lease', document_type: null }),
-      doc({ id: 'warranty-1', title: 'Kettle', document_type: 'Warranty Card' }),
-      doc({ id: 'manual-1', title: 'Washer manual', document_type: 'User Manual' }),
-    ], total: 4 })
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    clientRender(client)
-    await screen.findByText('Electricity')
-    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2))
-    expect(vi.mocked(getDocument).mock.calls.map(call => call[0]).sort()).toEqual(['bill-1', 'plain-1'])
-  })
-
   it('does not fetch again when the page is opened again within a few seconds', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const first = clientRender(client)
@@ -226,5 +212,19 @@ describe('an upload turning into a document in the list (R7)', () => {
     vi.mocked(getDocuments).mockResolvedValue({ documents: [doc({ processing_status: 'failed' })], total: 1 })
     renderDashboard()
     expect((await screen.findAllByText('Could not read this file')).length).toBeGreaterThan(0)
+  })
+})
+
+describe('every complete document is checked (L-A)', () => {
+  it('checks a bill the categoriser typed as a manual', async () => {
+    vi.mocked(getDocuments).mockResolvedValue({ documents: [
+      doc({ id: 'typed-1', title: 'Misfiled bill', document_type: 'User Manual' }),
+      doc({ id: 'plain-1', title: 'Lease', document_type: null }),
+    ], total: 2 })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    clientRender(client)
+    await screen.findByText('Misfiled bill')
+    await waitFor(() => expect(getDocument).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(getDocument).mock.calls.map(call => call[0]).sort()).toEqual(['plain-1', 'typed-1'])
   })
 })
