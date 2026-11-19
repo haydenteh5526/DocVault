@@ -639,6 +639,23 @@ async def test_days_split_preview_and_save_as_reviewed(bill):
 
 
 @pytest.mark.asyncio
+async def test_a_change_of_days_alone_after_the_preview_is_a_conflict(bill):
+    # Both day lists give the same amounts, so only the stored days differ from what was reviewed.
+    owner, _, doc = bill
+    async with _client() as client:
+        ids = await _confirmed_with_four(client, owner, doc)
+        body = {**REQUEST, "rule": "days_home", "housemate_ids": ids, "days_home": [30, 0, 30, 30]}
+        preview = (await _preview(client, doc, owner, body)).json()
+        assert [s["amount"] for s in preview["shares"]] == ["41.16", "0.00", "41.16", "41.15"]
+        same_amounts = (await _preview(client, doc, owner, {**body, "days_home": [15, 0, 15, 15]})).json()
+        assert [s["amount"] for s in same_amounts["shares"]] == [s["amount"] for s in preview["shares"]]
+        save = {**body, "days_home": [15, 0, 15, 15], "base_split": 0, "reviewed": preview["shares"]}
+        response = await _save(client, doc, owner, save)
+        assert response.status_code == 409 and _code(response) == "shares_changed"
+        assert await _row_count(doc) == 0
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("rule,days,code", [
     ("days_home", [31, -1, 31, 31], "days_out_of_range"),
     ("days_home", [31, 32, 31, 31], "days_out_of_range"),
