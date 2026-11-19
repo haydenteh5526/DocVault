@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Landing from './Landing'
 
@@ -53,4 +53,17 @@ describe('Landing', () => {
     expect(text).toContain('Ollama')
     expect(text).toContain('Local embeddings')
   })
+})
+
+it('introduces the knowledge base with linked actions and inspectable source lines', () => {
+  pageText()
+  expect(screen.getAllByRole('heading', {level:1})).toHaveLength(1)
+  expect(screen.getByRole('heading', {name:'Everything you keep, ready to answer.'})).toBeVisible()
+  expect(screen.getAllByRole('link',{name:'Create an account'})[0]).toHaveAttribute('href','/register')
+  expect(screen.getAllByRole('link',{name:'Sign in'})[0]).toHaveAttribute('href','/login')
+  for (const line of ['When is the electricity bill due?', 'Total amount due: EUR 123.47', 'Payment due date: 23 November 2026', '23 Nov']) {
+    expect(screen.getByText(line,{exact:true})).toBeVisible()
+  }
+  expect(screen.getByRole('img',{name:'A search across three documents'})).toBeVisible()
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
 })
