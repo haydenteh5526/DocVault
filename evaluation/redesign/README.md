@@ -76,3 +76,7 @@ On 19 November 2026, at the head of branch `feature/website-redesign-pr1`:
 - **Browser suite** (Chromium, disposable `rdsn1` stack on ports 3300, 8300, 8325 and 9300; `dvdemo` untouched): all 14 ordinary scenarios passed with `--workers=1 --retries=0`, run per spec file (`app` 9, `accessibility` 3, `password-reset` 2). The screenshot spec was skipped, as intended.
 - **Rate limit, not a defect:** the API allows 10 sign-ins a minute per address. Running all specs together with four workers exceeds it, so scenarios failed on a 429 and passed on retry in three full-suite runs. The per-file run above waited a minute between files.
 - **Not run in PR 1:** the "after" screenshots (Task R11, PR 2) and the backend gates, because nothing under `backend/` changed.
+
+## PR 1 verification at the review fixes
+
+On 19 November 2026, at `184f5e3` plus this note: `npx tsc -b`, `npm run lint`, `npm test` (35 files, 264 tests) and `npm run build` passed. All 14 ordinary Playwright scenarios passed with `--workers=1 --retries=0` on a disposable stack (ports 3400, 8400, 8425, 9400), run per spec file a minute apart. At 360 px the landing page measured the same width as the viewport, the header showed the glyph with the name "DocVault" and both account links at `h-9` height, and the headline computed to Archivo with the face loaded. The `dvdemo` stack was not touched.
