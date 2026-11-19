@@ -158,7 +158,7 @@ export default function AskAI() {
           {chatMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setChatMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border/50 rounded-xl shadow-xl z-50 overflow-hidden">
                 <button
                   onClick={async () => {
                     if (!activeConversationId) return
@@ -215,9 +215,8 @@ export default function AskAI() {
         <div className={`max-w-3xl mx-auto px-4 sm:px-8 space-y-6 ${messages.length === 0 ? 'h-full' : ''}`}>
         {/* Empty state */}
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center animate-slide-up">
+          <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="relative w-20 h-20 mb-6">
-              <div className="absolute inset-0 m-auto w-20 h-20 rounded-full gradient-bg opacity-10 blur-2xl animate-pulse" />
               <div className="absolute inset-0 m-auto w-14 h-14 rounded-2xl bg-background border border-border/50 shadow-xl flex items-center justify-center z-10">
                 <Sparkles className="h-6 w-6 text-primary/60" />
               </div>
@@ -233,16 +232,16 @@ export default function AskAI() {
         {/* Message bubbles */}
         {messages.map((msg, i) => (
           // Keyed by conversation as well as position, so a card's edits never carry into another conversation.
-          <div key={`${conversationId ?? 'new'}:${i}`} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+          <div key={`${conversationId ?? 'new'}:${i}`} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
-                <Bot size={14} className="text-white" />
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <Bot size={14} className="text-primary-foreground" />
               </div>
             )}
             <div className="max-w-[85%]">
               <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
-                  ? 'gradient-bg text-white rounded-br-md shadow-md shadow-primary/15'
+                  ? 'bg-primary text-primary-foreground rounded-br-md'
                   : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
               }`}>
                 {msg.role === 'assistant' ? (
@@ -262,7 +261,7 @@ export default function AskAI() {
                     <button
                       key={j}
                       onClick={() => navigate(`/app/documents/${s.document_id}`)}
-                      className="inline-flex items-center gap-1.5 text-[11px] text-primary bg-primary/[0.06] hover:bg-primary/[0.12] border border-primary/10 rounded-full pl-2 pr-2.5 py-1 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
+                      className="inline-flex items-center gap-1.5 text-[11px] text-primary bg-primary/[0.06] hover:bg-primary/[0.12] border border-primary/10 rounded-full pl-2 pr-2.5 py-1 transition-all duration-200  hover:shadow-sm"
                     >
                       <FileText size={11} /> {s.document_title}
                     </button>
@@ -280,9 +279,9 @@ export default function AskAI() {
 
         {/* Typing indicator */}
         {loading && (
-          <div className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
-              <Bot size={14} className="text-white" />
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+              <Bot size={14} className="text-primary-foreground" />
             </div>
             <div className="bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
               <div className="flex gap-1.5 items-center">
@@ -314,14 +313,11 @@ export default function AskAI() {
                 className="flex-1 resize-none bg-transparent px-3 py-2 text-sm focus:outline-none max-h-40 leading-relaxed placeholder:text-muted-foreground/40"
               />
               <div className="relative group/btn shrink-0">
-                {input.trim() && (
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-xl blur opacity-40 group-hover/btn:opacity-70 transition duration-300" />
-                )}
                 <Button
                   type="submit"
                   size="icon"
                   aria-label="Send message"
-                  className="relative h-10 w-10 rounded-xl gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none"
+                  className="relative h-10 w-10 rounded-xl bg-primary transition-colors duration-150 disabled:opacity-40 disabled:shadow-none"
                   disabled={loading || !input.trim()}
                 >
                   <Send size={15} />

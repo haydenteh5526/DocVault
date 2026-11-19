@@ -140,3 +140,18 @@ describe('finding and reviewing household documents', () => {
     expect(await screen.findByRole('button',{name:'Upload a bill'})).toBeVisible()
   })
 })
+
+describe('Dashboard search field', () => {
+  it('keeps the spaces typed in a multi-word search, even after a pause', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await screen.findByText('October electricity bill')
+    const field = screen.getByRole('textbox', { name: 'Search documents' })
+    await user.type(field, 'when does ')
+    await new Promise(resolve => setTimeout(resolve, 450))
+    expect(field).toHaveValue('when does ')
+    await user.type(field, 'the tenancy end')
+    expect(field).toHaveValue('when does the tenancy end')
+    await waitFor(() => expect(searchDocuments).toHaveBeenCalledWith('when does the tenancy end'))
+  })
+})

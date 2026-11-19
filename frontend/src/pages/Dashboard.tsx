@@ -63,7 +63,8 @@ export default function Dashboard() {
   const titleClick = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(titleClick.current), [])
   const [announcement, setAnnouncement] = useState('')
-  useEffect(() => { setTypedQuery(query) }, [query])
+  // Follow the address, but never replace what is being typed with its trimmed copy (that would drop a typed space).
+  useEffect(() => { setTypedQuery(typed => typed.trim() === query ? typed : query) }, [query])
   useEffect(() => {
     const focus = (event: KeyboardEvent) => {
       if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || (event.target as HTMLElement)?.isContentEditable)) {
