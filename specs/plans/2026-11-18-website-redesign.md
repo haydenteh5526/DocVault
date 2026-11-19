@@ -55,6 +55,10 @@ The owner put this plan on hold until the 18 November audit defects were fixed. 
 
 ---
 
+### Implementation clarification from the Architect (19 November)
+
+PR 1 keeps the **Upload Complete!** panel and **View Documents** action. The panel uses the new tokens, and processing is shown in the Documents list. PR 1 keeps the welcome tour and restyles it. PR 2 removes it with its browser check. Navigation items remain buttons with `aria-current="page"` on the current destination. Only the approved home assertions change in the existing browser tests.
+
 ## 1. What is wrong today, and what stays (Impeccable critique)
 
 **Mode.** The landing page is *Persuade*: the visitor decides whether to sign up. Every signed-in screen is *Operate*: the visitor completes a task. Today both modes wear the same costume: a dark AI-product theme, gradient text, glow halos and fade-ins. On Operate screens, that costume competes with the task.
