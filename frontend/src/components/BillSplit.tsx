@@ -157,7 +157,7 @@ export function BillSplitPanel({
   const daysFor = (id: string) => session?.days[id] ?? String(periodDays)
   const days = tickedIds.map(id => daysFor(id).trim() === '' ? NaN : Number(daysFor(id)))
   const badDay = (day: number) => !Number.isInteger(day) || day < 0 || day > periodDays
-  const daysProblem = session?.rule !== 'days_home' ? null
+  const daysProblem = session?.rule !== 'days_home' || housemates === undefined ? null
     : tickedIds.length < 2 ? 'Choose at least two people.'
       : days.some(badDay) ? `Enter days at home from 0 to ${periodDays} for this billing period.`
         : !days.some(day => day > 0) ? 'At least one person must have been at home.'
@@ -358,7 +358,7 @@ export function BillSplitPanel({
           {(['equal', 'days_home'] as const).map(rule => (
             <label key={rule} className="mr-4 inline-flex items-center gap-2 text-sm">
               <input type="radio" name={`${nameId}-method`} checked={session.rule === rule}
-                onChange={() => setSession({ ...session, rule })} />
+                onChange={() => { setSession({ ...session, rule }); setMessage(null) }} />
               {rule === 'equal' ? 'Split equally' : 'Split by days at home'}
             </label>
           ))}

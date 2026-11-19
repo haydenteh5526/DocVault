@@ -672,9 +672,11 @@ describe('days at home', () => {
     await s.user.clear(fields[1])
     await s.user.type(fields[1], '32')
     expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
-    expect(fields[1]).toBeInvalid()
-    expect(fields[0]).toBeValid()
+    expect(fields[1]).toHaveAttribute('aria-invalid', 'true')
+    expect(fields[0]).toHaveAttribute('aria-invalid', 'false')
     await s.user.clear(fields[1])
+    // A cleared field passes the browser's own check, so only aria-invalid marks it.
+    expect(fields[1]).toHaveAttribute('aria-invalid', 'true')
     expect(s.region()).toHaveTextContent('Enter days at home from 0 to 31 for this billing period.')
     await s.user.type(fields[1], '17')
     expect(s.region()).not.toHaveTextContent('for this billing period.')
@@ -690,6 +692,29 @@ describe('days at home', () => {
     await s.user.click(screen.getByRole('checkbox', { name: 'Dara' }))
     expect(s.region()).toHaveTextContent('Choose at least two people.')
     expect(screen.getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+  })
+
+  it('shows no days message while the housemates are loading or could not be loaded', async () => {
+    for (const overrides of [{ housemates: undefined }, { housemates: undefined, housematesFailed: true }]) {
+      const s = setup(overrides)
+      await s.click('Split this bill')
+      await s.user.click(screen.getByRole('radio', { name: 'Split by days at home' }))
+      expect(screen.queryByText('Choose at least two people.')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+      cleanup()
+    }
+  })
+
+  it('does not repeat an old message when the method changes', async () => {
+    const s = setup()
+    await s.click('Split this bill')
+    for (const label of ['Ben', 'Chidi', 'Dara']) await s.user.click(screen.getByRole('checkbox', { name: label }))
+    await s.click('Calculate shares')
+    expect(screen.getAllByText('Choose at least two people.')).toHaveLength(1)
+    await s.user.click(screen.getByRole('radio', { name: 'Split by days at home' }))
+    expect(screen.getAllByText('Choose at least two people.')).toHaveLength(1)
+    await s.user.click(screen.getByRole('checkbox', { name: 'Ben' }))
+    expect(screen.queryByText('Choose at least two people.')).toBeNull()
   })
 
   it('reviews days, amounts and remainder and sends the exact shares only on save', async () => {
