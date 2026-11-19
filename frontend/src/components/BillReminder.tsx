@@ -426,7 +426,7 @@ function Details({ proposal, title, today }: { proposal: ReminderProposal; title
               {details.split.shares.map(share => (
                 <li key={share.housemate_id}>
                   <span className="inline-flex w-full max-w-xs justify-between gap-4">
-                    <span>{share.label}</span>
+                    <span>{share.label}{share.days_home != null && `, ${share.days_home} days at home`}</span>
                     <span className="font-semibold">{`€${share.amount}`}</span>
                   </span>
                 </li>

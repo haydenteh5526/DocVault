@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { formatBillDate } from '@/components/BillReview'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatTimestamp } from '@/lib/dates'
@@ -27,9 +28,13 @@ const DEFAULT_WHAT_HAPPENED = 'This bill changed while you were splitting it.'
 interface Session {
   revision: number
   amount: string
+  periodStart: string
+  periodEnd: string
+  rule: BillSplitRequest['rule']
+  days: Record<string, string>
   baseSplit: number
   step: 'people' | 'review'
-  preview: BillSplitPreview | null
+  preview: (BillSplitPreview & { request: BillSplitRequest }) | null
   ticked: string[]
   known: string[]
 }
@@ -88,6 +93,10 @@ export function BillSplitPanel({
       setSession({
         revision: confirmed.revision_number,
         amount: confirmed.amount_due,
+        periodStart: confirmed.billing_period_start,
+        periodEnd: confirmed.billing_period_end,
+        rule: session.rule,
+        days: session.days,
         baseSplit: displayed?.split_number ?? 0,
         step: 'people',
         preview: null,
@@ -114,6 +123,10 @@ export function BillSplitPanel({
     setSession({
       revision: confirmed.revision_number,
       amount: confirmed.amount_due,
+      periodStart: confirmed.billing_period_start,
+      periodEnd: confirmed.billing_period_end,
+      rule: 'equal',
+      days: {},
       baseSplit: displayed?.split_number ?? 0,
       step: 'people',
       preview: null,
@@ -138,6 +151,18 @@ export function BillSplitPanel({
   const tickedIds = session && housemates
     ? housemates.filter(h => session.ticked.includes(h.id)).map(h => h.id)
     : []
+
+  // Date-only ISO values parse at UTC midnight, including periods spanning a clock change.
+  const periodDays = session ? (Date.parse(session.periodEnd) - Date.parse(session.periodStart)) / 86_400_000 + 1 : 0
+  const daysFor = (id: string) => session?.days[id] ?? String(periodDays)
+  const days = tickedIds.map(id => daysFor(id).trim() === '' ? NaN : Number(daysFor(id)))
+  const badDay = (day: number) => !Number.isInteger(day) || day < 0 || day > periodDays
+  const daysProblem = session?.rule !== 'days_home' || housemates === undefined ? null
+    : tickedIds.length < 2 ? 'Choose at least two people.'
+      : days.some(badDay) ? `Enter days at home from 0 to ${periodDays} for this billing period.`
+        : !days.some(day => day > 0) ? 'At least one person must have been at home.'
+          : null
+  const invalidDays = daysProblem !== null
 
   function toggle(id: string) {
     if (!session) return
@@ -205,13 +230,17 @@ export function BillSplitPanel({
     setBusy('preview')
     setMessage(null)
     try {
-      const result = await onPreview({ bill_revision: session.revision, rule: 'equal', housemate_ids: tickedIds })
-      setSession({ ...session, step: 'review', preview: result })
+      const request: BillSplitRequest = {
+        bill_revision: session.revision, rule: session.rule, housemate_ids: tickedIds,
+        ...(session.rule === 'days_home' && { days_home: days }),
+      }
+      const result = await onPreview(request)
+      setSession({ ...session, step: 'review', preview: { ...result, request } })
       moveFocus()
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) await handleConflict(error)
       else {
-        setMessage('Could not calculate the shares. Try again.')
+        setMessage(error instanceof ApiError && error.status === 422 ? error.message : 'Could not calculate the shares. Try again.')
         moveFocus()
       }
     } finally {
@@ -226,17 +255,15 @@ export function BillSplitPanel({
     let result: BillSplit
     try {
       result = await onSave({
-        bill_revision: session.revision,
-        rule: 'equal',
-        // The people the owner reviewed, in that order, not whatever is ticked now.
-        housemate_ids: session.preview.shares.map(share => share.housemate_id),
+        // Bind the save to the people, method and days submitted for this preview.
+        ...session.preview.request,
         base_split: session.baseSplit,
         reviewed: session.preview.shares,
       })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) await handleConflict(error)
       else {
-        setMessage('Could not save. Try again.')
+        setMessage(error instanceof ApiError && error.status === 422 ? error.message : 'Could not save. Try again.')
         moveFocus()
       }
       setBusy(null)
@@ -300,9 +327,7 @@ export function BillSplitPanel({
       <>
         <h4 ref={stepHeadingRef} tabIndex={-1} className="font-medium">Confirm this split</h4>
         <SharesView
-          heading={`Equal split of €${session.preview.total} from revision ${session.preview.bill_revision}`}
-          shares={session.preview.shares}
-          remainder={session.preview.remainder_cents}
+          split={session.preview}
           totalLine={`Contributions total €${session.preview.total}, the confirmed amount.`}
         />
         <div className="flex gap-2">
@@ -328,6 +353,19 @@ export function BillSplitPanel({
         <h4 ref={stepHeadingRef} tabIndex={-1} className="font-medium">
           Splitting €{session.amount} from revision {session.revision}
         </h4>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">How to split</legend>
+          {(['equal', 'days_home'] as const).map(rule => (
+            <label key={rule} className="mr-4 inline-flex items-center gap-2 text-sm">
+              <input type="radio" name={`${nameId}-method`} checked={session.rule === rule}
+                onChange={() => { setSession({ ...session, rule }); if (!blocked) setMessage(null) }} />
+              {rule === 'equal' ? 'Split equally' : 'Split by days at home'}
+            </label>
+          ))}
+        </fieldset>
+        {session.rule === 'days_home' && (
+          <p className="text-sm">Billing period: {formatBillDate(session.periodStart)} to {formatBillDate(session.periodEnd)} ({periodDays} days)</p>
+        )}
         <div role="group" aria-label="People sharing this bill" className="space-y-2">
           {housemates === undefined && !housematesFailed && (
             <p className="text-sm text-muted-foreground">Loading your housemates…</p>
@@ -339,7 +377,7 @@ export function BillSplitPanel({
             <p className="text-sm text-muted-foreground">Add the people who share this bill.</p>
           )}
           {housemates?.map(h => (
-            <div key={h.id} className="flex items-center gap-3">
+            <div key={h.id} className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -348,6 +386,16 @@ export function BillSplitPanel({
                 />
                 {h.label}
               </label>
+              {session.rule === 'days_home' && session.ticked.includes(h.id) && (
+                <label className="flex items-center gap-2 text-sm">
+                  Days at home for {h.label}
+                  <Input type="number" className="w-20" min={0} max={periodDays} step={1} inputMode="numeric"
+                    aria-invalid={badDay(days[tickedIds.indexOf(h.id)])}
+                    value={daysFor(h.id)} onChange={event => setSession({
+                      ...session, days: { ...session.days, [h.id]: event.target.value },
+                    })} />
+                </label>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -369,13 +417,16 @@ export function BillSplitPanel({
           {nameMessage && <p role="alert" className="text-sm text-destructive">{nameMessage}</p>}
         </div>
         <p className="text-sm text-muted-foreground">
-          Rule: equal split. Everyone pays the same. Leftover cents go one each to the first people in the order shown.
+          {session.rule === 'equal'
+            ? 'Rule: equal split. Everyone pays the same. Leftover cents go one each to the first people in the order shown.'
+            : 'Shares follow days at home. Leftover cents go to the largest fractional remainders, with ties in the order shown.'}
         </p>
+        {daysProblem && <p role="alert" className="text-sm text-destructive">{daysProblem}</p>}
         <div className="flex gap-2">
           <Button
             size="sm"
             onClick={calculate}
-            disabled={housemates === undefined || busy === 'preview' || blocked !== null}
+            disabled={invalidDays || housemates === undefined || busy === 'preview' || blocked !== null}
           >
             Calculate shares
           </Button>
@@ -408,9 +459,7 @@ export function BillSplitPanel({
           </p>
         )}
         <SharesView
-          heading={`Equal split of €${displayed.total} from revision ${displayed.bill_revision}`}
-          shares={displayed.shares}
-          remainder={displayed.remainder_cents}
+          split={displayed}
           totalLine={`Contributions total €${displayed.total}.`}
         />
         <div>
@@ -432,10 +481,10 @@ export function BillSplitPanel({
   return (
     <section aria-labelledby="bill-split-heading" className="rounded-xl border bg-card p-6 space-y-4">
       <h3 id="bill-split-heading" ref={headingRef} tabIndex={-1} className="font-semibold">Bill split</h3>
+      {body}
       {message && (
         <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{message}</p>
       )}
-      {body}
       {/* Always on the page, so screen readers announce the notice when its text appears. */}
       <p role="status" className={showRefreshNotice ? 'text-sm' : 'sr-only'}>
         {showRefreshNotice && 'The split was saved. The rest of this page could not be refreshed and may be out of date.'}
@@ -449,32 +498,32 @@ export function BillSplitPanel({
   )
 }
 
-function remainderSentence(cents: number) {
+function remainderSentence(cents: number, byDays: boolean) {
   if (cents === 0) return 'The total divides exactly.'
+  if (byDays) return cents === 1
+    ? '1 leftover cent went to the person closest to the next cent.'
+    : `${cents} leftover cents went one each to the ${cents} people closest to the next cent.`
   if (cents === 1) return '1 leftover cent went to the first person in this order.'
   return `${cents} leftover cents went one each to the first ${cents} people in this order.`
 }
 
-function SharesView({ heading, shares, remainder, totalLine }: {
-  heading: string
-  shares: { housemate_id: string; label: string; amount: string }[]
-  remainder: number
-  totalLine: string
-}) {
+function SharesView({ split, totalLine }: { split: BillSplitPreview; totalLine: string }) {
+  const byDays = split.rule === 'days_home'
+  const heading = byDays ? 'Split by days at home' : `Equal split of €${split.total} from revision ${split.bill_revision}`
   return (
     <>
       <p className="font-medium">{heading}</p>
       <ol className="list-decimal space-y-1 pl-6 text-sm">
-        {shares.map(share => (
+        {split.shares.map(share => (
           <li key={share.housemate_id}>
             <span className="inline-flex w-full max-w-xs justify-between gap-4">
-              <span>{share.label}</span>
+              <span>{share.label}{share.days_home != null && `, ${share.days_home} days at home`}</span>
               <span className="font-semibold">€{share.amount}</span>
             </span>
           </li>
         ))}
       </ol>
-      <p className="text-sm text-muted-foreground">{remainderSentence(remainder)}</p>
+      <p className="text-sm text-muted-foreground">{remainderSentence(split.remainder_cents, byDays)}</p>
       <p className="text-sm">{totalLine}</p>
     </>
   )

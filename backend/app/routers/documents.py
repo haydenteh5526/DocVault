@@ -26,7 +26,7 @@ from app.services import (
 )
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import BillReviewConflict, latest_revision, save_revision
-from app.services.bill_split import BillSplitConflict, latest_split, preview_split, save_split
+from app.services.bill_split import BillSplitConflict, BillSplitInputError, latest_split, preview_split, save_split
 from app.services.reminders import (
     ReminderConflict,
     ReminderNotFound,
@@ -277,10 +277,12 @@ async def preview_bill_split(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    """Calculate an equal split of the confirmed amount without saving anything."""
+    """Calculate the requested split of the confirmed amount without saving anything."""
     doc = await _get_doc_or_404(document_id, user_id, db)
     try:
         return await preview_split(db, doc, user_id, request)
+    except BillSplitInputError as exc:
+        raise HTTPException(422, {"code": exc.code, "message": str(exc)})
     except BillSplitConflict as exc:
         raise HTTPException(409, {"code": exc.code, "message": exc.message})
 
@@ -296,6 +298,8 @@ async def save_bill_split(
     doc = await _get_doc_or_404(document_id, user_id, db)
     try:
         return await save_split(db, doc, user_id, request)
+    except BillSplitInputError as exc:
+        raise HTTPException(422, {"code": exc.code, "message": str(exc)})
     except BillSplitConflict as exc:
         raise HTTPException(409, {"code": exc.code, "message": exc.message})
 

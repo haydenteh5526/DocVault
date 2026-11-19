@@ -547,4 +547,57 @@ test.describe('Bill review and split', () => {
       await clearHousemates(page);
     }
   });
+
+  test('a bill split by days at home is saved with each person’s days', async ({ page }) => {
+    test.setTimeout(120_000);
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
+    test.skip(!email || !password, 'Seed a verified account for the bill scenario');
+
+    const image = await billImage(page);
+    await signIn(page, email!, password!);
+    await clearHousemates(page);
+    let id: string | undefined;
+    try {
+      id = await uploadBillImage(page, image, 'attendance-bill.png');
+      const review = page.getByRole('region', { name: 'Bill review' });
+      await review.getByRole('button', { name: 'Review and confirm' }).click({ timeout: 30_000 });
+      await review.getByRole('button', { name: 'Check values' }).click();
+      await review.getByRole('button', { name: 'Confirm and save' }).click();
+      const split = page.getByRole('region', { name: 'Bill split' });
+      await split.getByRole('button', { name: 'Split this bill' }).click();
+      await split.getByRole('radio', { name: 'Split by days at home' }).check();
+      for (const name of ['Aoife', 'Ben', 'Chidi', 'Dara']) {
+        await split.getByLabel('Add a housemate').fill(name);
+        await split.getByRole('button', { name: 'Add', exact: true }).click();
+        await expect(split.getByLabel(`Days at home for ${name}`)).toHaveValue('31');
+      }
+      await split.getByLabel('Days at home for Ben').fill('17');
+      await split.getByRole('button', { name: 'Calculate shares' }).click();
+      await expect(split.getByRole('listitem')).toHaveText([
+        /Aoife, 31 days at home.*€34\.80/, /Ben, 17 days at home.*€19\.08/,
+        /Chidi, 31 days at home.*€34\.80/, /Dara, 31 days at home.*€34\.79/,
+      ]);
+      await expect(split).toContainText('Contributions total €123.47, the confirmed amount.');
+      await split.getByRole('button', { name: 'Save split' }).click();
+      await expect(split).toContainText('Saved · split 1');
+      await page.reload();
+      await expect(split).toContainText('Split by days at home');
+      await expect(split).toContainText('Ben, 17 days at home');
+      await expect(split).toContainText('€19.08');
+
+      const reminder = page.getByRole('region', { name: 'Reminder' });
+      await reminder.getByLabel('Days before the due date').fill('2');
+      await reminder.getByRole('button', { name: 'Propose reminder' }).click();
+      const ben = reminder.getByRole('listitem').filter({ hasText: 'Ben, 17 days at home' });
+      await expect(ben).toContainText('€19.08');
+      await reminder.getByRole('button', { name: 'Approve and save' }).click();
+      await expect(reminder).toContainText('Saved · reminder for 21 November 2026');
+      await page.reload();
+      await expect(ben).toContainText('€19.08');
+    } finally {
+      if (id) await deleteDocument(page, id);
+      await clearHousemates(page);
+    }
+  });
 });

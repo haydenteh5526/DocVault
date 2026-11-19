@@ -125,6 +125,7 @@ export interface BillConfirmation {
 }
 
 export interface BillShare {
+  days_home?: number | null
   housemate_id: string
   label: string
   amount: string
@@ -132,7 +133,8 @@ export interface BillShare {
 
 export interface BillSplitRequest {
   bill_revision: number
-  rule: 'equal'
+  rule: 'equal' | 'days_home'
+  days_home?: number[]
   housemate_ids: string[]
 }
 
@@ -142,6 +144,7 @@ export interface BillSplitSave extends BillSplitRequest {
 }
 
 export interface BillSplitPreview {
+  period_days: number
   bill_revision: number
   rule: string
   total: string
@@ -728,7 +731,8 @@ export interface AssistantAction {
   document_id?: string | null
   document_title?: string | null
   facts?: AssistantBillFacts | null
-  preview?: BillSplitPreview | null
+  // Saved chat previews from earlier releases do not have the billing period length.
+  preview?: Omit<BillSplitPreview, 'period_days'> | null
   proposal?: ReminderProposal | null
   draft?: string | null
   topic?: string | null
