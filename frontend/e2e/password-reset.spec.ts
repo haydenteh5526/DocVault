@@ -79,7 +79,7 @@ test('verification and password reset arrive in the local inbox and allow sign-i
     const login = await loginResponse;
     expect(login.status()).toBe(200);
     accessToken = (await login.json()).access_token;
-    await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
 
     const oldLogin = await signIn(request, email, originalPassword);
     expect(oldLogin.status()).toBe(401);
