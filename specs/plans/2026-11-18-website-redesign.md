@@ -53,6 +53,12 @@ The owner put this plan on hold until the 18 November audit defects were fixed. 
 - **Redesign PR 2 = Tasks R8, R9 and R11.** It starts after issue #25 and redesign PR 1 have merged.
 - Each PR is reviewed and merged under `AGENTS.md`. A merge into `main` needs the owner's words in the session that merges.
 
+**Clarifications, 18 November 2026 (Architect, during PR 1)**
+- **R7 (Upload):** keep the "Upload Complete!" panel, its file-name buttons and "View Documents" (to `/app/documents`), restyled flat with no confetti. The in-row states ("Uploading", "Reading the text", "Needs confirming" or "Ready", "Could not read this file", and the polite live region) live on the Documents list. There is no automatic navigation after an upload.
+- **R3 (tour):** keep `OnboardingTour` mounted in PR 1, restyled. PR 2 removes it together with its `accessibility.spec.ts` assertions, which is allowed there.
+- **R3 (navigation):** `AppNav` renders `<button>` elements, with `aria-current="page"` on the current item, so the existing role-based e2e lines still match. The Documents and Ask lines change only under D2.
+- Reason: the global constraint that e2e changes only under D2 wins over R3 and R7 where they conflict.
+
 ---
 
 ### Implementation clarification from the Architect (19 November)
