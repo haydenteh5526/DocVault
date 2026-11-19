@@ -5,13 +5,13 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { getDocuments, renameDocument, type Document } from '@/lib/api'
+import { getDocuments, getDocument, searchDocuments, renameDocument, type Document } from '@/lib/api'
 import { ToastProvider } from '@/components/Toast'
 import Dashboard from './Dashboard'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getDocuments: vi.fn(), getCategories: vi.fn(async () => []), renameDocument: vi.fn() }
+  return { ...actual, getDocuments: vi.fn(), getDocument: vi.fn(async () => doc()), searchDocuments: vi.fn(async () => ({results:[]})), getCategories: vi.fn(async () => []), renameDocument: vi.fn() }
 })
 
 const fallbackSummary = JSON.stringify({
@@ -108,5 +108,35 @@ describe('renaming a document', () => {
 
     await waitFor(() => expect(screen.getByText('Title cannot be blank.')).toBeInTheDocument())
     expect(renameDocument).not.toHaveBeenCalled()
+  })
+})
+
+describe('finding and reviewing household documents', () => {
+  it('searches titles and retrieved text, marks matches and clears an empty result', async () => {
+    const documents = Array.from({length:12}, (_, i) => doc({id:String(i), title:i === 1 ? 'October 2026.pdf' : 'Record ' + i, raw_text:null}))
+    vi.mocked(getDocuments).mockResolvedValue({documents,total:12})
+    vi.mocked(searchDocuments).mockImplementation(async q => ({results:q === 'october' ? [{document_id:'3',document_title:'Record 3',chunk_text:'Read in October',similarity:.95}] : []}))
+    renderDashboard()
+    const input = await screen.findByPlaceholderText("Search by name or by what's on the page")
+    await userEvent.type(input, 'october')
+    expect(await screen.findByText('2 documents match "october"')).toBeVisible()
+    expect(screen.getByTitle('October 2026.pdf')).toBeVisible()
+    await userEvent.clear(input)
+    await userEvent.type(input,'zzzz')
+    expect(await screen.findByText(/No documents match/)).toBeVisible()
+    await userEvent.click(screen.getByRole('button',{name:'Clear search'}))
+    expect(input).toHaveValue('')
+  })
+
+  it('identifies a bill to confirm using the detail record', async () => {
+    vi.mocked(getDocument).mockResolvedValue(doc({bill_review:{amount_due:{value:'123.47',sources:[]},due_date:{value:null,sources:[]},billing_period:{value:null,sources:[]}}}))
+    renderDashboard()
+    expect(await screen.findByRole('heading',{name:'Needs attention'})).toBeVisible()
+    expect(await screen.findByRole('link',{name:'Review and confirm'})).toHaveAttribute('href','/app/documents/d1')
+  })
+  it('offers an upload in an empty collection', async () => {
+    vi.mocked(getDocuments).mockResolvedValue({documents:[],total:0})
+    renderDashboard()
+    expect(await screen.findByRole('button',{name:'Upload a bill'})).toBeVisible()
   })
 })
