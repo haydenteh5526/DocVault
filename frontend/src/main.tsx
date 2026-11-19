@@ -6,11 +6,10 @@ import App from './App'
 import { queryClient } from './lib/queryClient'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
-// Apply saved theme before render to avoid flash
-const savedTheme = localStorage.getItem('theme')
-if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-  document.documentElement.classList.add('dark')
-}
+import { initialiseTheme } from './lib/theme'
+
+const stopTheme = initialiseTheme()
+if (import.meta.hot) import.meta.hot.dispose(stopTheme)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

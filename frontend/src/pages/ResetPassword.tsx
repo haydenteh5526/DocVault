@@ -49,7 +49,7 @@ export default function ResetPassword() {
         </div>
 
         {!token ? (
-          <div className="animate-scale-in">
+          <div className="">
             <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
               <AlertCircle className="h-7 w-7 text-destructive" />
             </div>
@@ -62,7 +62,7 @@ export default function ResetPassword() {
             </Button>
           </div>
         ) : done ? (
-          <div className="animate-scale-in">
+          <div className="">
             <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mb-5">
               <CheckCircle className="h-7 w-7 text-green-600" />
             </div>
@@ -80,7 +80,8 @@ export default function ResetPassword() {
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <div>
                 <div className="relative">
-                  <Input
+                  <label htmlFor="recovery-field" className="block text-sm font-medium">New password</label>
+              <Input id="recovery-field"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

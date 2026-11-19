@@ -77,7 +77,6 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
   return (
     <div className="min-h-screen flex">
-      <a href="#account-form" className="skip-link">Skip to content</a>
       <aside className="hidden w-1/2 flex-col justify-between border-r bg-muted p-12 lg:flex">
         <Link to="/" className="self-start"><Wordmark /></Link>
         <ExampleBill />

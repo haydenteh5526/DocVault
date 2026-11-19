@@ -33,7 +33,7 @@ export default function Categories() {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto">
       <div className="mb-8">
         <h2 className="text-2xl font-semibold tracking-tight">Categories</h2>
         <p className="text-muted-foreground text-sm mt-0.5">Organise and browse your documents by category</p>
@@ -41,7 +41,7 @@ export default function Categories() {
 
       <form onSubmit={handleCreate} className="flex gap-2 max-w-md mb-8">
         <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category name..." className="h-10" />
-        <Button type="submit" size="icon" className="h-10 w-10 gradient-bg border-0 text-white shrink-0"><Plus size={16} /></Button>
+        <Button type="submit" size="icon" className="h-10 w-10 bg-primary border-0 text-primary-foreground shrink-0"><Plus size={16} /></Button>
       </form>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -55,7 +55,7 @@ export default function Categories() {
           categories.map((cat, i) => (
             <Card
               key={cat.id}
-              className="group hover-lift cursor-pointer animate-slide-up transition-all duration-200"
+              className="group cursor-pointer transition-all duration-200"
               style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
               onClick={() => navigate(`/app?category=${cat.id}`)}
             >

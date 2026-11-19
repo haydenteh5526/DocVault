@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { lazy, Suspense, useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Trash2, FolderOpen, FolderPlus, Upload, Pencil, Star, Eye, Search } from 'lucide-react'
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
-import { AnalyticsWidgets } from '@/components/AnalyticsWidgets'
+const AnalyticsWidgets = lazy(() => import('@/components/AnalyticsWidgets').then(({ AnalyticsWidgets }) => ({ default: AnalyticsWidgets })))
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
 
 type SortKey = 'name' | 'date' | 'size' | 'type'
@@ -382,7 +382,7 @@ export default function Dashboard() {
     </ul>
     {!loading && !error && !currentFolder && totalDocs > 0 && <div className="mt-6">
       <button className="rounded-md px-2 py-2 text-sm text-muted-foreground underline underline-offset-4" aria-expanded={showAnalytics} onClick={() => {const next=!showAnalytics;setShowAnalytics(next);localStorage.setItem('docvault-analytics',next?'shown':'hidden')}}>Storage and activity</button>
-      {showAnalytics && <AnalyticsWidgets docs={allDocs} categories={categories}/>}
+      {showAnalytics && <Suspense fallback={<p role="status">Loading activity…</p>}><AnalyticsWidgets docs={allDocs} categories={categories}/></Suspense>}
     </div>}
     {previewDoc && <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
   </div>

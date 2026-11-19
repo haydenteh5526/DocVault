@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve, relative } from 'node:path'
 import { expect, it } from 'vitest'
@@ -15,6 +16,6 @@ function findings(directory: string): string[] {
   })
 }
 
-it.todo('uses the shared visual identity throughout the redesigned routes', () => {
+it('uses the shared visual identity throughout the redesigned routes', () => {
   expect(findings(source)).toEqual([])
 })

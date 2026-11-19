@@ -48,9 +48,13 @@ function App() {
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
+  const { pathname } = useLocation()
+  const publicAccount = pathname !== '/' && !pathname.startsWith('/app')
 
   return (
     <Suspense fallback={<PageLoader />}>
+      {publicAccount && <a href="#public-content" className="skip-link">Skip to content</a>}
+      <div id={publicAccount ? 'public-content' : undefined} tabIndex={publicAccount ? -1 : undefined}>
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
@@ -62,6 +66,7 @@ function AppRoutes() {
         <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </div>
     </Suspense>
   )
 }

@@ -39,7 +39,7 @@ export default function ForgotPassword() {
         </div>
 
         {sent ? (
-          <div className="animate-scale-in">
+          <div className="">
             <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mb-5">
               <CheckCircle className="h-7 w-7 text-green-600" />
             </div>
@@ -58,7 +58,8 @@ export default function ForgotPassword() {
               Enter your email and we'll send you a link to reset it.
             </p>
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-              <Input
+              <label htmlFor="recovery-field" className="block text-sm font-medium">Email address</label>
+              <Input id="recovery-field"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
