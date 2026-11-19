@@ -89,7 +89,7 @@ export default function DocumentDetail() {
         <FileText size={48} className="text-muted-foreground/20 mb-4" />
         <h3 className="text-lg font-semibold text-foreground/80">Document not found</h3>
         <p className="text-sm text-muted-foreground mt-1">This document may have been deleted or you don't have access.</p>
-        <button onClick={() => navigate(-1)} className="mt-6 px-5 py-2.5 rounded-lg gradient-bg text-white text-sm font-medium shadow-md transition-all hover:-translate-y-0.5">
+        <button onClick={() => navigate(-1)} className="mt-6 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium shadow-md transition-all ">
           Go back
         </button>
       </div>
@@ -98,7 +98,7 @@ export default function DocumentDetail() {
 
   if (!doc) {
     return (
-      <div className="p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-8 max-w-5xl mx-auto">
         <div className="h-8 w-64 bg-muted rounded animate-pulse mb-6" />
         <div className="h-10 w-80 bg-muted rounded animate-pulse mb-6" />
         <div className="h-[70vh] bg-muted rounded-xl animate-pulse" />
@@ -128,6 +128,8 @@ export default function DocumentDetail() {
     try {
       await deleteDocument(doc.id)
       toast('Document deleted', 'success')
+      void queryClient.invalidateQueries({ queryKey: ['documents'] })
+      void queryClient.invalidateQueries({ queryKey: ['document-list-status'] })
       navigate('/app')
     } catch {
       toast('Failed to delete document', 'error')
@@ -149,12 +151,12 @@ export default function DocumentDetail() {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-muted/10">
       {/* Hero Section */}
-      <div className="relative border-b border-border/40 bg-background/80 backdrop-blur-xl overflow-hidden shrink-0 z-10">
+      <div className="relative border-b border-border/40 bg-background  overflow-hidden shrink-0 z-10">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.05] via-purple-500/[0.05] to-transparent pointer-events-none" />
         
         <div className="relative px-4 sm:px-8 pt-6 pb-4">
           <div className="flex items-start gap-5">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm" aria-label="Go back">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background hover:shadow-sm" aria-label="Go back">
               <ArrowLeft size={18} className="text-muted-foreground" />
             </Button>
             
@@ -202,14 +204,14 @@ export default function DocumentDetail() {
 
           {/* Processing banner inline */}
           {isProcessing && (
-            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 flex items-center gap-4 animate-fade-in shadow-inner">
-              <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shrink-0">
-                <Loader2 size={16} className="text-white animate-spin" />
+            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 flex items-center gap-4 shadow-inner">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Loader2 size={16} className="text-primary-foreground animate-spin" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-primary">Processing document...</p>
                 <div className="mt-1.5 h-1.5 bg-primary/10 rounded-full overflow-hidden">
-                  <div className="h-full gradient-bg rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+                  <div className="h-full bg-primary rounded-full " style={{ width: '60%' }} />
                 </div>
               </div>
             </div>
@@ -217,7 +219,7 @@ export default function DocumentDetail() {
 
           {/* Folder suggestion inline */}
           {!isProcessing && doc.document_type && !doc.category_id && (
-            <div className="mt-5 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 animate-fade-in">
+            <div className="mt-5 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                 <FolderOpen size={16} className="text-amber-600" />
               </div>
@@ -254,8 +256,8 @@ export default function DocumentDetail() {
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
       {tab === 'preview' && (
-        <div className="animate-fade-in">
-        <Card className="border-border/50 shadow-sm animate-slide-up overflow-hidden">
+        <div className="">
+        <Card className="border-border/50 shadow-sm overflow-hidden">
           <CardContent className="p-0 bg-background/50">
             {originalUrl ? (
               isPdf ? (
@@ -278,8 +280,8 @@ export default function DocumentDetail() {
 
       
 
-      <div hidden={tab !== 'info'} className="animate-fade-in">
-        <div className="animate-slide-up space-y-6">
+      <div hidden={tab !== 'info'} className="">
+        <div className=" space-y-6">
           {(doc.bill_review || doc.confirmed_bill) && (
             <BillReviewPanel
               review={doc.bill_review ?? null}
@@ -348,7 +350,7 @@ export default function DocumentDetail() {
           {isProcessing ? (
             <Card className="border-border/50 shadow-sm">
               <CardContent className="p-8">
-                <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+                <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Loader2 size={28} className="animate-spin text-primary mb-4" />
                   <p className="text-sm font-medium">Analysing document...</p>
                   <p className="text-xs text-muted-foreground mt-1">Extracting the text and indexing it for search.</p>
@@ -573,7 +575,7 @@ function RelatedDocuments({ documentId }: { documentId: string }) {
   }, [documentId])
 
   if (loading) return (
-    <Card className="mt-4 animate-fade-in">
+    <Card className="mt-4">
       <CardContent className="p-5">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 size={14} className="animate-spin" /> Finding related documents...
@@ -585,7 +587,7 @@ function RelatedDocuments({ documentId }: { documentId: string }) {
   if (similar.length === 0) return null
 
   return (
-    <Card className="mt-4 animate-fade-in">
+    <Card className="mt-4">
       <CardContent className="p-5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Related Documents</p>
         <div className="space-y-2">
@@ -691,7 +693,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
   }
 
   return (
-    <div className="space-y-4 animate-slide-up">
+    <div className="space-y-4">
       {/* Overview */}
       {parsed.overview && (
         <Card className="border-border/50 shadow-sm">
@@ -870,7 +872,6 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <div className="relative w-20 h-20 mb-4">
-                <div className="absolute inset-0 m-auto w-16 h-16 rounded-full gradient-bg opacity-10 blur-xl animate-pulse" />
                 <div className="absolute inset-0 m-auto w-12 h-12 rounded-xl bg-background border border-border/50 shadow-lg flex items-center justify-center z-10">
                   <Bot className="h-5 w-5 text-primary/70" />
                 </div>
@@ -880,15 +881,15 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
             </div>
           ) : (
             messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                 {msg.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
-                    <Bot size={14} className="text-white" />
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <Bot size={14} className="text-primary-foreground" />
                   </div>
                 )}
                 <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user' 
-                    ? 'gradient-bg text-white rounded-br-md shadow-sm shadow-primary/15' 
+                    ? 'bg-primary text-primary-foreground rounded-br-md' 
                     : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
                 }`}>
                   {msg.role === 'assistant' ? (
@@ -906,9 +907,9 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
             ))
           )}
           {loading && (
-            <div className="flex gap-3 animate-fade-in">
-              <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
-                <Bot size={14} className="text-white" />
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <Bot size={14} className="text-primary-foreground" />
               </div>
               <div className="bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
                 <div className="flex gap-1.5 items-center">
@@ -924,7 +925,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
         </div>
         
         {/* Input bar — always visible at bottom */}
-        <div className="shrink-0 border-t border-border/40 bg-background/80 backdrop-blur-md p-4">
+        <div className="shrink-0 border-t border-border/40 bg-background backdrop-blur-md p-4">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative group flex items-end gap-2 bg-card border border-border/60 rounded-xl p-1.5 shadow-sm focus-within:border-primary/30 transition-all duration-300">
             <Input 
               value={input} 
@@ -936,7 +937,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
             <Button 
               type="submit" 
               size="icon" 
-              className="h-10 w-10 rounded-lg gradient-bg border-0 text-white shrink-0 shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none" 
+              className="h-10 w-10 rounded-lg bg-primary  shrink-0 transition-all  disabled:opacity-40 disabled:shadow-none" 
               disabled={loading || !input.trim()}
             >
               <Send size={15} />

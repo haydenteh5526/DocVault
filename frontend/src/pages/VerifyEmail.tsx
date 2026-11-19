@@ -30,7 +30,7 @@ export default function VerifyEmail() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="text-center animate-scale-in max-w-sm">
+      <div className="text-center max-w-sm">
         {status === 'loading' && (
           <>
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
@@ -44,7 +44,7 @@ export default function VerifyEmail() {
             </div>
             <h1 className="text-2xl font-bold">Email verified!</h1>
             <p className="text-sm text-muted-foreground mt-2">{message}</p>
-            <Button className="mt-6 gradient-bg border-0 text-white" asChild>
+            <Button className="mt-6 bg-primary border-0 text-primary-foreground" asChild>
               <Link to="/login">Sign in to your account</Link>
             </Button>
           </>

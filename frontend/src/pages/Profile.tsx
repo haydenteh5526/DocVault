@@ -40,19 +40,19 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto">
         <div className="h-32 bg-muted rounded-xl animate-pulse" />
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in space-y-6">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto space-y-6">
       {/* Profile header */}
       <Card>
         <CardContent className="p-8">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-full gradient-bg flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-primary/25">
+            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg">
               {(profile.display_name || profile.email)[0].toUpperCase()}
             </div>
             <div className="flex-1">

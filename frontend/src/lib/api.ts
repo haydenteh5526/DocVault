@@ -411,6 +411,11 @@ export async function exportDocuments(format: 'json' | 'csv'): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
+export async function retryDocumentProcessing(id: string): Promise<void> {
+  const res = await authorizedFetch(`${BASE}/documents/${id}/reprocess`, { method: 'POST' })
+  if (!res.ok) throw new Error('Could not retry processing. Try again.')
+}
+
 export async function getDocument(id: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${id}`)
   return res.json()

@@ -41,10 +41,10 @@ export function DocumentPreviewModal({ doc, onClose }: Props) {
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
+      <div className="absolute inset-0 bg-black/60" />
 
       {/* Modal */}
-      <div className="relative w-full sm:max-w-2xl bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/40 overflow-hidden animate-slide-up sm:animate-scale-in max-h-[90vh] flex flex-col">
+      <div className="relative w-full sm:max-w-2xl bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/40 overflow-hidden sm:max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
@@ -94,7 +94,7 @@ export function DocumentPreviewModal({ doc, onClose }: Props) {
                   )
                 ) : (
                   <div className="h-40 rounded-lg bg-muted/50 flex items-center justify-center">
-                    <FileText size={32} className="text-muted-foreground/30" />
+                    <FileText size={32} className="text-muted-foreground" />
                   </div>
                 )}
               </div>
@@ -143,7 +143,7 @@ export function DocumentPreviewModal({ doc, onClose }: Props) {
           <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
           <Button
             size="sm"
-            className="gradient-bg border-0 text-white shadow-sm"
+            className="bg-primary border-0 text-primary-foreground shadow-sm"
             onClick={() => { onClose(); navigate(`/app/documents/${doc.id}`) }}
           >
             <ExternalLink size={13} className="mr-1.5" /> Open full view

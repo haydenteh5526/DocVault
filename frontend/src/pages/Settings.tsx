@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, Download } from 'lucide-react'
+import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
@@ -23,7 +23,7 @@ export default function Settings({ initialTab }: { initialTab?: Tab }) {
     <div className="flex h-full w-full">
       {/* Settings sidebar */}
       <div className="w-56 shrink-0 border-r border-border/30 p-4">
-        <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider px-3 mb-2">Settings</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Settings</p>
         <nav className="space-y-0.5">
           <SettingsNavItem active={tab === 'general'} onClick={() => setTab('general')} icon={<SettingsIcon size={15} />} label="General" />
           <SettingsNavItem active={tab === 'account'} onClick={() => setTab('account')} icon={<ShieldCheck size={15} />} label="Account" />
@@ -57,7 +57,7 @@ function SettingsNavItem({ active, onClick, icon, label }: { active: boolean; on
 
 function GeneralSettings() {
   const { toast } = useToast()
-  const { theme, toggle } = useTheme()
+  const { mode, setPreference } = useTheme()
   const [profile, setProfile] = useState<{ email: string; display_name: string | null; created_at: string } | null>(null)
   const [nameValue, setNameValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -91,7 +91,7 @@ function GeneralSettings() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">General</h2>
         <p className="text-sm text-muted-foreground mt-1">Manage your profile and preferences</p>
@@ -103,7 +103,7 @@ function GeneralSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Avatar</span>
-            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white text-sm font-bold shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold shadow-sm">
               {(profile?.display_name || profile?.email || 'U')[0].toUpperCase()}
             </div>
           </div>
@@ -146,14 +146,9 @@ function GeneralSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Appearance</span>
-            <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
-              <button onClick={() => { if (theme !== 'light') toggle() }} className={`p-2 rounded-md transition-colors ${theme === 'light' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                <Sun size={14} />
-              </button>
-              <button onClick={() => { if (theme !== 'dark') toggle() }} className={`p-2 rounded-md transition-colors ${theme === 'dark' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                <Moon size={14} />
-              </button>
-            </div>
+            <select aria-label="Appearance" value={mode} onChange={e => setPreference(e.target.value as typeof mode)} className="h-10 rounded-md border border-input bg-background px-2">
+              <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+            </select>
           </div>
         </div>
       </section>
@@ -231,7 +226,7 @@ function AccountSettings() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Account</h2>
         <p className="text-sm text-muted-foreground mt-1">Security and account management</p>
@@ -268,7 +263,7 @@ function AccountSettings() {
               />
               {codeError && <p id="totp-code-error" role="alert" className="text-sm text-destructive">{codeError}</p>}
             </div>
-            <Button onClick={handleConfirm2FA} disabled={code.length !== 6 || confirming} className="gradient-bg border-0 text-white">
+            <Button onClick={handleConfirm2FA} disabled={code.length !== 6 || confirming} className="bg-primary border-0 text-primary-foreground">
               Turn on 2FA
             </Button>
           </div>
@@ -277,7 +272,7 @@ function AccountSettings() {
             <p className="text-sm text-muted-foreground mb-4">
               Add an extra layer of security with an authenticator app like Google Authenticator or Authy.
             </p>
-            <Button onClick={handleSetup2FA} className="gradient-bg border-0 text-white">
+            <Button onClick={handleSetup2FA} className="bg-primary border-0 text-primary-foreground">
               <Smartphone size={15} className="mr-1.5" /> Enable 2FA
             </Button>
           </div>

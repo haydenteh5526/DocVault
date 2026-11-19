@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { readFileSync } from 'node:fs'
 import Landing from './Landing'
 
 afterEach(cleanup)
@@ -52,5 +53,111 @@ describe('Landing', () => {
     )
     expect(text).toContain('Ollama')
     expect(text).toContain('Local embeddings')
+  })
+})
+
+it('introduces the knowledge base with linked actions and inspectable source lines', () => {
+  pageText()
+  expect(screen.getAllByRole('heading', {level:1})).toHaveLength(1)
+  expect(screen.getByRole('heading', {name:'Everything you keep, ready to answer.'})).toBeVisible()
+  expect(screen.getAllByRole('link',{name:'Create an account'})[0]).toHaveAttribute('href','/register')
+  expect(screen.getAllByRole('link',{name:'Sign in'})[0]).toHaveAttribute('href','/login')
+  for (const line of ['When is the electricity bill due?', 'Total amount due: EUR 123.47', 'Payment due date: 23 November 2026', '23 Nov']) {
+    expect(screen.getByText(line,{exact:true})).toBeVisible()
+  }
+  expect(screen.getByRole('img',{name:'A search across three documents'})).toBeVisible()
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+})
+
+describe('account buttons and the page surfaces (plan 0R-2)', () => {
+  it('has no buttons in the hero', () => {
+    pageText()
+    const hero = screen.getByRole('region', { name: 'Everything you keep, ready to answer.' })
+    expect(within(hero).queryByRole('link', { name: 'Create an account' })).not.toBeInTheDocument()
+    expect(within(hero).queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
+  })
+
+  it('keeps both account links in the header', () => {
+    pageText()
+    const header = screen.getByRole('banner')
+    expect(within(header).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(within(header).getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
+  })
+
+  it('ends with one closing call to action', () => {
+    pageText()
+    const closing = screen.getByRole('region', { name: 'Start with one document.' })
+    expect(within(closing).getByText('Upload a bill, a lease or a manual and ask about it in your own words.')).toBeVisible()
+    expect(within(closing).getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
+    expect(within(closing).queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Create an account' })).toHaveLength(2)
+  })
+
+  it('shows the footer line and both margin tags', () => {
+    pageText()
+    expect(screen.getByText('A final-year project at TUS Athlone. It runs on your own computer, and the examples on this page are synthetic.')).toBeVisible()
+    expect(screen.getByText('€123.47', { selector: 'strong' })).toBeVisible()
+    expect(screen.getByText('23 Nov', { selector: 'strong' })).toBeVisible()
+  })
+
+  it('hides nothing inline when motion is off', () => {
+    const { container } = render(<MemoryRouter><Landing /></MemoryRouter>)
+    expect(document.documentElement).not.toHaveClass('motion-ok')
+    for (const element of container.querySelectorAll<HTMLElement>('*')) {
+      expect(element.style.opacity).not.toBe('0')
+      expect(element.style.visibility).not.toBe('hidden')
+    }
+  })
+})
+
+describe('yellow is an accent (plan 0R-2)', () => {
+  const css = readFileSync('src/pages/landing.css', 'utf8')
+
+  it('uses #FFD83D only for the margin tags and never as a surface', () => {
+    const lines = css.split(/\r?\n/).filter(line => /ffd83d/i.test(line))
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain('.source-value')
+    expect(lines[0]).toMatch(/color:#ffd83d/i)
+    expect(css).not.toMatch(/--field|background:\s*var\(--field\)/)
+  })
+
+  it('has no perforation edge between bands', () => {
+    expect(css).not.toMatch(/dashed|perforat/i)
+  })
+
+  it('sets the split band on the muted token with hairlines', () => {
+    expect(css).toMatch(/\.decision-section\s*\{[^}]*background:var\(--muted\)[^}]*border-block:1px solid var\(--border\)/)
+  })
+
+  it('only animates under motion-ok', () => {
+    const outside = css.split('/* ---- Motion')[0]
+    expect(outside).not.toMatch(/animation:/)
+  })
+})
+
+describe('sizing and the header at 360 px (N1, N7)', () => {
+  it('merges the header button classes so h-9 px-3 win', () => {
+    pageText()
+    const header = screen.getByRole('banner')
+    for (const name of ['Sign in', 'Create an account']) {
+      const link = within(header).getByRole('link', { name })
+      expect(link).toHaveClass('h-9', 'px-3', 'text-sm')
+      expect(link).not.toHaveClass('h-10')
+      expect(link).not.toHaveClass('px-4')
+    }
+  })
+
+  it('names the brand link DocVault, so the wordmark text can hide on a phone', () => {
+    pageText()
+    expect(within(screen.getByRole('banner')).getByRole('link', { name: 'DocVault' })).toHaveAttribute('href', '/')
+  })
+
+  it('merges the closing button classes so px-6 and text-base win', () => {
+    pageText()
+    const closing = screen.getByRole('region', { name: 'Start with one document.' })
+    const link = within(closing).getByRole('link', { name: 'Create an account' })
+    expect(link).toHaveClass('px-6', 'text-base')
+    expect(link).not.toHaveClass('px-8')
+    expect(link).not.toHaveClass('text-sm')
   })
 })

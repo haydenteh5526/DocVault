@@ -58,7 +58,7 @@ export function AnalyticsWidgets({ docs, categories }: Props) {
   if (docs.length === 0) return null
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-fade-in">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
       {/* Upload trend */}
       <div className="md:col-span-2 rounded-xl border border-border/40 bg-card p-5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Upload activity</p>

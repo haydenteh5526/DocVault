@@ -1,13 +1,14 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
+import { lazy, Suspense, useEffect, useState, useMemo, useRef } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, Upload, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Filter, Star, BarChart2, ChevronDown, Eye, CloudOff } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { FileText, Trash2, FolderOpen, FolderPlus, Upload, Pencil, Star, Eye, Search } from 'lucide-react'
+import { attentionReason, DocumentStatus } from '@/components/DocumentStatus'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
+import { retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
-import { AnalyticsWidgets } from '@/components/AnalyticsWidgets'
+const AnalyticsWidgets = lazy(() => import('@/components/AnalyticsWidgets').then(({ AnalyticsWidgets }) => ({ default: AnalyticsWidgets })))
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
 
 type SortKey = 'name' | 'date' | 'size' | 'type'
@@ -27,17 +28,15 @@ export default function Dashboard() {
   const [renameValue, setRenameValue] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'list')
   const [fileFilter, setFileFilter] = useState<FileFilter>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [showSortMenu, setShowSortMenu] = useState(false)
-  const [showFilterMenu, setShowFilterMenu] = useState(false)
-  const [showViewMenu, setShowViewMenu] = useState(false)
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
-  const [showAnalytics, setShowAnalytics] = useState(() => localStorage.getItem('docvault-analytics') !== 'hidden')
+  const [showAnalytics, setShowAnalytics] = useState(() => localStorage.getItem('docvault-analytics') === 'shown')
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
+  const goTo = useTransitionNavigate()
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -58,6 +57,54 @@ export default function Dashboard() {
   })
 
   const allDocs = useMemo(() => docsQuery.data ?? [], [docsQuery.data])
+  const query = (searchParams.get('q') ?? '').trim()
+  const [typedQuery, setTypedQuery] = useState(query)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const titleClick = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(titleClick.current), [])
+  const [announcement, setAnnouncement] = useState('')
+  // Follow the address, but never replace what is being typed with its trimmed copy (that would drop a typed space).
+  useEffect(() => { setTypedQuery(typed => typed.trim() === query ? typed : query) }, [query])
+  useEffect(() => {
+    const focus = (event: KeyboardEvent) => {
+      if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || (event.target as HTMLElement)?.isContentEditable)) {
+        event.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', focus)
+    return () => window.removeEventListener('keydown', focus)
+  }, [])
+  useEffect(() => {
+    if (typedQuery.trim() === query) return
+    const timer = setTimeout(() => setSearchParams(params => {
+      if (typedQuery.trim()) params.set('q',typedQuery.trim())
+      else params.delete('q')
+      return params
+    }, { replace: true }), 200)
+    return () => clearTimeout(timer)
+  }, [typedQuery, query, setSearchParams])
+
+  const search = useQuery({queryKey:['document-search', query], queryFn:() => searchDocuments(query), enabled:!!query})
+  const excerpts = useMemo(() => new Map((search.data?.results ?? []).filter(r => r.similarity === 1 || r.chunk_text.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(r => [r.document_id, r.chunk_text.replace(/<\/?b>/gi,'')])), [search.data,query])
+  // Every complete document is checked: the type the categoriser gives does not say whether a bill review exists. The result is kept for 30 s and refreshed when a document's own page changes it (lib/documentStatusSync).
+  const completeIds = allDocs.filter(d => d.processing_status === 'complete').map(d => d.id)
+  const details = useQuery({
+    queryKey:['document-list-status',completeIds],
+    enabled:completeIds.length > 0,
+    staleTime:30_000,
+    queryFn: async ({signal}) => {
+      const records: Record<string, Document> = {}
+      for (let start = 0; start < completeIds.length; start += 6) {
+        if (signal.aborted) break
+        const batch = await Promise.all(completeIds.slice(start, start + 6).map(async id => [id, await getDocument(id)] as const))
+        for (const [id,record] of batch) if (record.id) records[id] = record
+      }
+      return records
+    },
+  })
+  const stateOf = (doc: Document) => details.data?.[doc.id] ?? (doc.bill_review !== undefined ? doc : undefined)
+  const attention = allDocs.map(doc => ({doc,reason:attentionReason(stateOf(doc))})).filter(row => row.reason).slice(0,3)
   const loading = docsQuery.isLoading
   const error = docsQuery.isError
 
@@ -76,10 +123,10 @@ export default function Dashboard() {
     docs.forEach(d => {
       const prev = prevStatusRef.current[d.id]
       if (prev && prev !== 'complete' && d.processing_status === 'complete') {
-        toast(`"${d.title}" processed successfully`, 'success')
+        setAnnouncement(d.title + " is ready to review.")
       }
       if (prev && prev !== 'failed' && d.processing_status === 'failed') {
-        toast(`"${d.title}" processing failed`, 'error')
+        setAnnouncement(d.title + ": Could not read this file")
       }
     })
     prevStatusRef.current = Object.fromEntries(docs.map(d => [d.id, d.processing_status || '']))
@@ -102,8 +149,7 @@ export default function Dashboard() {
     })
   }
 
-  function toggleSelect(e: React.MouseEvent, id: string) {
-    e.stopPropagation()
+  function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -208,8 +254,12 @@ export default function Dashboard() {
   const docsInFolder = useMemo(() => {
     let docs = currentFolder
       ? allDocs.filter(d => d.category_id === currentFolder)
-      : allDocs.filter(d => !d.category_id)
+      : allDocs
 
+    if (query) {
+      const needle = query.toLocaleLowerCase()
+      docs = docs.filter(d => d.title.toLocaleLowerCase().includes(needle) || (d.raw_text ?? '').toLocaleLowerCase().includes(needle) || excerpts.has(d.id))
+    }
     // File type filter
     if (fileFilter === 'pdf') docs = docs.filter(d => d.title.toLowerCase().endsWith('.pdf'))
     else if (fileFilter === 'image') docs = docs.filter(d => !d.title.toLowerCase().endsWith('.pdf'))
@@ -232,7 +282,7 @@ export default function Dashboard() {
     })
 
     return docs
-  }, [allDocs, currentFolder, fileFilter, typeFilter, sortKey, sortDir])
+  }, [allDocs, currentFolder, fileFilter, typeFilter, sortKey, sortDir, query, excerpts])
   const totalDocs = allDocs.length
 
   // Distinct document types present in the collection (for the type filter).
@@ -242,553 +292,108 @@ export default function Dashboard() {
     return Array.from(set).sort()
   }, [allDocs])
 
-  return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto h-full overflow-y-auto">
-      {/* Breadcrumb */}
-      {/* Breadcrumb — "All Documents" is a drop target when inside a folder */}
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6 animate-slide-up bg-card/40 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full inline-flex shadow-sm">
-        <button
-          onClick={() => setSearchParams({})}
-          className={`hover:text-foreground transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full ${currentFolder && dragDocId ? (dragOverFolder === '__root__' ? 'ring-2 ring-primary bg-primary/[0.06] text-primary' : 'border border-dashed border-border') : 'hover:bg-accent/50'}`}
-          onDragOver={(e) => { if (currentFolder) { e.preventDefault(); setDragOverFolder('__root__') } }}
-          onDragLeave={() => setDragOverFolder(null)}
-          onDrop={() => { if (currentFolder) handleDropOnFolder('__root__') }}
-        >
-          <Home size={14} className={currentFolder ? '' : 'text-primary'} /> 
-          <span className={currentFolder ? '' : 'text-foreground font-medium'}>All Documents</span>
-        </button>
-        {currentCategoryName && (
-          <>
-            <ChevronRight size={14} className="text-muted-foreground/50" />
-            <span className="text-foreground font-medium px-2.5 py-1 bg-accent/30 rounded-full">{currentCategoryName}</span>
-          </>
-        )}
+  async function retryProcessing(id: string) {
+    try {
+      await retryDocumentProcessing(id)
+      await docsQuery.refetch()
+    } catch {toast('Could not retry processing. Try again.', 'error')}
+  }
+
+  return <div className="mx-auto h-full max-w-6xl overflow-y-auto px-4 py-6 sm:px-8 sm:py-9">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div><h1 className="text-3xl font-semibold tracking-tight">{currentCategoryName || 'Documents'}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{totalDocs} {totalDocs === 1 ? 'document' : 'documents'} · {categories.length} {categories.length === 1 ? 'folder' : 'folders'}</p>
       </div>
-
-      {/* Analytics widgets — only at root, collapsible */}
-      {!loading && !error && !currentFolder && allDocs.length > 0 && (
-        <div className="mb-4 animate-slide-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-          <button
-            onClick={() => {
-              const next = !showAnalytics
-              setShowAnalytics(next)
-              localStorage.setItem('docvault-analytics', next ? 'shown' : 'hidden')
-            }}
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-all mb-4 px-3 py-1.5 rounded-full border border-border/60 bg-card/60 backdrop-blur-md shadow-sm hover:shadow-md hover:border-primary/30"
-          >
-            <BarChart2 size={14} className="text-primary/70" />
-            Analytics
-            <ChevronDown size={13} className={`transition-transform duration-300 ${showAnalytics ? 'rotate-180' : ''}`} />
-          </button>
-          {showAnalytics && <div className="animate-scale-in"><AnalyticsWidgets docs={allDocs} categories={categories} /></div>}
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 animate-slide-up" style={{ animationDelay: '50ms', animationFillMode: 'both' }}>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">
-            {currentCategoryName || 'Documents'}
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1.5 font-medium">
-            {loading ? 'Loading your files...' : currentFolder
-              ? `${docsInFolder.length} document${docsInFolder.length !== 1 ? 's' : ''}`
-              : `${totalDocs} document${totalDocs !== 1 ? 's' : ''} · ${categories.length} folder${categories.length !== 1 ? 's' : ''}`
-            }
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 font-medium px-4" onClick={() => setCreatingFolder(true)}>
-            <FolderPlus size={16} className="mr-2 text-primary" /> New Folder
-          </Button>
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-full blur opacity-40 group-hover:opacity-70 transition duration-500 group-hover:duration-200"></div>
-            <Button className="relative rounded-full gradient-bg border-0 text-white shadow-lg px-6 font-medium transition-all hover:-translate-y-0.5" onClick={() => navigate('/app/upload')}>
-              <Upload size={16} className="mr-2" /> Upload
-            </Button>
-          </div>
-        </div>
+    </header>
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[min(100%,16rem)] flex-1"><Search className="absolute top-3 left-3 text-muted-foreground" size={18}/>
+        <Input ref={searchRef} aria-label="Search documents" placeholder="Search by name or by what's on the page" className="pl-10" value={typedQuery} onChange={e => setTypedQuery(e.target.value)}/>
       </div>
-
-      {/* Toolbar: filter, sort, view */}
-      {!loading && !error && (
-        <div className="flex items-center gap-2 mb-4 animate-fade-in">
-
-          {/* Sort dropdown */}
-          <div className="relative">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); setShowViewMenu(false) }}>
-              <ArrowUpDown size={13} /> Sort
-              {sortKey !== 'date' && <span className="text-primary">· {sortKey}</span>}
-            </Button>
-            {showSortMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                <div className="absolute top-full mt-1.5 left-0 z-50 w-44 bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl shadow-black/5 p-1 animate-scale-in">
-                  {(['date', 'name', 'size', 'type'] as SortKey[]).map(key => (
-                    <button key={key} onClick={() => { toggleSort(key); setShowSortMenu(false) }} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${sortKey === key ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                      {sortKey === key && <span className="text-xs opacity-70">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Filter dropdown */}
-          <div className="relative">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-full" onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); setShowViewMenu(false) }}>
-              <Filter size={13} /> Filter
-              {(fileFilter !== 'all' || typeFilter !== 'all') && <span className="text-primary">· {[fileFilter !== 'all' ? fileFilter : null, typeFilter !== 'all' ? typeFilter : null].filter(Boolean).join(', ')}</span>}
-            </Button>
-            {showFilterMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
-                <div className="absolute top-full mt-1.5 left-0 z-50 w-52 max-h-80 overflow-y-auto bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl shadow-black/5 p-1 animate-scale-in">
-                  {([['all', 'All files'], ['pdf', 'PDFs only'], ['image', 'Images only']] as [FileFilter, string][]).map(([key, label]) => (
-                    <button key={key} onClick={() => { setFileFilter(key); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${fileFilter === key ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                      {label}
-                    </button>
-                  ))}
-                  {docTypes.length > 0 && (
-                    <>
-                      <div className="my-1 border-t border-border/50" />
-                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Document type</p>
-                      <button onClick={() => { setTypeFilter('all'); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${typeFilter === 'all' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                        All types
-                      </button>
-                      {docTypes.map(t => (
-                        <button key={t} onClick={() => { setTypeFilter(t); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${typeFilter === t ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                          {t}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* View dropdown */}
-          <div className="relative ml-auto">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-full" onClick={() => { setShowViewMenu(!showViewMenu); setShowSortMenu(false); setShowFilterMenu(false) }}>
-              {viewMode === 'grid' ? <LayoutGrid size={13} /> : <List size={13} />} View
-            </Button>
-            {showViewMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowViewMenu(false)} />
-                <div className="absolute top-full mt-1.5 right-0 z-50 w-36 bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl shadow-black/5 p-1 animate-scale-in">
-                  <button onClick={() => { switchView('grid'); setShowViewMenu(false) }} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${viewMode === 'grid' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                    <LayoutGrid size={14} /> Grid
-                  </button>
-                  <button onClick={() => { switchView('list'); setShowViewMenu(false) }} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${viewMode === 'list' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
-                    <List size={14} /> List
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* New folder input */}
-      {creatingFolder && (
-        <div className="flex items-center gap-2 mb-6 animate-slide-up bg-card/50 border border-border/50 p-2 rounded-xl shadow-sm max-w-sm">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <FolderPlus size={16} className="text-primary" />
-          </div>
-          <Input
-            autoFocus
-            value={newFolderName}
-            onChange={e => setNewFolderName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setCreatingFolder(false) }}
-            placeholder="Folder name..."
-            className="h-9 border-0 bg-transparent focus-visible:ring-1 focus-visible:ring-primary/50 shadow-none px-2"
-          />
-          <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="rounded-lg px-3">Create</Button>
-          <Button variant="ghost" size="sm" onClick={() => setCreatingFolder(false)} className="rounded-lg px-2 text-muted-foreground">Cancel</Button>
-        </div>
-      )}
-
-      {/* Error */}
-      {/* Error */}
-      {error && !loading && (
-        <Card className="border-0 shadow-none bg-transparent animate-fade-in mt-12 max-w-lg mx-auto">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-              <CloudOff className="h-8 w-8 text-destructive" />
-            </div>
-            <h3 className="text-xl font-bold text-foreground">Connection Lost</h3>
-            <p className="text-sm text-muted-foreground mt-2 max-w-sm">We couldn't connect to the secure vault to retrieve your documents. Please check your connection and try again.</p>
-            <Button className="mt-8 rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 px-8" onClick={() => docsQuery.refetch()}>
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* High-Fidelity Skeletons */}
-      {loading && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse bg-card/40 border-border/40 overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="w-4 h-4 rounded bg-muted/60" />
-                </div>
-                <div className="w-full h-28 rounded-lg border border-border/30 bg-muted/10 flex flex-col items-center justify-center mt-1 relative overflow-hidden">
-                  <div className="absolute inset-x-4 inset-y-6 doc-wireframe opacity-10" />
-                </div>
-                <div className="h-4 bg-muted/60 rounded mt-4 w-3/4" />
-                <div className="h-3 bg-muted/40 rounded mt-2.5 w-1/2" />
-                <div className="flex gap-1.5 mt-4">
-                  <div className="h-5 bg-muted/50 rounded-md w-14" />
-                  <div className="h-5 bg-muted/50 rounded-md w-20" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-          <div className="flex items-center gap-4 px-6 py-3.5 rounded-full border border-primary/30 bg-background/70 backdrop-blur-2xl shadow-2xl shadow-primary/10 transition-all">
-            <div className="flex items-center gap-3 border-r border-border/50 pr-4">
-              <div className="w-7 h-7 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-inner">
-                {selected.size}
-              </div>
-              <span className="text-sm font-semibold text-foreground">selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="destructive" size="sm" className="h-8 rounded-full px-4 font-medium" onClick={handleBulkDelete}>
-                <Trash2 size={14} className="mr-1.5" /> Delete
-              </Button>
-              <Button variant="ghost" size="sm" className="h-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => setSelected(new Set())}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Folders (only show at root level) */}
-      {!loading && !error && !currentFolder && categories.length > 0 && (
-        <>
-        {viewMode === 'grid' ? (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
-          {categories.map((cat, i) => {
-            const count = allDocs.filter(d => d.category_id === cat.id).length
-            const isDropTarget = dragOverFolder === cat.id
-            return (
-              <Card
-                key={cat.id}
-                className={`group cursor-pointer animate-slide-up transition-all duration-300 relative overflow-hidden ${isDropTarget ? 'ring-2 ring-primary bg-primary/[0.04]' : 'bg-card/40 backdrop-blur-sm border-border/60 hover:border-primary/30 hover:bg-card hover:shadow-lg hover:-translate-y-0.5'}`}
-                style={{ animationDelay: `${i * 30}ms`, animationFillMode: 'both' }}
-                onClick={() => { if (!editingFolder) setSearchParams({ folder: cat.id }) }}
-                onDragOver={(e) => handleDragOverFolder(e, cat.id)}
-                onDragLeave={() => setDragOverFolder(null)}
-                onDrop={() => handleDropOnFolder(cat.id)}
-              >
-                {/* Glow effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity blur-xl rounded-xl" />
-                
-                <CardContent className="p-4 flex items-center gap-3 relative bg-transparent z-10">
-                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 group-hover:scale-105 transition-all">
-                    <FolderOpen size={18} className="text-amber-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {editingFolder === cat.id ? (
-                      <Input
-                        autoFocus
-                        value={editFolderName}
-                        onChange={e => setEditFolderName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(cat.id); if (e.key === 'Escape') setEditingFolder(null) }}
-                        onBlur={() => handleRenameFolder(cat.id)}
-                        onClick={e => e.stopPropagation()}
-                        className="h-7 text-sm"
-                      />
-                    ) : (
-                      <>
-                        <p className="text-sm font-medium truncate">{cat.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{count === 0 ? 'Empty' : `${count} document${count !== 1 ? 's' : ''}`}</p>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename folder">
-                      <Pencil size={12} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => handleDeleteFolder(e, cat.id)} aria-label="Delete folder">
-                      <Trash2 size={12} />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-          </div>
-        ) : (
-          <div className="border rounded-xl overflow-hidden mb-6">
-            {categories.map((cat, i) => {
-              const count = allDocs.filter(d => d.category_id === cat.id).length
-              const isDropTarget = dragOverFolder === cat.id
-              return (
-                <div
-                  key={cat.id}
-                  className={`grid grid-cols-[1fr_100px_100px_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center cursor-pointer hover:bg-accent/50 transition-colors group animate-slide-up ${isDropTarget ? 'ring-2 ring-primary bg-primary/[0.04]' : ''}`}
-                  style={{ animationDelay: `${i * 20}ms`, animationFillMode: 'both' }}
-                  onClick={() => { if (!editingFolder) setSearchParams({ folder: cat.id }) }}
-                  onDragOver={(e) => handleDragOverFolder(e, cat.id)}
-                  onDragLeave={() => setDragOverFolder(null)}
-                  onDrop={() => handleDropOnFolder(cat.id)}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FolderOpen size={16} className="text-amber-600 shrink-0" />
-                    {editingFolder === cat.id ? (
-                      <div className="relative w-48 animate-in fade-in zoom-in-95 duration-200">
-                        <Input
-                          autoFocus
-                          value={editFolderName}
-                          onChange={e => setEditFolderName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(cat.id); if (e.key === 'Escape') setEditingFolder(null) }}
-                          onBlur={() => handleRenameFolder(cat.id)}
-                          onClick={e => e.stopPropagation()}
-                          className="h-8 text-sm w-full pr-6 border-primary/40 focus-visible:ring-primary/50 shadow-sm rounded-md"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground pointer-events-none">↵</div>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-medium truncate">{cat.name}</span>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">Folder</span>
-                  <span className="text-xs text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>
-                  <span className="text-xs text-muted-foreground">{(() => { const latest = allDocs.filter(d => d.category_id === cat.id).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]; return latest ? new Date(latest.created_at).toLocaleString('en-IE', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—' })()}</span>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename">
-                      <Pencil size={11} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => handleDeleteFolder(e, cat.id)} aria-label="Delete">
-                      <Trash2 size={11} />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        </>
-      )}
-
-      {/* Section label */}
-      {!loading && !error && !currentFolder && docsInFolder.length > 0 && categories.length > 0 && (
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Uncategorised</p>
-      )}
-
-      {/* Empty state */}
-      {!loading && !error && docsInFolder.length === 0 && (currentFolder || categories.length === 0) && (
-        <div className="relative animate-scale-in max-w-2xl mx-auto mt-12">
-          {/* Animated dashed border dropzone */}
-          <div className="absolute inset-0 rounded-3xl border-2 border-dashed border-primary/20 bg-primary/[0.02] -z-10 drop-zone-active" />
-          
-          <Card className="border-0 shadow-none bg-transparent">
-            <CardContent className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="relative w-40 h-32 mb-8">
-                {/* Center glowing circle */}
-                <div className="absolute inset-0 m-auto w-24 h-24 rounded-full gradient-bg opacity-10 blur-2xl animate-pulse" />
-                <div className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-background border border-primary/10 shadow-xl flex items-center justify-center z-10">
-                  <Upload className="h-8 w-8 text-primary" />
-                </div>
-                {/* Floating decorative elements */}
-                <div className="absolute top-0 left-0 w-12 h-16 rounded bg-background border border-border shadow-lg rotate-[-15deg] animate-float z-0 flex flex-col gap-1 p-2">
-                  <div className="w-full h-1 bg-muted rounded-full" />
-                  <div className="w-3/4 h-1 bg-muted rounded-full" />
-                  <div className="w-full h-1 bg-muted rounded-full" />
-                </div>
-                <div className="absolute bottom-2 right-2 w-10 h-10 rounded-lg bg-background border border-border shadow-lg rotate-[10deg] animate-float-delayed z-0 flex items-center justify-center">
-                  <span className="text-primary font-bold text-xs">PDF</span>
-                </div>
-              </div>
-              
-              <h3 className="font-bold text-2xl tracking-tight text-foreground">
-                {currentFolder ? 'This folder is empty' : 'Drop documents here'}
-              </h3>
-              <p className="mt-3 text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-                {currentFolder
-                  ? 'Drag and drop documents here from the main view, or upload new files directly into this folder.'
-                  : 'Upload your first document. AI will instantly extract text, categorise it, and make it fully searchable.'
-                }
-              </p>
-              
-              <Button 
-                size="lg" 
-                className="mt-8 rounded-full gradient-bg border-0 text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-1 px-8" 
-                onClick={() => navigate('/app/upload')}
-              >
-                Upload your first file
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Document grid/list */}
-      {!loading && !error && docsInFolder.length > 0 && viewMode === 'grid' && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {docsInFolder.map((doc, i) => {
-            const isSelected = selected.has(doc.id)
-            return (
-              <Card
-                key={doc.id}
-                className={`group cursor-pointer animate-slide-up transition-all duration-300 relative overflow-hidden ${isSelected ? 'ring-2 ring-primary bg-primary/[0.02]' : 'bg-card hover:bg-card hover:shadow-lg hover:-translate-y-0.5 border-border/60 hover:border-primary/30'}`}
-                style={{ animationDelay: `${Math.min(i * 40, 300)}ms`, animationFillMode: 'both' }}
-                onClick={() => navigate(`/app/documents/${doc.id}`)}
-                draggable
-                onDragStart={() => handleDragStart(doc.id)}
-                onDragEnd={() => { setDragDocId(null); setDragOverFolder(null) }}
-              >
-                {/* Glow effect */}
-                <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity blur-xl rounded-xl z-0" />
-                
-                <CardContent className="p-5 relative z-10 bg-transparent">
-                  <div className="flex items-start justify-between">
-                    <button onClick={(e) => toggleSelect(e, doc.id)} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Select">
-                      {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
-                    </button>
-                    <div className={`flex items-center gap-1 transition-all ${doc.is_favourite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                      <button onClick={(e) => handleToggleFavourite(e, doc.id)} className={`p-1.5 rounded-md transition-colors ${doc.is_favourite ? 'text-amber-500 opacity-100' : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'}`} aria-label="Favourite">
-                        <Star size={14} fill={doc.is_favourite ? 'currentColor' : 'none'} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc) }}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        aria-label="Quick preview"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => handleDelete(e, doc.id)} aria-label="Delete document">
-                        <Trash2 size={13} />
-                      </Button>
-                    </div>
-                  </div>
-                  {doc.image_url && !doc.title.toLowerCase().endsWith('.pdf') ? (
-                    <div className="w-full h-28 rounded-lg bg-muted/50 overflow-hidden mt-1 shadow-sm border border-border/50">
-                      <img src={doc.image_url} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                    </div>
-                  ) : (
-                    <div className="w-full h-28 rounded-lg border border-border/60 bg-muted/20 flex flex-col items-center justify-center mt-1 relative overflow-hidden group-hover:border-primary/20 transition-colors">
-                      <div className="absolute inset-x-4 inset-y-6 doc-wireframe opacity-30 group-hover:opacity-60 transition-opacity" />
-                      <div className="w-10 h-10 rounded-lg bg-background shadow-sm border border-border/50 flex items-center justify-center z-10 group-hover:scale-110 transition-transform duration-300">
-                        <FileText size={18} className="text-primary/70" />
-                      </div>
-                    </div>
-                  )}
-                  {renamingDoc === doc.id ? (
-                    <div className="relative mt-3 animate-in fade-in zoom-in-95 duration-200">
-                      <Input
-                        autoFocus
-                        value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleRenameDoc(doc.id); if (e.key === 'Escape') setRenamingDoc(null) }}
-                        onBlur={() => handleRenameDoc(doc.id)}
-                        onClick={e => e.stopPropagation()}
-                        className="h-8 text-sm w-full pr-6 border-primary/40 focus-visible:ring-primary/50 shadow-sm rounded-md"
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground pointer-events-none">↵</div>
-                    </div>
-                  ) : (
-                    <h3
-                      className="font-medium text-sm mt-3.5 leading-snug line-clamp-2"
-                      title={doc.raw_text ? doc.raw_text.slice(0, 200) + '...' : undefined}
-                      onDoubleClick={(e) => { e.stopPropagation(); setRenamingDoc(doc.id); setRenameValue(doc.title) }}
-                    >{doc.title}</h3>
-                  )}
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {doc.processing_status && doc.processing_status !== 'complete' && (
-                      doc.processing_status === 'failed'
-                        ? <Badge variant="secondary"><span className="text-destructive">Failed</span></Badge>
-                        : <Badge variant="secondary"><Loader2 size={11} className="mr-1 animate-spin" /> Processing</Badge>
-                    )}
-                    {doc.brand && <Badge>{doc.brand}</Badge>}
-                    {doc.document_type && <Badge variant="secondary">{doc.document_type}</Badge>}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground/70 mt-3">
-                    {new Date(doc.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* List/table view */}
-      {!loading && !error && docsInFolder.length > 0 && viewMode === 'list' && (
-        <div className="border rounded-xl overflow-hidden animate-fade-in">
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_100px_100px_120px_80px_100px] gap-2 px-4 py-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            <span>Name</span>
-            <span>Type</span>
-            <span>Brand</span>
-            <span>Date</span>
-            <span>Size</span>
-            <span className="text-right">Actions</span>
-          </div>
-          {/* Rows */}
-          {docsInFolder.map((doc, i) => {
-            const isSelected = selected.has(doc.id)
-            return (
-              <div
-                key={doc.id}
-                className={`grid grid-cols-[1fr_100px_100px_120px_80px_100px] gap-2 px-4 py-3 border-b last:border-b-0 items-center cursor-pointer hover:bg-accent/50 transition-colors group animate-slide-up relative ${isSelected ? 'bg-primary/[0.04]' : ''}`}
-                style={{ animationDelay: `${Math.min(i * 20, 200)}ms`, animationFillMode: 'both' }}
-                onClick={() => navigate(`/app/documents/${doc.id}`)}
-                draggable
-                onDragStart={() => handleDragStart(doc.id)}
-                onDragEnd={() => { setDragDocId(null); setDragOverFolder(null) }}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <button onClick={(e) => toggleSelect(e, doc.id)} className="text-muted-foreground hover:text-primary transition-colors shrink-0" aria-label="Select">
-                    {isSelected ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
-                  </button>
-                  <FileText size={16} className="text-primary/60 shrink-0" />
-                  <span className="text-sm font-medium truncate">{doc.title}</span>
-                  {doc.processing_status && doc.processing_status !== 'complete' && (
-                    <Loader2 size={12} className="animate-spin text-primary shrink-0" />
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground truncate">{doc.document_type || '—'}</span>
-                <span className="text-xs text-muted-foreground truncate">{doc.brand || '—'}</span>
-                <span className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleString('en-IE', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="text-xs text-muted-foreground">{doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : '—'}</span>
-                
-                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => handleToggleFavourite(e, doc.id)} className={`p-1.5 rounded-md transition-colors ${doc.is_favourite ? 'text-amber-500 opacity-100' : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10'}`} aria-label="Favourite">
-                    <Star size={14} fill={doc.is_favourite ? 'currentColor' : 'none'} />
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc) }} className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" aria-label="Preview">
-                    <Eye size={14} />
-                  </button>
-                  <button onClick={(e) => handleDelete(e, doc.id)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label="Delete">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Document preview modal */}
-      {previewDoc && <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
-
+      <select className="h-11 rounded-md border border-input bg-background px-2 text-sm" aria-label="Document type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+        <option value="all">All types</option>{docTypes.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+      </select>
+      <Button onClick={() => navigate('/app/upload')}><Upload size={16}/> Upload</Button>
     </div>
-  )
+    <p className="sr-only" aria-live="polite">{announcement}</p>
+    {!loading && !error && <section className="my-6 rounded-lg border bg-card p-4" aria-labelledby="attention-title">
+      <h2 id="attention-title" className="font-semibold">Needs attention</h2>
+      {attention.length ? <ul className="mt-2 divide-y">{attention.map(({doc,reason}) => <li key={doc.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+        <span><strong className="block font-medium">{doc.title}</strong><span className="text-attention">{reason}</span></span>
+        <Link className="underline underline-offset-4" to={'/app/documents/' + doc.id}>{reason === 'Needs confirming' ? 'Review and confirm' : 'Open bill'}</Link>
+      </li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">{details.isError ? 'Could not check document status.' : details.isFetching ? 'Checking documents…' : 'Nothing needs your attention.'}</p>}
+    </section>}
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <details className="relative"><summary className="rounded-md border border-input px-3 py-2 text-sm">Folders</summary><div className="absolute left-0 z-20 min-w-56 rounded-lg border bg-popover p-2 shadow-md">
+        <button className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-accent" onClick={() => setSearchParams({})} onDragOver={e => e.preventDefault()} onDrop={() => void handleDropOnFolder('__root__')}>All Documents</button>
+        {categories.map(cat => <div key={cat.id} className={'flex items-center gap-1 rounded-md px-2 py-1 ' + (cat.id === dragOverFolder ? 'bg-accent' : '')} onDragOver={e => handleDragOverFolder(e,cat.id)} onDragLeave={() => setDragOverFolder(null)} onDrop={() => void handleDropOnFolder(cat.id)}>
+          {editingFolder === cat.id ? <form onSubmit={e => { e.preventDefault(); void handleRenameFolder(cat.id) }}><Input aria-label="Folder name" autoFocus value={editFolderName} onChange={e => setEditFolderName(e.target.value)}/></form> : <>
+            <button className="flex flex-1 items-center gap-2 text-left text-sm" onClick={() => setSearchParams({folder:cat.id})}><FolderOpen size={15}/>{cat.name}</button>
+            <button aria-label={'Rename folder ' + cat.name} onClick={() => { setEditingFolder(cat.id); setEditFolderName(cat.name) }}><Pencil size={14}/></button>
+            <button aria-label={'Delete folder ' + cat.name} onClick={e => void handleDeleteFolder(e,cat.id)}><Trash2 size={14}/></button>
+          </>}
+        </div>)}
+        <button className="mt-1 flex items-center gap-2 px-2 py-2 text-sm" onClick={() => setCreatingFolder(true)}><FolderPlus size={15}/>New Folder</button>
+      </div></details>
+      <details><summary className="rounded-md border border-input px-3 py-2 text-sm">List options</summary><div className="absolute z-20 flex flex-col gap-2 rounded-md border bg-popover p-3 text-sm shadow-md">
+        <label>Sort by <select value={sortKey} onChange={e => toggleSort(e.target.value as SortKey)}>{['date','name','size','type'].map(k => <option key={k}>{k}</option>)}</select></label>
+        <button onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>{sortDir === 'asc' ? 'Ascending' : 'Descending'}</button>
+        <label>File type <select value={fileFilter} onChange={e => setFileFilter(e.target.value as FileFilter)}><option value="all">All files</option><option value="pdf">PDF</option><option value="image">Image</option></select></label>
+        <label>View <select value={viewMode} onChange={e => switchView(e.target.value as ViewMode)}><option value="list">List</option><option value="grid">Grid</option></select></label>
+      </div></details>
+      {currentFolder && <Button size="sm" variant="ghost" onClick={() => setSearchParams({})}>All Documents</Button>}
+      {selected.size > 0 && <><span className="text-sm">{selected.size} selected</span><Button size="sm" variant="destructive" onClick={handleBulkDelete}>Delete selected</Button><Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear selection</Button></>}
+    </div>
+    {creatingFolder && <form className="my-3 flex gap-2" onSubmit={e => {e.preventDefault(); void handleCreateFolder()}}>
+      <Input aria-label="Folder name" placeholder="Folder name..." value={newFolderName} onChange={e => setNewFolderName(e.target.value)} autoFocus/>
+      <Button disabled={!newFolderName.trim()}>Create</Button><Button type="button" variant="ghost" onClick={() => setCreatingFolder(false)}>Cancel</Button>
+    </form>}
+    {loading && <p role="status">Loading your files...</p>}
+    {error && <div role="alert"><p>Could not load your documents. Check that DocVault is running, then try again.</p><Button variant="outline" onClick={() => docsQuery.refetch()}>Try again</Button></div>}
+    {query && docsInFolder.length > 0 && <p className="mb-3 text-sm text-muted-foreground">{docsInFolder.length} {docsInFolder.length === 1 ? 'document matches' : 'documents match'} "{query}"</p>}
+    {!loading && !error && !docsInFolder.length && <div className="rounded-lg border border-dashed p-6">
+      {query || typeFilter !== 'all' || fileFilter !== 'all' ? <><p>No documents match {query ? '"' + query + '"' : 'your filters'}. Check the spelling, or search the words printed on the page.</p><Button variant="outline" className="mt-3" onClick={() => {setTypedQuery('');setTypeFilter('all');setFileFilter('all')}}>Clear search</Button></>
+      : <><p>{currentFolder ? 'This folder is empty' : 'Your bills, receipts and manuals will appear here.'}</p><Button className="mt-3" onClick={() => navigate('/app/upload')}>Upload a bill</Button></>}
+    </div>}
+    <ul className={viewMode === 'grid' ? 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'divide-y border-y'}>
+      {docsInFolder.map(doc => <li key={doc.id} draggable onDragStart={() => handleDragStart(doc.id)} onDragEnd={() => {setDragDocId(null);setDragOverFolder(null)}}
+        className={viewMode === 'grid' ? 'rounded-lg border bg-card p-4 transition-colors duration-150 hover:bg-accent/50' : 'flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition-colors duration-150 hover:bg-accent/50'}>
+        <div className="flex min-w-0 basis-full items-center gap-2 sm:flex-1">
+          <input type="checkbox" aria-label={'Select ' + doc.title} checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} />
+          <FileText size={18} className="shrink-0 text-muted-foreground"/>
+          <div className="min-w-0 flex-1">
+            {renamingDoc === doc.id ? <form onSubmit={e => {e.preventDefault();void handleRenameDoc(doc.id)}}><Input aria-label="Document title" autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => {if(e.key === 'Escape')setRenamingDoc(null)}}/></form> :
+              <Link to={'/app/documents/' + doc.id} className="block truncate font-medium hover:underline" title={doc.title} onClick={e => {if (viewMode === 'grid' && e.detail > 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault()
+                clearTimeout(titleClick.current)
+                if (e.detail === 1) titleClick.current = setTimeout(() => goTo('/app/documents/' + doc.id), 300)
+              }}} onDoubleClick={e => {if(viewMode === 'grid'){e.preventDefault();clearTimeout(titleClick.current);setRenamingDoc(doc.id);setRenameValue(doc.title)}}}><Highlight text={doc.title} query={query}/></Link>}
+            {query && excerpts.get(doc.id) && <p className="truncate text-sm text-muted-foreground"><Highlight text={excerpts.get(doc.id)!} query={query}/></p>}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+          {doc.document_type && <span>{doc.document_type}</span>}<time dateTime={doc.created_at}>{new Date(doc.created_at).toLocaleDateString('en-IE',{day:'numeric',month:'short',year:'numeric'})}</time>
+          <DocumentStatus doc={doc} detail={stateOf(doc)}/>
+        </div>
+        <div className="flex items-center gap-1">
+          {doc.processing_status === 'failed' && <button className="text-sm underline" onClick={() => void retryProcessing(doc.id)}>Try again</button>}
+          {viewMode === 'grid' && <Link className="text-sm underline" to={'/app/documents/' + doc.id}>Open</Link>}
+          <button className="p-1.5" aria-label="Favourite" aria-pressed={!!doc.is_favourite} onClick={e => void handleToggleFavourite(e,doc.id)}><Star size={15} fill={doc.is_favourite ? 'currentColor':'none'}/></button>
+          <button className="p-1.5" aria-label="Preview" onClick={() => setPreviewDoc(doc)}><Eye size={15}/></button>
+          <button className="p-1.5" aria-label="Rename document" onClick={() => {setRenamingDoc(doc.id);setRenameValue(doc.title)}}><Pencil size={15}/></button>
+          <button className="p-1.5" aria-label="Delete document" onClick={e => void handleDelete(e,doc.id)}><Trash2 size={15}/></button>
+        </div>
+      </li>)}
+    </ul>
+    {!loading && !error && !currentFolder && totalDocs > 0 && <div className="mt-6">
+      <button className="rounded-md px-2 py-2 text-sm text-muted-foreground underline underline-offset-4" aria-expanded={showAnalytics} onClick={() => {const next=!showAnalytics;setShowAnalytics(next);localStorage.setItem('docvault-analytics',next?'shown':'hidden')}}>Storage and activity</button>
+      {showAnalytics && <Suspense fallback={<p role="status">Loading activity…</p>}><AnalyticsWidgets docs={allDocs} categories={categories}/></Suspense>}
+    </div>}
+    {previewDoc && <DocumentPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
+  </div>
 }
 
-function Badge({ children, variant = 'primary' }: { children: React.ReactNode; variant?: 'primary' | 'secondary' }) {
-  const styles = variant === 'primary' ? 'bg-primary/[0.08] text-primary' : 'bg-secondary text-secondary-foreground'
-  return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${styles}`}>{children}</span>
+function Highlight({text,query}:{text:string;query:string}) {
+  const start = query ? text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase()) : -1
+  if (start < 0) return <>{text}</>
+  return <>{text.slice(0,start)}<mark className="bg-mark text-mark-text">{text.slice(start,start+query.length)}</mark>{text.slice(start+query.length)}</>
 }

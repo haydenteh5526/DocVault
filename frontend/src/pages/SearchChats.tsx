@@ -48,14 +48,14 @@ export default function SearchChats() {
       {/* Search bar */}
       <div className="max-w-2xl mx-auto w-full px-6 pt-12 pb-6">
         <div className="relative">
-          <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+          <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search chats"
             autoFocus
-            className="w-full h-12 pl-12 pr-4 text-base bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:border-primary/30 focus:bg-muted/50 placeholder:text-muted-foreground/40 transition-all"
+            className="w-full h-12 pl-12 pr-4 text-base bg-muted/30 border border-border/50 rounded-xl focus:outline-none focus:border-primary/30 focus:bg-muted/50 placeholder:text-muted-foreground transition-all"
           />
         </div>
       </div>
@@ -73,11 +73,11 @@ export default function SearchChats() {
             <div className="text-center py-16 text-muted-foreground">
               <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm font-medium">{query ? 'No chats match your search' : 'No conversations yet'}</p>
-              <p className="text-xs mt-1 text-muted-foreground/60">{query ? 'Try different keywords' : 'Start a new chat to get going'}</p>
+              <p className="text-xs mt-1 text-muted-foreground">{query ? 'Try different keywords' : 'Start a new chat to get going'}</p>
             </div>
           ) : (
             <>
-              <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider mb-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
                 {query ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''}` : 'Recent'}
               </p>
               <div className="space-y-0.5">
@@ -89,10 +89,10 @@ export default function SearchChats() {
                   >
                     <p className="text-sm font-medium truncate flex-1 text-foreground/90">{conv.title}</p>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-muted-foreground/50">{formatDate(conv.updated_at || conv.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">{formatDate(conv.updated_at || conv.created_at)}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(conv.id) }}
-                        className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <Trash2 size={14} />
                       </button>

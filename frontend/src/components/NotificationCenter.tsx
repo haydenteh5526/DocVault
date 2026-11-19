@@ -174,7 +174,7 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 rounded-full gradient-bg text-white text-[9px] font-bold flex items-center justify-center animate-scale-in">
+          <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -188,7 +188,7 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
               Clicks inside are stopped so the global close listener ignores them. */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="fixed bottom-16 left-3 z-50 w-80 max-w-[calc(100vw-1.5rem)] bg-card border border-border/50 rounded-xl shadow-2xl shadow-black/20 animate-scale-in overflow-hidden"
+            className="fixed bottom-16 left-3 z-50 w-80 max-w-[calc(100vw-1.5rem)] bg-card border border-border/50 rounded-xl shadow-2xl shadow-black/20 overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
               <p className="text-sm font-semibold">Notifications</p>
@@ -205,7 +205,7 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
             <div className="max-h-80 overflow-auto">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center px-4">
-                  <Bell size={24} className="text-muted-foreground/30 mb-2" />
+                  <Bell size={24} className="text-muted-foreground mb-2" />
                   <p className="text-sm font-medium text-foreground/70">All caught up!</p>
                   <p className="text-xs text-muted-foreground mt-1">You'll be notified when documents finish processing.</p>
                 </div>
@@ -221,15 +221,15 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {!n.read && <span className="w-1.5 h-1.5 rounded-full gradient-bg shrink-0" aria-label="unread" />}
+                        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-label="unread" />}
                         <p className="text-[12px] font-medium truncate">{n.title}</p>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-1">{formatTime(n.timestamp)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{formatTime(n.timestamp)}</p>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); onRemove(n.id) }}
-                      className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"
+                      className="p-0.5 rounded text-muted-foreground hover:text-muted-foreground transition-colors shrink-0"
                       aria-label="Dismiss"
                     >
                       <X size={12} />

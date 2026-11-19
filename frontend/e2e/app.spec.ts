@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { submitSignIn } from './signInSubmit';
 
 // These tests run against the real frontend dev server (which proxies /api to
 // the backend). Tests 1–2 are pure UI; tests 3–4 exercise the real backend
@@ -37,7 +38,7 @@ test.describe('DocVault auth flow', () => {
     await page.getByPlaceholder('name@example.com').fill(`nobody-${Date.now()}@example.com`);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill('wrongpassword123');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitSignIn(page);
     await expect(page.getByText(/Invalid email or password/i)).toBeVisible({ timeout: 10000 });
   });
 
@@ -50,9 +51,9 @@ test.describe('DocVault auth flow', () => {
     await page.getByPlaceholder('name@example.com').fill(email!);
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await submitSignIn(page);
 
-    await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: 'Documents', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
   });
@@ -63,8 +64,8 @@ async function signIn(page: Page, email: string, password: string) {
   await page.getByPlaceholder('name@example.com').fill(email);
   await page.getByRole('button', { name: /Continue with Email/i }).click();
   await page.getByPlaceholder('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
+  await submitSignIn(page);
+  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 /** Navigate inside the single-page app without reloading it. */
@@ -257,7 +258,7 @@ test.describe('Bill review and split', () => {
       // Without it a worker that stores API responses would never see this page's requests.
       await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
       await page.reload();
-      await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
       documentA = await uploadBillImage(page, image);
       await confirmUnchanged();
       const aUrl = new URL(page.url()).pathname;
@@ -290,8 +291,8 @@ test.describe('Bill review and split', () => {
       await page.getByPlaceholder('name@example.com').fill(emailB!);
       await page.getByRole('button', { name: /Continue with Email/i }).click();
       await page.getByPlaceholder('Password').fill(passwordB!);
-      await page.getByRole('button', { name: 'Sign in' }).click();
-      await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
+      await submitSignIn(page);
+      await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
       expect(await page.evaluate(() => (window as unknown as { __sameSession?: boolean }).__sameSession)).toBe(true);
 
       // 6. B uploads and opens a bill; while B's list is held nothing of A's is shown.

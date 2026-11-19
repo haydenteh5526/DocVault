@@ -14,28 +14,28 @@ const STEPS = [
   },
   {
     id: 'upload',
-    icon: <Upload size={28} className="text-white" />,
+    icon: <Upload size={28} className="text-primary-foreground" />,
     title: 'Start by uploading',
     desc: 'Click the Upload button in the top bar or drag files into the Upload page. We support JPEG, PNG, WebP, and PDF.',
     target: 'topbar-upload',
   },
   {
     id: 'search',
-    icon: <Search size={28} className="text-white" />,
+    icon: <Search size={28} className="text-primary-foreground" />,
     title: 'Search semantically',
     desc: 'Press ⌘K anywhere to search. Our AI understands meaning — search "heating problem" and it finds "boiler fault" in your manual.',
     target: 'topbar-search',
   },
   {
     id: 'folders',
-    icon: <FolderOpen size={28} className="text-white" />,
+    icon: <FolderOpen size={28} className="text-primary-foreground" />,
     title: 'Organise with categories',
     desc: 'Create categories to group documents, or use the automatically detected document type as a sorting aid.',
     target: null,
   },
   {
     id: 'ai',
-    icon: <MessageSquare size={28} className="text-white" />,
+    icon: <MessageSquare size={28} className="text-primary-foreground" />,
     title: 'Ask AI questions',
     desc: 'Open any document and use Ask AI to get answers accompanied by the retrieved source excerpts.',
     target: null,
@@ -81,14 +81,14 @@ export function OnboardingTour({ onDone }: Props) {
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 sm:p-0">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
+      <div className="absolute inset-0 bg-black/50" />
 
       {/* Card */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
-        className="relative w-full max-w-sm bg-card border border-border/40 rounded-2xl shadow-2xl p-7 animate-scale-in"
+        className="relative w-full max-w-sm bg-card border border-border/40 rounded-2xl shadow-2xl p-7"
       >
         {/* Close */}
         <button
@@ -104,13 +104,13 @@ export function OnboardingTour({ onDone }: Props) {
           {STEPS.map((_, i) => (
             <div
               key={i}
-              className={`h-1 rounded-full transition-all duration-300 ${i === step ? 'w-6 gradient-bg' : 'w-1.5 bg-muted'}`}
+              className={`h-1 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}
             />
           ))}
         </div>
 
         {/* Icon */}
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ${current.id === 'welcome' ? 'bg-primary/10' : 'gradient-bg shadow-lg shadow-primary/20'}`}>
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 ${current.id === 'welcome' ? 'bg-primary/10' : 'bg-primary shadow-lg'}`}>
           {current.icon}
         </div>
 
@@ -129,7 +129,7 @@ export function OnboardingTour({ onDone }: Props) {
           <Button variant="ghost" size="sm" onClick={complete} className="text-muted-foreground text-xs">
             Skip tour
           </Button>
-          <Button size="sm" className="gradient-bg border-0 text-white" onClick={next}>
+          <Button size="sm" className="bg-primary border-0 text-primary-foreground" onClick={next}>
             {isLast ? 'Get started' : 'Next'}
             {!isLast && <ArrowRight size={13} className="ml-1.5" />}
           </Button>

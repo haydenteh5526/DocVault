@@ -1,6 +1,7 @@
+import { Wordmark } from '@/components/Wordmark'
 import { useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Layers, Loader2, CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordStrength } from '@/components/PasswordStrength'
@@ -42,14 +43,13 @@ export default function ResetPassword() {
         <ArrowLeft size={15} /> Back to sign in
       </Link>
 
-      <div className="w-full max-w-sm mx-auto animate-fade-in">
+      <div className="w-full max-w-sm mx-auto">
         <div className="flex items-center gap-2 mb-8">
-          <Layers size={22} className="text-primary" />
-          <span className="text-lg font-semibold gradient-text tracking-tight">DocVault</span>
+          <Wordmark />
         </div>
 
         {!token ? (
-          <div className="animate-scale-in">
+          <div className="">
             <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
               <AlertCircle className="h-7 w-7 text-destructive" />
             </div>
@@ -62,7 +62,7 @@ export default function ResetPassword() {
             </Button>
           </div>
         ) : done ? (
-          <div className="animate-scale-in">
+          <div className="">
             <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mb-5">
               <CheckCircle className="h-7 w-7 text-green-600" />
             </div>
@@ -80,7 +80,8 @@ export default function ResetPassword() {
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <div>
                 <div className="relative">
-                  <Input
+                  <label htmlFor="recovery-field" className="block text-sm font-medium">New password</label>
+              <Input id="recovery-field"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -101,8 +102,8 @@ export default function ResetPassword() {
                 </div>
                 <div className="mt-2"><PasswordStrength password={password} /></div>
               </div>
-              {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
-              <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white shadow-md shadow-primary/20" disabled={loading}>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button type="submit" className="w-full h-11 bg-primary border-0 text-primary-foreground" disabled={loading}>
                 {loading ? <Loader2 size={16} className="animate-spin" /> : 'Reset password'}
               </Button>
             </form>

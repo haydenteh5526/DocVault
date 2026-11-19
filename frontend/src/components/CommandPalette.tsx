@@ -55,10 +55,10 @@ export function CommandPalette({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[10vh] px-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Palette */}
-      <div className="relative w-full max-w-lg animate-scale-in">
+      <div className="relative w-full max-w-lg">
         <Command
           className="rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/20 overflow-hidden"
           shouldFilter={false}
@@ -99,7 +99,7 @@ export function CommandPalette({ open, onClose }: Props) {
                       <p className="font-medium truncate">{r.document_title}</p>
                       <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5" dangerouslySetInnerHTML={{ __html: r.chunk_text }} />
                     </div>
-                    <ArrowRight size={13} className="text-muted-foreground/50 shrink-0 mt-1" />
+                    <ArrowRight size={13} className="text-muted-foreground shrink-0 mt-1" />
                   </Command.Item>
                 ))}
               </Command.Group>
@@ -140,7 +140,7 @@ export function CommandPalette({ open, onClose }: Props) {
           </Command.List>
 
           {/* Footer */}
-          <div className="border-t border-border/40 px-4 py-2 flex items-center gap-4 text-[10px] text-muted-foreground/60">
+          <div className="border-t border-border/40 px-4 py-2 flex items-center gap-4 text-[10px] text-muted-foreground">
             <span><kbd className="px-1 py-0.5 rounded bg-muted border border-border/50 text-[10px]">↑↓</kbd> navigate</span>
             <span><kbd className="px-1 py-0.5 rounded bg-muted border border-border/50 text-[10px]">↵</kbd> select</span>
             <span><kbd className="px-1 py-0.5 rounded bg-muted border border-border/50 text-[10px]">ESC</kbd> close</span>
