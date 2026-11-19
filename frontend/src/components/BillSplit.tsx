@@ -358,7 +358,7 @@ export function BillSplitPanel({
           {(['equal', 'days_home'] as const).map(rule => (
             <label key={rule} className="mr-4 inline-flex items-center gap-2 text-sm">
               <input type="radio" name={`${nameId}-method`} checked={session.rule === rule}
-                onChange={() => { setSession({ ...session, rule }); setMessage(null) }} />
+                onChange={() => { setSession({ ...session, rule }); if (!blocked) setMessage(null) }} />
               {rule === 'equal' ? 'Split equally' : 'Split by days at home'}
             </label>
           ))}

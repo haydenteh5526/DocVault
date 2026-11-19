@@ -380,6 +380,18 @@ describe('BillSplitPanel', () => {
     expect(region()).not.toHaveTextContent('The latest version is shown here.')
   })
 
+  it('keeps the blocked explanation when the split method is switched', async () => {
+    const { region, click, user } = await reachBlockedReview()
+    await click('Back')
+    expect(within(region()).getByRole('alert')).toHaveTextContent(BLOCKED_ALERT)
+    for (const name of ['Split by days at home', 'Split equally']) {
+      await user.click(within(region()).getByRole('radio', { name }))
+      expect(within(region()).getByRole('alert')).toHaveTextContent(BLOCKED_ALERT)
+      expect(within(region()).getByRole('button', { name: 'Calculate shares' })).toBeDisabled()
+      expect(within(region()).getByRole('button', { name: 'Load latest' })).toBeInTheDocument()
+    }
+  })
+
   it('load latest can be retried, then the owner recalculates before saving again', async () => {
     const { props, region, rerender, click, onPreview, onSave, onRefresh } = await reachBlockedReview()
     void props
