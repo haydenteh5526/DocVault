@@ -65,6 +65,71 @@ The owner put this plan on hold until the 18 November audit defects were fixed. 
 
 PR 1 keeps the **Upload Complete!** panel and **View Documents** action. The panel uses the new tokens, and processing is shown in the Documents list. PR 1 keeps the welcome tour and restyles it. PR 2 removes it with its browser check. Navigation items remain buttons with `aria-current="page"` on the current destination. Only the approved home assertions change in the existing browser tests.
 
+
+## 0R-2. Revision, 19 November 2026: yellow as an accent, motion, one set of account buttons
+
+Approved by the owner on 19 November 2026, before Demo 1. Built in PR 30 (redesign PR 1). It replaces the parts of Section 2R Direction C that it names; everything else in 2R stays.
+
+**R-A. Yellow is an accent, never a surface.**
+- **Surfaces.** The landing page's header, hero and every section use the theme tokens (`--background`, `--foreground`, `--muted`, `--card`): white with near-black text in light mode, near-black with white text in dark mode. No full-bleed `#FFD83D` field anywhere on the site. The perforation edges between bands are removed.
+- **The split band** ("It proposes. You decide.") becomes a `--muted` band with a 1 px `--border` top and bottom. Its four numerals are set in `--foreground`, no longer yellow.
+- **Yellow stays in exactly two places:**
+  - the highlighter: `--mark` (`#FFE98A`, ink text) behind quoted source lines and search matches, with Section 7's marker values in dark mode
+  - the margin tags on the hero's document card: `#18181B` with `#FFD83D` text, the same in both themes, because the card stays paper-white in both
+- **The demo deck follows the same rule** (the Architect changes it).
+- **Contrast** uses Section 3R's measured token pairs, plus the tag pair `#FFD83D` on `#18181B` at 12.9:1.
+
+**R-B. Account buttons in one place, plus one closing call to action.**
+- **Hero:** the hero has no buttons. Remove "Create an account" and "Sign in" from it.
+- **Header:** the header shows "Sign in" (ghost) and "Create an account" (default) at **every** width, phones included. At 360 px they stay on one line beside the wordmark, using `h-9 px-3 text-sm`.
+- **Closing section:** after the last section and before the footer, a closing section has the H2 "Start with one document.", the line "Upload a bill, a lease or a manual and ask about it in your own words.", and one button, "Create an account" (to `/register`). There is no "Sign in" there.
+- **Tests** (`Landing.test.tsx`):
+  - the hero region contains no link named "Create an account" or "Sign in"
+  - the banner (header) contains both
+  - exactly one more "Create an account" link exists, in the closing section
+  - the existing banned-claims checks are unchanged
+  - `e2e/accessibility.spec.ts` (landing `h1` and axe) passes unchanged
+
+**R-C. Motion, with no new dependency.** CSS keyframes, CSS scroll-driven animations, one `IntersectionObserver` hook, and React Router 7's built-in view transitions.
+
+**Rules that apply to every effect:**
+- Content is visible by default. Animation rules live only under `html.motion-ok`, a class a small script adds when `matchMedia('(prefers-reduced-motion: no-preference)')` matches and `IntersectionObserver` exists.
+- A safety timer reveals every hidden element 2.5 s after load, so nothing stays invisible: not with a background tab, a failed observer, or a screenshot.
+- Only `transform`, `opacity` and `clip-path` animate.
+- Nothing loops, and nothing hijacks scrolling.
+- The class names avoid the retired ones that `designGuard.test.ts` bans (`animate-fade-in`, `animate-slide-up`, `animate-scale-in`, `animate-float`).
+
+**Effects:**
+1. **Hero on load, once (landing only), about 1.6 s in all:**
+   - each headline line rises 40 px inside its own clipped line box (700 ms, `cubic-bezier(.2,.7,.2,1)`, 90 ms stagger)
+   - the lead fades in at 450 ms
+   - the question bar slides in from 24 px at 500 ms
+   - the three back sheets fan out from a stack at 650 ms, then the front sheet rises
+   - the margin tags draw out from their lines with `clip-path` at 1100 ms and 1250 ms
+2. **Scroll reveals (landing sections below the hero):** each section's heading, then its visual, enters once when 20% of it is in view. They go from `opacity: 0.001; transform: translateY(32px)` to rest, 600 ms, with children staggered 80 ms (at most four steps). This is a `useReveal()` hook (`frontend/src/lib/useReveal.ts`) that sets `data-revealed` and disconnects after the first reveal.
+3. **Scroll-linked (landing hero):** as the hero scrolls out, the document stack drifts up 60 px and the question bar 30 px. This uses `animation-timeline: view()` inside `@supports (animation-timeline: view())`; without support, nothing moves.
+4. **Page transitions (app and account pages):**
+   - **Triggers:** `AppNav` links and the main flow navigations ("View Documents", "Open bill to see its status", the document rows) use React Router's `viewTransition`, through the `<Link viewTransition>` prop or `navigate(to, { viewTransition: true })`.
+   - **Look:** `::view-transition-old(root)` and `::view-transition-new(root)` cross-fade over 180 ms, with an 8 px rise on the new page.
+   - **Opt-outs:** under reduced motion, `::view-transition-group(*)` gets `animation: none`. Browsers without the API simply navigate.
+5. **Micro-interactions:**
+   - buttons press to `scale(0.98)` in 120 ms
+   - hover colours transition in 150 ms
+   - text links draw their underline from the left
+   - the `AppNav` current-item indicator slides between items
+   - list rows tint on hover
+   - no hover lift on cards (P8 stays retired)
+6. **The signed-in app stays calm.** No scroll reveals on working screens: only page transitions, micro-interactions and the upload states already planned.
+
+**Tests:**
+- `useReveal.test.ts`: the hook sets `data-revealed` when the observer reports an intersection, and the safety timer sets it after 2500 ms with no intersection.
+- `motion.test.ts`: with `prefers-reduced-motion: reduce` mocked, `html` never gets `motion-ok`.
+- `Landing.test.tsx`: with no `motion-ok`, no hero element has an inline `opacity: 0`.
+- `AppNav.test.tsx`: the three navigation links render with view transitions enabled.
+- The existing unit tests, e2e and `designGuard.test.ts` pass unchanged.
+
+**Demo note.** Tomorrow's demo runs on the local preview (port 3700), which is not reviewed. After R-A to R-C are pushed, the preview is refreshed to PR 30's head merged with PR 29's head. The Reviewer's check of PR 30 at its new head follows the demo; nothing merges without it.
+
 ## 1. What is wrong today, and what stays (Impeccable critique)
 
 **Mode.** The landing page is *Persuade*: the visitor decides whether to sign up. Every signed-in screen is *Operate*: the visitor completes a task. Today both modes wear the same costume: a dark AI-product theme, gradient text, glow halos and fade-ins. On Operate screens, that costume competes with the task.
