@@ -2,9 +2,9 @@
 import unicodedata
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 MAX_HOUSEMATES = 12
 MAX_LABEL_LENGTH = 40
@@ -36,8 +36,17 @@ class HousemateOut(BaseModel):
 class BillSplitRequest(BaseModel):
     # The confirmed revision number on screen when splitting started.
     bill_revision: int = Field(ge=1)
-    rule: Literal["equal"]
+    rule: Literal["equal", "days_home"]
+    days_home: list[StrictInt] | None = None
     housemate_ids: list[uuid.UUID] = Field(min_length=2, max_length=MAX_HOUSEMATES)
+
+    @model_validator(mode="after")
+    def _days_match_people(self) -> Self:
+        if self.rule == "equal" and self.days_home is not None:
+            raise ValueError("Days at home apply only to a split by days at home.")
+        if self.rule == "days_home" and (self.days_home is None or len(self.days_home) != len(self.housemate_ids)):
+            raise ValueError("Enter days at home for each person.")
+        return self
 
     @field_validator("housemate_ids")
     @classmethod
@@ -51,6 +60,7 @@ class BillShare(BaseModel):
     housemate_id: uuid.UUID
     label: str
     amount: str
+    days_home: StrictInt | None = None
 
 
 class BillSplitSave(BillSplitRequest):
@@ -65,6 +75,7 @@ class BillSplitPreview(BaseModel):
     rule: str
     total: str
     remainder_cents: int
+    period_days: int
     shares: list[BillShare]
 
 

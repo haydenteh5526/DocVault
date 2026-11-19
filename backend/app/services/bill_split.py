@@ -73,6 +73,12 @@ def split_by_days(total_cents: int, days: list[int]) -> list[int]:
     return shares
 
 
+class BillSplitInputError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 class BillSplitConflict(Exception):
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -87,7 +93,10 @@ async def _conflict(db: AsyncSession, code: str, message: str) -> BillSplitConfl
 
 def _shares_out(shares: list[dict]) -> list[BillShare]:
     return [
-        BillShare(housemate_id=share["housemate_id"], label=share["label"], amount=from_cents(share["cents"]))
+        BillShare(
+            housemate_id=share["housemate_id"], label=share["label"],
+            amount=from_cents(share["cents"]), days_home=share.get("days_home"),
+        )
         for share in shares
     ]
 
@@ -110,20 +119,31 @@ async def latest_split(db: AsyncSession, document_id: uuid.UUID) -> BillSplitOut
         return None
     used = (await db.execute(select(BillRevision).where(BillRevision.id == row.bill_revision_id))).scalar_one()
     newest = await latest_revision(db, document_id)
-    return _to_out(row, used.revision_number, stale=newest is None or newest.id != row.bill_revision_id)
+    return _to_out(row, used, stale=newest is None or newest.id != row.bill_revision_id)
 
 
-def _to_out(row: BillSplit, revision_number: int, stale: bool) -> BillSplitOut:
+def _period_days(revision: BillRevision | BillRevisionOut) -> int:
+    return (revision.billing_period_end - revision.billing_period_start).days + 1
+
+
+def _remainder(total: int, shares: list[dict], rule: str) -> int:
+    if rule == "days_home":
+        return leftover_cents(total, [share["days_home"] for share in shares])
+    return total % len(shares)
+
+
+def _to_out(row: BillSplit, revision: BillRevision | BillRevisionOut, stale: bool) -> BillSplitOut:
     return BillSplitOut(
         id=row.id,
         document_id=row.document_id,
         split_number=row.split_number,
         stale=stale,
         created_at=row.created_at,
-        bill_revision=revision_number,
+        bill_revision=revision.revision_number,
+        period_days=_period_days(revision),
         rule=row.rule,
         total=from_cents(row.total_cents),
-        remainder_cents=row.total_cents % len(row.shares),
+        remainder_cents=_remainder(row.total_cents, row.shares, row.rule),
         shares=_shares_out(row.shares),
     )
 
@@ -147,13 +167,25 @@ async def _compute(
         raise await _conflict(db, "unknown_housemate", "A selected housemate is not in your list.")
 
     total = to_cents(revision.amount_due)
-    cents = split_equally(total, len(request.housemate_ids))
+    days = request.days_home
+    if days is None:
+        cents = split_equally(total, len(request.housemate_ids))
+    else:
+        period = _period_days(revision)
+        if any(day < 0 or day > period for day in days):
+            raise BillSplitInputError("days_out_of_range", f"Enter days at home from 0 to {period} for this billing period.")
+        if not any(days):
+            raise BillSplitInputError("no_days_at_home", "At least one person must have been at home.")
+        cents = split_by_days(total, days)
     if sum(cents) != total:
         raise RuntimeError("The shares do not add up to the confirmed total.")
     shares = [
         {"housemate_id": str(housemate_id), "label": by_id[housemate_id].label, "cents": amount}
         for housemate_id, amount in zip(request.housemate_ids, cents)
     ]
+    if days is not None:
+        for share, day in zip(shares, days):
+            share["days_home"] = day
     return revision, total, shares
 
 
@@ -163,9 +195,10 @@ async def preview_split(
     revision, total, shares = await _compute(db, doc, user_id, request)
     return BillSplitPreview(
         bill_revision=revision.revision_number,
-        rule="equal",
+        rule=request.rule,
         total=from_cents(total),
-        remainder_cents=total % len(shares),
+        remainder_cents=_remainder(total, shares, request.rule),
+        period_days=_period_days(revision),
         shares=_shares_out(shares),
     )
 
@@ -190,7 +223,7 @@ async def save_split(db: AsyncSession, doc: Document, user_id: uuid.UUID, reques
         document_id=locked.id,
         bill_revision_id=revision.id,
         split_number=request.base_split + 1,
-        rule="equal",
+        rule=request.rule,
         total_cents=total,
         shares=shares,
     )
@@ -201,6 +234,6 @@ async def save_split(db: AsyncSession, doc: Document, user_id: uuid.UUID, reques
         # Backstop for the lock: the split number was taken by another save.
         raise await _conflict(db, "split_changed", "Another split was saved while you were reviewing.")
     await db.refresh(row)
-    out = _to_out(row, revision.revision_number, stale=False)
+    out = _to_out(row, revision, stale=False)
     await db.commit()
     return out

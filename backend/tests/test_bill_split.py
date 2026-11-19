@@ -601,3 +601,88 @@ async def test_a_split_save_for_a_document_deleted_during_the_save_is_not_found(
         assert response.status_code == 404
         assert response.json() == {"detail": "Document not found"}
     assert await _row_count(document_id) == 0
+
+
+DAYS = [31, 17, 31, 31]
+
+
+@pytest.mark.asyncio
+async def test_days_split_preview_and_save_as_reviewed(bill):
+    owner, other, doc = bill
+    async with _client() as client:
+        ids = await _confirmed_with_four(client, owner, doc)
+        body = {**REQUEST, "rule": "days_home", "housemate_ids": ids, "days_home": DAYS}
+        result = await _preview(client, doc, owner, body)
+        assert result.status_code == 200
+        preview = result.json()
+        assert preview["total"] == "123.47"
+        assert preview["rule"] == "days_home"
+        assert preview["period_days"] == 31
+        assert preview["remainder_cents"] == 2
+        assert [s["amount"] for s in preview["shares"]] == ["34.80", "19.08", "34.80", "34.79"]
+        assert [s["days_home"] for s in preview["shares"]] == DAYS
+        assert await _row_count(doc) == 0
+        save = {**body, "base_split": 0, "reviewed": preview["shares"]}
+        assert (await _preview(client, doc, other, body)).status_code == 404
+        assert (await _save(client, doc, other, save)).status_code == 404
+        changed = await _save(client, doc, owner, {**save, "days_home": [31, 16, 31, 31]})
+        assert changed.status_code == 409 and _code(changed) == "shares_changed"
+        assert await _row_count(doc) == 0
+        result = await _save(client, doc, owner, save)
+        assert result.status_code == 201
+        saved = result.json()
+        assert saved["split_number"] == 1
+        assert {key: saved[key] for key in preview} == preview
+        assert (await _get(client, doc, owner)).json()["bill_split"] == saved
+        await _confirm(client, doc, owner, amount="135.00", base_revision=1)
+        assert (await _get(client, doc, owner)).json()["bill_split"] == {**saved, "stale": True}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rule,days,code", [
+    ("days_home", [31, -1, 31, 31], "days_out_of_range"),
+    ("days_home", [31, 32, 31, 31], "days_out_of_range"),
+    ("days_home", [0, 0, 0, 0], "no_days_at_home"),
+    ("days_home", [1, 2, 3], None), ("days_home", None, None), ("equal", DAYS, None),
+    ("days_home", [True, 0, 0, 0], None), ("days_home", [1.5, 2, 3, 4], None),
+])
+async def test_invalid_days_on_preview_and_save(bill, rule, days, code):
+    owner, _, doc = bill
+    async with _client() as client:
+        ids = await _confirmed_with_four(client, owner, doc)
+        body = {**REQUEST, "rule": rule, "housemate_ids": ids, "days_home": days}
+        for response in (await _preview(client, doc, owner, body),
+                         await _save(client, doc, owner, {**body, "base_split": 0, "reviewed": []})):
+            assert response.status_code == 422
+            if code:
+                assert response.json()["detail"] == {
+                    "code": code,
+                    "message": ("At least one person must have been at home." if code == "no_days_at_home"
+                                else "Enter days at home from 0 to 31 for this billing period."),
+                }
+        assert await _row_count(doc) == 0
+
+
+@pytest.mark.asyncio
+async def test_days_in_a_confirmed_february_period_and_legacy_equal_shares(bill):
+    owner, _, doc = bill
+    async with _client() as client:
+        detail = (await _get(client, doc, owner)).json()
+        response = await client.post(f"/api/v1/documents/{doc}/bill-revisions", headers=_headers(owner), json={
+            **VALUES, "billing_period_start": "2026-02-01", "billing_period_end": "2026-02-28",
+            "reviewed": detail["bill_review"],
+        })
+        assert response.status_code == 201
+        ids = await _housemates(client, owner, *FOUR)
+        preview = await _preview(client, doc, owner, {**REQUEST, "housemate_ids": ids,
+                                 "rule": "days_home", "days_home": [28] * 4})
+        assert preview.status_code == 200 and preview.json()["period_days"] == 28
+        equal = await _saved_first_split(client, owner, doc, ids)
+        async with async_session() as db:
+            old = [{"housemate_id": s["housemate_id"], "label": s["label"], "cents": to_cents(s["amount"])}
+                   for s in equal["shares"]]
+            await db.execute(update(BillSplit).where(BillSplit.document_id == doc).values(shares=old))
+            await db.commit()
+        reopened = (await _get(client, doc, owner)).json()["bill_split"]
+        assert reopened["period_days"] == 28
+        assert all(s["days_home"] is None for s in reopened["shares"])
