@@ -80,3 +80,7 @@ On 19 November 2026, at the head of branch `feature/website-redesign-pr1`:
 ## PR 1 verification at the review fixes
 
 On 19 November 2026, at `184f5e3` plus this note: `npx tsc -b`, `npm run lint`, `npm test` (35 files, 264 tests) and `npm run build` passed. All 14 ordinary Playwright scenarios passed with `--workers=1 --retries=0` on a disposable stack (ports 3400, 8400, 8425, 9400), run per spec file a minute apart. At 360 px the landing page measured the same width as the viewport, the header showed the glyph with the name "DocVault" and both account links at `h-9` height, and the headline computed to Archivo with the face loaded. The `dvdemo` stack was not touched.
+
+## PR 1 verification at the merge with main and the final fixes
+
+On 19 November 2026, at `bf25273` (the merge of `main` with PR 29, then the fixes for the final review): `npx tsc -b`, `npm run lint`, `npm test` (36 files, 278 tests) and `npm run build` passed. All 15 ordinary Playwright scenarios, including PR 29's split-by-days one, passed with `--workers=1 --retries=0` on a disposable stack (ports 3400, 8400, 8425, 9400), run per spec file a minute apart. A separate browser check on that stack confirmed a bill and went straight back to Documents: the row read "Confirmed · revision 1" and the bill was no longer under Needs attention. The `dvdemo` stack was not touched. The hosted e2e check on the merge head `da42d06` failed on a 429 from the sign-in rate limit, which also hit `main`'s own merge run.
