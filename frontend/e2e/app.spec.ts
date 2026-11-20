@@ -47,6 +47,8 @@ test.describe('DocVault auth flow', () => {
     const password = process.env.E2E_PASSWORD;
     test.skip(!email || !password, 'CI seed credentials are required for this integration test');
 
+    // The welcome tour opens 800 ms after the shell mounts and would cover the navigation, as in the other signed-in scenarios.
+    await page.addInitScript(() => localStorage.setItem('docvault-onboarding-done', '1'));
     await page.goto('/login');
     await page.getByPlaceholder('name@example.com').fill(email!);
     await page.getByRole('button', { name: /Continue with Email/i }).click();

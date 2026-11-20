@@ -46,6 +46,13 @@ function App() {
   )
 }
 
+/** Tells the theme that the page changed, so the dark class follows /app and nothing else (lib/theme.ts). */
+function ThemeRouteSync() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.dispatchEvent(new Event('route-change')) }, [pathname])
+  return null
+}
+
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
   const { pathname } = useLocation()
@@ -54,6 +61,7 @@ function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader />}>
       {publicAccount && <a href="#public-content" className="skip-link">Skip to content</a>}
+      <ThemeRouteSync />
       <div id={publicAccount ? 'public-content' : undefined} tabIndex={publicAccount ? -1 : undefined}>
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />

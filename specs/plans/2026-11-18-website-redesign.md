@@ -964,3 +964,49 @@ Any pair under its threshold on the built CSS is a defect.
 | 6 | Every interactive element shows a visible focus ring; the first focusable element is "Skip to content" | `AppNav.test.tsx` (R3); Reviewer's keyboard pass (R11) |
 | 7 | With reduced motion, nothing animates and the upload states are still clear | R7 test; Reviewer's emulated pass (R11) |
 | 8 | All existing frontend and browser tests pass; only the D2 home assertions changed | Gates on every task; PR diff of `e2e/` |
+
+## 0R-3. Revision, 20 November 2026: light public pages, the DocVault tab icon
+
+Approved by the owner on 20 November 2026 (01:00), before Demo 1. Owner's answers: "Light landing + app logo icon (Recommended)" and "Tonight: build, review, merge (Recommended)". Built on branch `feature/website-redesign-light-landing`, cut from `main` at `da78e85`. It changes only what it names; 0R-2 R-A's rule (yellow as an accent, theme-token surfaces) still holds inside the light pages.
+
+**R-D. Public pages are always light; the signed-in app keeps following the theme.**
+- **Why:** with a dark system theme, the landing page renders near-black, and the owner finds that unappealing.
+- **Rule:** the `dark` class on `<html>` is applied only on app paths: `/app` and anything under `/app/`. Every other path (`/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify`, `/auth/callback`) renders with the light tokens, whatever the system theme or the saved preference. The saved preference is not changed.
+- **`frontend/src/lib/theme.ts`:**
+  - add `export function isAppPath(pathname: string): boolean`, true for `/app` and paths starting with `/app/`
+  - `initialiseTheme()`'s `apply` sets `dark` only when `resolved() === 'dark' && isAppPath(window.location.pathname)`
+  - `apply` also runs on a `route-change` window event
+- **`frontend/src/App.tsx`:** add a small `ThemeRouteSync` component inside the router that runs `window.dispatchEvent(new Event('route-change'))` in a `useEffect` on `location.pathname`. Render it once, beside the routes.
+- **`frontend/index.html`:** set `<meta name="theme-color" content="#FFFFFF">`.
+- **Unchanged:** the theme switch in Settings and the command palette, and the app's dark tokens. Leaving `/app` for `/` (sign-out, or the logo on a public page) turns the page light. Opening `/app` turns it dark again if that is the preference.
+
+**R-E. The tab icon is the DocVault glyph.**
+- **Why:** the tab and the installed app still show the purple Lucide "layers" icon from the original scaffold. The header logo is the `FileText` glyph in a rounded square (`Wordmark.tsx`).
+- **`frontend/public/favicon.svg`:** replace it with the same glyph:
+  - `viewBox="0 0 80 80"`, `<title>DocVault</title>`
+  - a full-size rounded square, `rx="16"`, fill `#171717` (light `--primary`)
+  - the Lucide `FileText` paths, copied exactly from the installed `lucide-react` package (`dist/esm/icons/file-text.js`), in a group with `transform="translate(15 15) scale(2.0833)"` (50 px of the 80), `fill="none" stroke="#FAFAFA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`
+  - keep the Lucide ISC licence comment
+- **`frontend/public/manifest.json`:** `theme_color` `#FFFFFF`. The icon entry stays `/favicon.svg`.
+- **Not in scope:** the mobile app icon, and a newly designed logo. A proper logo can be a later plan if the owner wants one.
+
+**Tests (written first):**
+- **`frontend/src/lib/theme.test.ts`** (new). Mock `prefers-color-scheme: dark` and keep the preference unset:
+  - on `/`, `/login` and `/register`, `<html>` has no `dark` class
+  - on `/app` and `/app/documents`, it has the class
+  - after `history.pushState` from `/app/documents` to `/` and a `route-change` event, the class is gone
+  - with the preference set to `light`, `/app` has no class
+- **`frontend/src/brand.test.ts`** (new). Reads files from disk:
+  - `public/favicon.svg` contains `<title>DocVault</title>`, `#171717` and the `FileText` path data, and does not contain the old layers path
+  - `index.html` and `public/manifest.json` both carry `#FFFFFF` as the theme colour
+- **`frontend/e2e/accessibility.spec.ts`.** Add one scenario with `colorScheme: 'dark'`:
+  - the landing page's `.poster` background computes to `rgb(255, 255, 255)`, and axe passes
+  - `/login` has no `dark` class on `<html>`, and axe passes
+  - after signing in, `/app/documents` has the `dark` class
+- **Unchanged:** all existing unit and e2e tests and `designGuard.test.ts` pass.
+
+**Done when:**
+- a dark-theme browser shows the landing and the sign-in pages white with near-black text and yellow only as accents
+- the app after sign-in is dark
+- the tab shows the dark rounded-square document icon
+- the gates and the four hosted checks pass, the Reviewer's verdict is clean, and the 3700 preview is refreshed to the merge
