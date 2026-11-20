@@ -157,6 +157,24 @@ The inputs most likely to break this, each with a test:
 - [ ] **Tests first** (`test_rag_answer_writer.py`, using `httpx.MockTransport` as `test_assistant_model.py` does): Review-focus tests 5 and 6, `test_all_writers_share_the_system_prompt`, `test_answer_temperature_is_zero_for_every_writer` (patch the Groq and Gemini clients and assert the arguments).
 - [ ] Gates. Commit: `Write answers with a local model when one is configured`
 
+### Clarifications after the PR 1 review (20 November 2026, approved by the owner)
+
+These come from the Reviewer's report on `4ceb093` and the owner's choices. They are built in PR 1, test first, before it is reviewed again.
+
+- **Gemini model setting (Task 2).** `gemini-2.0-flash` is retired: the owner's key no longer lists it.
+  - Add `GEMINI_MODEL: str = "gemini-2.5-flash"` to `config.py`.
+  - `rag_service.py` (the model name in `_generate_answer` and in `_generate_answer_gemini`) and `categorisation_service.py` read it instead of the literal.
+  - Test: `test_gemini_model_comes_from_settings`, patching the setting and asserting the model passed to the client, for the answer writer and for categorisation.
+  - At Task 6, before the 40-question Gemini run, one test call with one synthetic question confirms the free tier accepts the model. `RUN.md` records the model name it returns.
+- **Tie-breaker (Task 1, Reviewer S1).** Both candidate queries add `dc.id` as a final `ORDER BY` key, so exact ties (identical paragraphs, as in D12 and D13) come back in the same order every time. This changes only the order of exact ties, which was arbitrary before. `test_hybrid_mode_matches_previous_ranking` keeps passing.
+- **NULL similarity (Task 1, Reviewer M3).** `_clean_similarity` returns 0.0 for None as well as NaN, matching the old code, which skipped a missing similarity. Test with a vector row whose similarity is None.
+- **Unique test accounts (Reviewer S1).** `test_commands_round_trip_through_the_database` uses per-run emails. The `ingest` user's email is injectable, defaulting to `retrieval-eval-<profile>@example.invalid`. Then run the full backend suite three times in a row, with `--tb=long`, while nothing else uses the test database.
+- **`answers` after rating (Reviewer M1).** `run_answers` refuses to run once `ratings_rater1.csv` exists in the output folder, with the message `Rating has started; answers are frozen. See RUN.md for a deviation.` Test it.
+- **Benchmark stack ports (Reviewer M2).** `compose.bench.yml` gives `web` no published ports (`ports: !override []`), so only 5440, 8140 and 11440 are published. Assert it in the config test.
+- **README fixes (Reviewer N1, N2).** 20 questions about poor-scan documents, not 19. The Ollama volume is `docvault_ollama_data`, after checking it holds `qwen3:8b` and `nomic-embed-text`; never a demo stack's volume. Record it in the README, as Task 3 says, and make the compose file's comment agree.
+- **A failed local writer (Reviewer N6).** When `ANSWER_MODEL` is set and Ollama fails, Ask's header reads `The local model couldn't write an answer. These passages match your question:` instead of the no-key header. Test it.
+- **Left by the owner:** N3 (spacing in `eval_retrieval.py`) and N5 (NumPy comes through OpenCV rather than a direct pin; the hash check stops a run if it ever changes).
+
 ### Task 3: The synthetic corpus and the frozen questions (stop for the owner)
 
 - **Corpus:** 30 UTF-8 text files in `evaluation/retrieval/corpus/`, named `D01-electricity-sep.txt` to `D30-…`. Each file has a first line `Title: …`, then the document text, at most 60 lines of at most 80 characters (one page). They are invented Irish household documents:
@@ -346,7 +364,7 @@ The inputs most likely to break this, each with a test:
 | 1 | Ask's behaviour is unchanged by the extraction: same passages, same replies | Existing RAG tests unchanged; `test_hybrid_mode_matches_previous_ranking` (Task 1) |
 | 2 | Keyword, semantic, hybrid and hybrid-strict retrieval are compared on the same 40 answerable questions with P@5, R@5, MRR and passage hit@5, on clean and poor scans | `retrieval_rows.csv`, `SUMMARY.md` (Tasks 4, 6, 8) |
 | 3 | Hybrid's difference from each single mode is reported per question, with a sign test | `SUMMARY.md` paired table |
-| 4 | Twenty unanswerable questions measure how often Ask answers what it can't know, per mode, at the chosen floor | `SUMMARY.md` no-answer false-positive rate |
+| 4 | Twenty unanswerable questions: ten set the floor, and ten held-out ones measure how often Ask answers what it can't know, per mode, at that floor | `SUMMARY.md` no-answer false-positive rate |
 | 5 | The floor is chosen by a rule frozen in advance, from calibration questions only, and reported on held-out questions | `calibration.json`; `test_floor_sweep_ignores_test_rows`; Reviewer re-run |
 | 6 | Answers from a local model and a free hosted model are rated on the same held-out questions, blind to the writer, with a second rater on a 30% sample and kappa reported | `rating_sheet.csv`, `rating_key.csv`, `ratings_rater*.csv`, `SUMMARY.md` |
 | 7 | The protocol, corpus and questions were frozen in a merged commit before the first measured run, and every deviation and failed run is recorded | PR 1 merge commit in `RUN.md` |
