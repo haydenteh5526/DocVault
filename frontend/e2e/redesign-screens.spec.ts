@@ -115,9 +115,14 @@ test('record the redesign screens', async ({ page }) => {
   const review = page.getByRole('region', { name: 'Bill review' });
   await expect(review).toContainText('€123.47', { timeout: 120_000 });
 
-  await shoot(page, 'home', '/app');
-  await shoot(page, 'documents', '/app/documents');
-  await shoot(page, 'documents-search', '/app/documents?q=october');
+  // The list checks each document's status after it loads, so wait for that before taking the picture.
+  const listSettled = async () => {
+    await expect(page.getByRole('link', { name: /\.png$/ }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Checking status')).toHaveCount(0, { timeout: 60_000 });
+  };
+  await shoot(page, 'home', '/app', listSettled);
+  await shoot(page, 'documents', '/app/documents', listSettled);
+  await shoot(page, 'documents-search', '/app/documents?q=october', listSettled);
   await shoot(page, 'documents-no-match', '/app/documents?q=octber');
   await shoot(page, 'bill-unconfirmed', billUrl, async () => {
     await expect(review).toContainText('€123.47', { timeout: 30_000 });
