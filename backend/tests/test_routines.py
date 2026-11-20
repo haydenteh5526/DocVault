@@ -11,6 +11,8 @@ from sqlalchemy import select
 from app.dependencies import async_session
 from app.main import app
 from app.models.base import Document, HouseholdPreferences, Reminder, ReminderProposal, Warranty
+from app.rate_limit import limiter
+from app.routers import routines as routines_router
 from app.services import routines
 from app.services.auth_service import create_access_token
 from app.services.reminders import ReminderConflict
@@ -433,3 +435,107 @@ async def test_today_defaults_to_the_irish_date(bill, monkeypatch):
 
     assert [str(tz) for tz in seen] == ["Europe/Dublin"]
     assert _item(report, document_id).remind_on == date(2026, 6, 10)
+
+
+# --- POST /api/v1/routines/check ("Check now") ---
+
+CHECK = "/api/v1/routines/check"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limit():
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
+@pytest.fixture
+def fixed_today(monkeypatch):
+    """The endpoint uses the Irish date; pin it so the tests do not depend on the clock."""
+    real = routines_router.run_bill_check
+
+    async def pinned(db, **kwargs):
+        return await real(db, today=TODAY, **kwargs)
+
+    monkeypatch.setattr(routines_router, "run_bill_check", pinned)
+
+
+async def _check_now(user_id):
+    async with _client() as client:
+        return await client.post(CHECK, headers=_headers(user_id))
+
+
+@pytest.mark.asyncio
+async def test_check_now_proposes_and_reports(bill, fixed_today):
+    owner_id, _, document_id = bill
+    await _confirmed(owner_id, document_id)
+    async with async_session() as db:
+        db.add(Warranty(document_id=document_id, expiry_date=date(2026, 11, 25)))
+        await db.commit()
+
+    response = await _check_now(owner_id)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "proposed": [
+            {"document_id": str(document_id), "title": "Owner only", "proposal_number": 1, "remind_on": "2026-11-20"}
+        ],
+        "skipped": [],
+        "warranties_ending": [
+            {"document_id": str(document_id), "title": "Owner only", "expiry_date": "2026-11-25"}
+        ],
+    }
+    [proposal] = await _proposals(document_id)
+    assert (proposal.source, proposal.status) == ("routine", "pending")
+
+    again = (await _check_now(owner_id)).json()
+    assert again["proposed"] == []
+    assert again["skipped"] == [{"document_id": str(document_id), "title": "Owner only", "reason": "already_proposed"}]
+    assert len(await _proposals(document_id)) == 1
+
+
+@pytest.mark.asyncio
+async def test_check_now_never_touches_another_account(bill, fixed_today):
+    owner_id, other_id, owner_doc = bill
+    other_doc = await _add_document(other_id, "Other bill")
+    await _confirmed(owner_id, owner_doc)
+    async with _client() as client:
+        await _confirm(client, other_doc, other_id)
+
+    body = (await _check_now(owner_id)).json()
+
+    assert [item["document_id"] for item in body["proposed"]] == [str(owner_doc)]
+    assert await _proposals(other_doc) == []
+
+
+@pytest.mark.asyncio
+async def test_check_now_says_when_the_daily_check_is_off(bill, fixed_today):
+    owner_id, _, document_id = bill
+    await _save_preferences(owner_id, enabled=False)
+    await _confirmed(owner_id, document_id)
+
+    response = await _check_now(owner_id)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "routines_off",
+        "message": "Pip's daily check is switched off in Settings.",
+    }
+    assert await _proposals(document_id) == []
+
+
+@pytest.mark.asyncio
+async def test_check_now_is_limited_to_ten_an_hour(bill, fixed_today):
+    owner_id, _, _ = bill
+    for _ in range(10):
+        assert (await _check_now(owner_id)).status_code == 200
+
+    limited = await _check_now(owner_id)
+
+    assert limited.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_check_now_needs_a_session():
+    async with _client() as client:
+        assert (await client.post(CHECK)).status_code in (401, 403)
