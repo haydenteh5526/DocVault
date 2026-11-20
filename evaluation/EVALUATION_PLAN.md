@@ -1,7 +1,7 @@
 # Reproducible evaluation plan
 
-**Protocol version:** 2.0
-**Updated:** 2026-09-15
+**Protocol version:** 2.1
+**Updated:** 2026-11-20
 **Results status:** Not yet collected
 
 This protocol must be frozen before viewing final results. Commit anonymised
@@ -86,6 +86,9 @@ Analyse the worst cases instead of reporting only an average.
 
 ## 3. Retrieval ablation
 
+Carried out by [`retrieval/README.md`](retrieval/README.md) (protocol 2.1, issue #33), which supersedes the
+sizes below for the synthetic set it freezes.
+
 Prepare at least 30 information needs with independently judged relevant
 documents/chunks. Include exact terms, paraphrases, ambiguous terms and queries
 with no relevant document.
@@ -97,6 +100,9 @@ retrieval helps or harms. This ablation is the clearest evidence for the chosen
 search architecture.
 
 ## 4. RAG evaluation
+
+Carried out by [`retrieval/README.md`](retrieval/README.md) (protocol 2.1, issue #33), which supersedes the
+sizes below for the synthetic set it freezes.
 
 Write 50 questions before viewing answers:
 

@@ -1,0 +1,29 @@
+Title: Tenancy agreement, Unit 4 Fictional Court
+TENANCY AGREEMENT (synthetic example)
+
+Landlord: Ronan Tierney (invented name)
+Tenant: Aoife Brennan (invented name)
+Property: Unit 4, Fictional Court, Exampletown
+Start date: 1 February 2026
+Term: 12 months, then month to month
+
+1. Rent
+The rent is EUR 1,450 per month, due on the 1st of each month.
+Pay by standing order to IBAN IE00 SYNT 0000 1234 56.
+
+2. Deposit
+Deposit: EUR 1,450. It is returned within 35 days after the tenancy ends,
+less any deduction for damage or unpaid rent.
+
+3. Notice
+The tenant must give 56 days' written notice to end this tenancy.
+The landlord must give the notice that the law requires.
+
+4. Bills
+The tenant pays for electricity, gas, broadband and bin collection.
+
+5. Pets and changes
+No pets without the landlord's written consent. The tenant must not make
+changes to the property without the landlord's written consent.
+
+Signed by the landlord and the tenant on 1 February 2026.

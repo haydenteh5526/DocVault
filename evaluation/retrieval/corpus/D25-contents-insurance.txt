@@ -1,0 +1,22 @@
+Title: Oakline contents insurance schedule
+OAKLINE MUTUAL
+Contents insurance schedule (synthetic example)
+
+Policy number: CONT-SYN-559017
+Policyholder: Aoife Brennan (invented name)
+Insured address: Unit 4, Fictional Court, Exampletown
+Policy period: 1 June 2026 to 31 May 2027
+Annual premium: EUR 168.40
+
+Cover
+Contents sum insured: EUR 30,000
+Single item limit: EUR 2,000
+Bicycles: up to EUR 1,500
+Laptops and phones away from home: up to EUR 1,000
+
+Excess
+Excess: EUR 100 for each claim.
+
+Accidental damage to televisions and laptops is included. Keep receipts for
+items worth more than EUR 500. To make a claim call 0000 000 0008
+(synthetic number).

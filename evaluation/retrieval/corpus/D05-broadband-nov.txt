@@ -1,0 +1,23 @@
+Title: Skylark Fibre broadband bill, November 2026
+SKYLARK FIBRE LTD
+Broadband bill (synthetic example, not a real account)
+
+Account number: ACC-SYN-770118
+Bill number: SF-2026-11-5531
+Bill date: 1 November 2026
+Billing period: 1 November 2026 to 30 November 2026
+
+Your plan
+Skylark Fibre 500 (500 Mbps download) ............... EUR 49.99
+Router hire (Skylark Hub X2) ........................ EUR 5.00
+Total monthly charge: EUR 54.99
+VAT is included in the prices above.
+Payment due: 15 November 2026 by direct debit
+
+Your contract
+Contract start date: 15 March 2025
+Contract ends: 14 March 2027
+If you cancel before 14 March 2027 you pay EUR 20.00 for each remaining
+month of the contract. Return the router within 14 days of cancelling.
+
+Technical support: 0000 000 0004 (synthetic number). Open every day.

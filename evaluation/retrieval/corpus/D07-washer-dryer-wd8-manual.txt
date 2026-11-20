@@ -1,0 +1,27 @@
+Title: Vantor WD8-1400 washer-dryer user manual
+VANTOR HOME APPLIANCES
+User manual: Vantor WD8-1400 washer-dryer (synthetic example)
+
+1. Safety
+Do not overload the drum. Disconnect the plug before cleaning. Keep children
+and pets away from the door while a programme is running.
+
+2. Capacity
+Washing: up to 8 kg of dry cotton.
+Drying: up to 5 kg of dry cotton.
+
+3. Care
+Clean the lint filter after every drying programme.
+The drain filter is behind the lower right panel. Clean it once a month.
+Leave the door open after use so that the drum can dry.
+
+4. Fault codes
+Code   Meaning                       What to do
+E10    Water inlet fault             Check the tap and the hose
+E21    Drain pump blocked            Clean the drain filter
+E32    Door lock fault               Close the door firmly and restart
+E45    Dryer overheating             Clean the lint filter and let it cool
+E60    Motor fault                   Switch off and call the helpline
+
+If a code stays on the display after you have followed the steps, switch off
+at the wall and call the Vantor helpline on 0000 000 0005 (synthetic number).

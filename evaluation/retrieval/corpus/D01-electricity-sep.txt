@@ -1,0 +1,29 @@
+Title: Brightwell Energy electricity bill, September 2026
+BRIGHTWELL ENERGY LTD
+Electricity bill (synthetic example, not a real account)
+
+Account number: ACC-SYN-410233
+Bill number: BE-2026-09-0412
+Meter reference: MPRN-SYN-0000-1187
+Bill date: 1 October 2026
+Billing period: 1 September 2026 to 30 September 2026
+
+Meter readings
+Previous reading: 41,206 kWh
+Current reading: 41,418 kWh
+Units used: 212 kWh
+
+Your charges
+Day rate: 212 kWh at EUR 0.3412 per kWh ........ EUR 72.33
+Standing charge: 30 days at EUR 0.6100 per day .. EUR 18.30
+PSO levy ........................................ EUR 1.62
+Subtotal ........................................ EUR 92.25
+VAT at 9% ....................................... EUR 8.30
+Total due: EUR 100.55
+Payment due date: 21 October 2026
+
+How to pay
+Pay by direct debit, online or at any post office. Quote your account number.
+Direct debit customers are charged on the due date.
+Customer service line: 0000 000 0001 (synthetic number).
+Report a power cut: 0000 000 0002 (synthetic number).

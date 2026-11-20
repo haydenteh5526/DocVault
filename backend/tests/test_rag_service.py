@@ -356,7 +356,7 @@ def test_generate_answer_records_gemini_output(monkeypatch):
 
     @contextmanager
     def trace_generation(**kwargs):
-        assert kwargs["model"] == "gemini-2.0-flash"
+        assert kwargs["model"] == settings.GEMINI_MODEL
         yield outputs.append
 
     monkeypatch.setattr(settings, "GROQ_API_KEY", "")
@@ -413,4 +413,4 @@ def test_generate_answer_gemini_maps_assistant_history(monkeypatch):
 
     assert result == "Gemini answer"
     assert [item["role"] for item in captured["contents"]] == ["user", "model", "user"]
-    assert captured["config"]["temperature"] == 0.3
+    assert captured["config"]["temperature"] == rag_service.ANSWER_TEMPERATURE
