@@ -32,18 +32,19 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) return;
 
   // Pages go to the network first, so a release is never hidden behind an old index.html.
-  // A successful response refreshes the cache, and the cached copy is the offline fallback.
+  // A successful response refreshes the one cached app shell (never a URL with a query string or token),
+  // and that shell is the offline fallback for every page.
   if (isPage(event.request)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)));
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }

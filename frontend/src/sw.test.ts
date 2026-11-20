@@ -7,13 +7,13 @@ const source = readFileSync(resolve(__dirname, '../public/sw.js'), 'utf8')
 type Listener = (event: Record<string, unknown>) => void
 
 // Runs public/sw.js against a stub worker scope and records the order of cache and network calls.
-function loadWorker(options: { cached?: unknown; network?: 'ok' | 'fails'; cacheNames?: string[] } = {}) {
+function loadWorker(options: { cached?: unknown; network?: 'ok' | 'fails' | 'error500'; cacheNames?: string[] } = {}) {
   const listeners: Record<string, Listener> = {}
   const calls: string[] = []
-  const networkResponse = { ok: true, clone: () => ({ copy: true }) }
-  const cache = { put: vi.fn(async () => { calls.push('cache.put') }), addAll: vi.fn(async () => undefined) }
+  const networkResponse = { ok: options.network !== 'error500', clone: () => ({ copy: true }) }
+  const cache = { put: vi.fn<(...args: unknown[]) => Promise<void>>(async () => { calls.push('cache.put') }), addAll: vi.fn(async () => undefined) }
   const caches = {
-    match: vi.fn(async () => { calls.push('caches.match'); return options.cached }),
+    match: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => { calls.push('caches.match'); return options.cached }),
     open: vi.fn(async () => cache),
     keys: vi.fn(async () => options.cacheNames ?? []),
     delete: vi.fn(async () => true),
@@ -55,6 +55,20 @@ describe('service worker', () => {
     expect(worker.cache.put).toHaveBeenCalledTimes(1)
   })
 
+  it('stores every page under the one /index.html key, so no query string or token is kept', async () => {
+    const worker = loadWorker()
+    await worker.request({ url: 'https://docvault.test/reset-password?token=SECRET', mode: 'navigate' })
+    await worker.request({ url: 'https://docvault.test/app/documents/abc?q=gas', mode: 'navigate' })
+    expect(worker.cache.put.mock.calls.map(call => call[0])).toEqual(['/index.html', '/index.html'])
+  })
+
+  it('does not store a failed response', async () => {
+    const worker = loadWorker({ network: 'error500' })
+    const { result } = await worker.request({ url: 'https://docvault.test/', mode: 'navigate' })
+    expect(result).toBe(worker.networkResponse)
+    expect(worker.cache.put).not.toHaveBeenCalled()
+  })
+
   it('treats / and /index.html as pages even when the request is not a navigation', async () => {
     for (const url of ['https://docvault.test/', 'https://docvault.test/index.html']) {
       const worker = loadWorker({ cached: { stale: true } })
@@ -67,8 +81,9 @@ describe('service worker', () => {
   it('serves the cached copy of a page when the network fails', async () => {
     const cached = { offline: true }
     const worker = loadWorker({ cached, network: 'fails' })
-    const { result } = await worker.request({ url: 'https://docvault.test/', mode: 'navigate' })
+    const { result } = await worker.request({ url: 'https://docvault.test/app/warranties', mode: 'navigate' })
     expect(result).toBe(cached)
+    expect(worker.caches.match).toHaveBeenCalledWith('/index.html')
     expect(worker.cache.put).not.toHaveBeenCalled()
   })
 
