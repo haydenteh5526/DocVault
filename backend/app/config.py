@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = "docvault-local-storage"
     S3_BUCKET: str = "documents"
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GROQ_API_KEY: str = ""
     MISTRAL_API_KEY: str = ""
     OCR_BACKEND: str = "tesseract"

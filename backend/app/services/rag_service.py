@@ -32,9 +32,9 @@ ANSWER_MAX_TOKENS = 500
 OLLAMA_NUM_CTX = 8192
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
-GEMINI_MODEL = "gemini-2.0-flash"
 
 NOT_FOUND_ANSWER = "I couldn't find this in your documents."
+LOCAL_MODEL_FAILED_HEADER = "The local model couldn't write an answer. These passages match your question:"
 NO_KEY_HEADER = (
     "No answer could be written because no language model is set up. "
     "These passages match your question:"
@@ -178,10 +178,10 @@ async def generate_rag_answer(
     return RAGResult(answer=answer, sources=sources)
 
 
-def _no_key_answer(context: str, passages: list[dict] | None) -> str:
+def _no_key_answer(context: str, passages: list[dict] | None, header: str = NO_KEY_HEADER) -> str:
     if not passages:
-        return f"{NO_KEY_HEADER}\n\n{context[:500]}"
-    parts = [NO_KEY_HEADER]
+        return f"{header}\n\n{context[:500]}"
+    parts = [header]
     for passage in passages:
         label = _passage_label(passage["document_title"], passage.get("line_start"), passage.get("line_end"))
         parts.append(f"{label}\n{passage['chunk_text'][:200]}")
@@ -218,7 +218,7 @@ def _default_writer() -> Literal["ollama", "groq", "gemini"] | None:
 def _model_name(writer: str) -> str:
     from app.config import settings
 
-    return {"ollama": settings.ANSWER_MODEL, "groq": GROQ_MODEL, "gemini": GEMINI_MODEL}[writer]
+    return {"ollama": settings.ANSWER_MODEL, "groq": GROQ_MODEL, "gemini": settings.GEMINI_MODEL}[writer]
 
 
 def generate_answer(
@@ -269,7 +269,9 @@ def generate_answer(
             reason = str(error) if isinstance(error, RuntimeError) else type(error).__name__
             return AnswerResult("", chosen, model, latency_ms, None, f"error: {reason}")
         logger.warning("answer_writer_failed writer=ollama error=%s", type(error).__name__)
-        return AnswerResult(_no_key_answer(context, passages), None, None, latency_ms, None, None)
+        return AnswerResult(
+            _no_key_answer(context, passages, LOCAL_MODEL_FAILED_HEADER), None, None, latency_ms, None, None
+        )
 
     latency_ms = round((time.perf_counter() - started) * 1000)
     return AnswerResult(answer, chosen, model, latency_ms, prompt_tokens, invalid_reason)
@@ -376,7 +378,7 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
     })
 
     response = with_retry(lambda: client.models.generate_content(
-        model=GEMINI_MODEL,
+        model=settings.GEMINI_MODEL,
         contents=contents,
         config={
             "system_instruction": ANSWER_SYSTEM_PROMPT,

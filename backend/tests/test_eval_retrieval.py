@@ -7,6 +7,8 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
+import re
+import uuid
 from pathlib import Path
 
 import pytest
@@ -501,6 +503,11 @@ async def test_commands_round_trip_through_the_database(monkeypatch, tmp_path):
     monkeypatch.setattr(embedding_service, "get_embedding", embed)
     monkeypatch.setattr(settings, "ANSWER_MODEL", "stub-model")
     monkeypatch.setattr(rag_service, "_generate_answer_ollama", lambda *args: ("Stub answer", 300))
+    token = uuid.uuid4().hex[:8]
+
+    def email_for(profile):
+        return f"retrieval-eval-{profile}-{token}@example.invalid"
+
     corpus = ev.RETRIEVAL_DIR / "corpus"
     texts = {path.name.split("-", 1)[0]: path.read_text(encoding="utf-8") for path in corpus.glob("D*.txt")}
     questions = ev.load_questions()
@@ -509,20 +516,20 @@ async def test_commands_round_trip_through_the_database(monkeypatch, tmp_path):
         return texts[path.stem]
 
     try:
-        clean = await ev.ingest("clean", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract)
-        await ev.ingest("poor", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract)
+        clean = await ev.ingest("clean", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract, email_for)
+        await ev.ingest("poor", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract, email_for)
         assert len(clean) == 30 and all(row["wer"] == "0.0000" and row["chunks"] >= 1 for row in clean)
         table = ev._read_csv(tmp_path / "ingest.csv")
         assert sorted({row["profile"] for row in table}) == ["clean", "poor"] and len(table) == 60
 
         # Ingesting again replaces the library instead of doubling it.
-        await ev.ingest("clean", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract)
+        await ev.ingest("clean", corpus, ev.RETRIEVAL_DIR / "build", ev.RETRIEVAL_DIR / "manifest.json", tmp_path, extract, email_for)
         async with async_session() as db:
-            user_id = await ev._user_id(db, "clean", create=False)
+            user_id = await ev._user_id(db, "clean", create=False, email_for=email_for)
             count = (await db.execute(select(func.count()).select_from(Document).where(Document.user_id == user_id))).scalar_one()
         assert count == 30
 
-        rows = await ev.run_retrieve("clean", questions, tmp_path)
+        rows = await ev.run_retrieve("clean", questions, tmp_path, email_for)
         assert {row["mode"] for row in rows} == set(ev.MODES)
         assert all(row["document_id"] in texts and 1 <= row["rank"] <= 20 for row in rows)
         loaded = ev.load_rows(tmp_path / "retrieval_rows.csv")
@@ -532,8 +539,8 @@ async def test_commands_round_trip_through_the_database(monkeypatch, tmp_path):
 
         (tmp_path / "calibration.json").write_text(json.dumps({"mode": "hybrid", "chosen_floor": 0.5}), encoding="utf-8")
         with pytest.raises(RuntimeError, match="not the calibrated floor"):
-            await ev.run_answers("ollama", 0.6, questions, tmp_path)
-        records = await ev.run_answers("ollama", 0.5, questions, tmp_path)
+            await ev.run_answers("ollama", 0.6, questions, tmp_path, email_for)
+        records = await ev.run_answers("ollama", 0.5, questions, tmp_path, email_for)
         assert len(records) == 40 and {r["question_id"] for r in records} == {q["id"] for q in questions if q["split"] == "test"}
         answered = [r for r in records if r["answered"]]
         assert answered and all(r["answer"] == "Stub answer" and r["sources"] for r in answered)
@@ -542,5 +549,33 @@ async def test_commands_round_trip_through_the_database(monkeypatch, tmp_path):
         assert len(ev._read_csv(tmp_path / "rating_key.csv")) == 40
     finally:
         async with async_session() as db:
-            await db.execute(delete(User).where(User.email.like("retrieval-eval-%@example.invalid")))
+            await db.execute(delete(User).where(User.email.in_([email_for("clean"), email_for("poor")])))
             await db.commit()
+
+
+async def test_answers_are_frozen_once_rating_has_started(monkeypatch, tmp_path):
+    monkeypatch.setenv("ALLOW_EVAL_SEED", "true")
+    (tmp_path / "calibration.json").write_text(json.dumps({"mode": "hybrid", "chosen_floor": 0.5}), encoding="utf-8")
+    (tmp_path / "answers_groq.jsonl").write_text("original answers\n", encoding="utf-8")
+    (tmp_path / "ratings_rater1.csv").write_text("item_id,rating\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match=r"Rating has started; answers are frozen\. See RUN\.md for a deviation\."):
+        await ev.run_answers("groq", 0.5, ev.load_questions(), tmp_path)
+
+    assert (tmp_path / "answers_groq.jsonl").read_text(encoding="utf-8") == "original answers\n"
+
+
+def test_the_bench_stack_publishes_only_its_three_ports():
+    compose = (ROOT / "evaluation" / "retrieval" / "compose.bench.yml").read_text(encoding="utf-8")
+    base = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+
+    # Every service the base file publishes a port for is overridden here, with only these three kept.
+    published = {
+        match.group(1)
+        for match in re.finditer(r"^  (\w+):\n(?:(?!^  \w+:\n).*\n)*?    ports:", base, flags=re.MULTILINE)
+    }
+    assert {"api", "web", "mailpit", "ollama", "redis", "db", "storage"} <= published
+    for service in published:
+        assert re.search(rf"^  {service}:\n(?:    .*\n)*?    ports: !override", compose, flags=re.MULTILINE), service
+    assert re.findall(r'"127\.0\.0\.1:(\d+):\d+"', compose) == ["8140", "5440", "11440"]
+    assert re.search(r"^  web:\n    ports: !override \[\]", compose, flags=re.MULTILINE)

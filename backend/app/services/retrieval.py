@@ -116,8 +116,8 @@ def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
 
 
 def _clean_similarity(value) -> float:
-    # pgvector returns NaN for a zero vector; read it as no similarity.
-    return value if value == value else 0.0
+    # pgvector returns NaN for a zero vector and NULL for a chunk with no embedding; read both as no similarity.
+    return 0.0 if value is None or value != value else value
 
 
 async def retrieve(
@@ -161,7 +161,7 @@ async def retrieve(
                 JOIN documents d ON d.id = dc.document_id
                 WHERE d.user_id = cast(:user_id as uuid)
                 {doc_filter}
-                ORDER BY dc.embedding <=> cast(:embedding as vector)
+                ORDER BY dc.embedding <=> cast(:embedding as vector), dc.id
                 LIMIT {CANDIDATE_LIMIT}
             """),
             params,
@@ -183,7 +183,7 @@ async def retrieve(
                 WHERE d.user_id = cast(:user_id as uuid)
                 {doc_filter}
                   AND to_tsvector('english', dc.chunk_text) @@ plainto_tsquery('english', :q)
-                ORDER BY rank DESC
+                ORDER BY rank DESC, dc.id
                 LIMIT {CANDIDATE_LIMIT}
             """),
             kw_params,

@@ -185,7 +185,8 @@ def test_ollama_writer_failure_falls_back_to_no_key_answer(configured, ollama, c
     with caplog.at_level(logging.WARNING):
         answer = rag_service._generate_answer("Q", "Context", passages=passages)
 
-    assert answer.startswith(rag_service.NO_KEY_HEADER)
+    assert answer.startswith(rag_service.LOCAL_MODEL_FAILED_HEADER)
+    assert rag_service.NO_KEY_HEADER not in answer
     assert "Reset with the red button" in answer
     assert "answer_writer_failed" in caplog.text and "ConnectError" in caplog.text
 
@@ -239,3 +240,51 @@ async def test_build_context_labels_passages_and_appends_warranty_rows():
         "\n\n---\n\n[Warranty Information]\n"
         "\u2022 Kettle card: purchased 2025-06-20, expires unknown"
     )
+
+
+def test_the_failed_local_model_header_is_worded_for_a_model_that_is_set_up():
+    assert rag_service.LOCAL_MODEL_FAILED_HEADER == (
+        "The local model couldn't write an answer. These passages match your question:"
+    )
+
+
+def test_gemini_model_comes_from_settings(monkeypatch):
+    calls = []
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=lambda **kw: (
+        calls.append(kw) or SimpleNamespace(text="m")
+    )))
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
+    monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "test-gemini-model")
+    monkeypatch.setattr(settings, "ANSWER_MODEL", "")
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "key")
+
+    assert settings.__class__.model_fields["GEMINI_MODEL"].default == "gemini-2.5-flash"
+    rag_service._generate_answer_gemini("Q", "Context")
+    result = rag_service.generate_answer("Q", "Context")
+
+    assert [call["model"] for call in calls] == ["test-gemini-model", "test-gemini-model"]
+    assert result.model == "test-gemini-model"
+
+
+def test_gemini_model_comes_from_settings_for_categorisation(monkeypatch):
+    from app.services import categorisation_service
+
+    calls = []
+
+    class Models:
+        def generate_content(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(text=(
+                '{"brand":"Sony","model":"A1","document_type":"Guide","suggested_title":"Sony A1"}'
+            ))
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
+    monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "test-gemini-model")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "key")
+
+    categorisation_service._categorise_gemini("setup")
+
+    assert [call["model"] for call in calls] == ["test-gemini-model"]

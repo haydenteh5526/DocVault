@@ -575,23 +575,26 @@ def _email(profile: str) -> str:
     return f"retrieval-eval-{profile}@example.invalid"
 
 
-async def _user_id(db, profile: str, create: bool):
+async def _user_id(db, profile: str, create: bool, email_for=_email):
     from sqlalchemy import select
 
     from app.models.base import User
     from app.services.auth_service import hash_password
 
-    user = (await db.execute(select(User).where(User.email == _email(profile)))).scalar_one_or_none()
+    email = email_for(profile)
+    user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if user is None:
         if not create:
-            raise RuntimeError(f"{_email(profile)} does not exist; run ingest --profile {profile} first")
-        user = User(email=_email(profile), hashed_password=hash_password(secrets.token_urlsafe(24)), is_verified=True)
+            raise RuntimeError(f"{email} does not exist; run ingest --profile {profile} first")
+        user = User(email=email, hashed_password=hash_password(secrets.token_urlsafe(24)), is_verified=True)
         db.add(user)
         await db.flush()
     return user.id
 
 
-async def ingest(profile: str, corpus: Path, build: Path, manifest: Path, output: Path, extract_text=_ocr_image) -> list[dict]:
+async def ingest(
+    profile: str, corpus: Path, build: Path, manifest: Path, output: Path, extract_text=_ocr_image, email_for=_email
+) -> list[dict]:
     """Put the corpus through the real OCR, chunking and embedding code into the benchmark user's library."""
     require_seed_flag()
     from sqlalchemy import delete
@@ -605,7 +608,7 @@ async def ingest(profile: str, corpus: Path, build: Path, manifest: Path, output
     documents = load_corpus(corpus)
     rows = []
     async with async_session() as db:
-        user_id = await _user_id(db, profile, create=True)
+        user_id = await _user_id(db, profile, create=True, email_for=email_for)
         await db.execute(delete(Document).where(Document.user_id == user_id))
         for document_id, document in documents.items():
             use = "poor" if profile == "poor" and (document_id, "poor") in path_of else "clean"
@@ -641,7 +644,7 @@ async def _document_codes(db, user_id) -> dict:
     return {document_id: key.rsplit("/", 1)[-1] for document_id, key in rows}
 
 
-async def run_retrieve(profile: str, questions: list[dict], output: Path) -> list[dict]:
+async def run_retrieve(profile: str, questions: list[dict], output: Path, email_for=_email) -> list[dict]:
     """Record every mode's ranked candidates for every question, twice, and require the two passes to match."""
     require_seed_flag()
     from app.dependencies import async_session
@@ -650,7 +653,7 @@ async def run_retrieve(profile: str, questions: list[dict], output: Path) -> lis
     async def one_pass() -> list[dict]:
         rows = []
         async with async_session() as db:
-            user_id = await _user_id(db, profile, create=False)
+            user_id = await _user_id(db, profile, create=False, email_for=email_for)
             codes = await _document_codes(db, user_id)
             for q in questions:
                 for mode in MODES:
@@ -680,17 +683,19 @@ def _sha1(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()  # noqa: S324 - an identifier, not security
 
 
-async def run_answers(writer: str, floor: float, questions: list[dict], output: Path) -> list[dict]:
+async def run_answers(writer: str, floor: float, questions: list[dict], output: Path, email_for=_email) -> list[dict]:
     """Ask's own path for every held-out question on the clean profile, with the chosen writer."""
     require_seed_flag()
     check_floor(output, floor)
+    if (output / "ratings_rater1.csv").exists():
+        raise RuntimeError("Rating has started; answers are frozen. See RUN.md for a deviation.")
     from app.dependencies import async_session
     from app.services import rag_service
     from app.services.retrieval import retrieve
 
     records = []
     async with async_session() as db:
-        user_id = await _user_id(db, "clean", create=False)
+        user_id = await _user_id(db, "clean", create=False, email_for=email_for)
         codes = await _document_codes(db, user_id)
         for q in (q for q in questions if q["split"] == "test"):
             result = await retrieve(db, user_id, q["question"], mode="hybrid", floor=floor)

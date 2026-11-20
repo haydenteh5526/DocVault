@@ -356,7 +356,7 @@ def test_generate_answer_records_gemini_output(monkeypatch):
 
     @contextmanager
     def trace_generation(**kwargs):
-        assert kwargs["model"] == "gemini-2.0-flash"
+        assert kwargs["model"] == settings.GEMINI_MODEL
         yield outputs.append
 
     monkeypatch.setattr(settings, "GROQ_API_KEY", "")

@@ -5,13 +5,13 @@
 #
 # `!override` replaces the base file's port list instead of adding to it, so the
 # only ports published are 5440 (db), 8140 (api) and 11440 (ollama), on the
-# loopback address. Storage, mailpit and redis are started because the api waits
-# for them, and publish nothing.
+# loopback address. Every other service, including web, publishes nothing; storage,
+# mailpit and redis are started only because the api waits for them.
 #
 # BENCH_OLLAMA_VOLUME names the existing Docker volume that already holds the
 # models (qwen3:8b and nomic-embed-text). Compose never creates it and refuses to
-# start without it, so nothing is downloaded. The volume is recorded in
-# evaluation/retrieval/README.md.
+# start without it, so nothing is downloaded. The volume is named in
+# evaluation/retrieval/README.md (docvault_ollama_data) and must hold both models.
 services:
   api:
     ports: !override
@@ -31,6 +31,9 @@ services:
   ollama:
     ports: !override
       - "127.0.0.1:11440:11434"
+
+  web:
+    ports: !override []
 
   redis:
     ports: !override []

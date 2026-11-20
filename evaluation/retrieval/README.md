@@ -62,13 +62,13 @@ Sixty questions, each with `id`, `split` (`calibration` or `test`), `category`, 
 | unanswerable (plausible but absent, or near misses) | 10 | 10 |
 | **Total** | **20** | **40** |
 
-Forty are answerable and twenty are not. Twenty questions are unanswerable, not about fifteen, so that the calibration third has the 10 unanswerable questions a one-in-ten limit needs. Every question about a poor-scan document is in the test split (19 of them), so the degraded condition is measured only on held-out questions. For a cross-document question, `answer_key` is text from one of the relevant documents (its `note` says which); a chunk of any relevant document that holds the key counts as a hit.
+Forty are answerable and twenty are not. Twenty questions are unanswerable, not about fifteen, so that the calibration third has the 10 unanswerable questions a one-in-ten limit needs. Every question about a poor-scan document is in the test split (20 of them), so the degraded condition is measured only on held-out questions. For a cross-document question, `answer_key` is text from one of the relevant documents (its `note` says which); a chunk of any relevant document that holds the key counts as a hit.
 
 ## Stack and commands
 
 The stack is the Compose project `dvbench`. It must never be `dvdemo` (3100), `dvfriday` (3700) or any other stack, and the benchmark never uses the owner's account. [`compose.bench.yml`](compose.bench.yml) publishes `db` on 5440, `api` on 8140 and `ollama` on 11440, all on the loopback address, and nothing else. `EMBEDDING_PROVIDER=ollama` is pinned for every run, so vectors from different embedding models are never mixed. `ALLOW_EVAL_SEED=true` is set in `api` only; every command that touches the database refuses to run without it. The benchmark users `retrieval-eval-clean@example.invalid` and `retrieval-eval-poor@example.invalid` exist only in `dvbench`'s database, are created by `ingest` with a random password that is never printed, and have their documents deleted and rebuilt on every ingest.
 
-**Models.** The stack reuses an existing Docker volume that already holds `qwen3:8b` and `nomic-embed-text`, named in `BENCH_OLLAMA_VOLUME`; nothing is downloaded. The volume's name is recorded in `RUN.md`. Keep `GROQ_API_KEY`, `GEMINI_API_KEY` and `MISTRAL_API_KEY` empty in the stack's `.env`; the hosted writer's key goes only in the shell environment of the `answers` command and is never committed.
+**Models.** The stack reuses an existing Docker volume, named in `BENCH_OLLAMA_VOLUME`, and nothing is downloaded. The volume is `docvault_ollama_data`: it is stopped and attached to no demo stack, and it is never a running demo stack's volume. On 20 November 2026 it held `nomic-embed-text` only, so `qwen3:8b` has to be in it before the run; `RUN.md` records how it got there and the model digests from `/api/show`. Keep `GROQ_API_KEY`, `GEMINI_API_KEY` and `MISTRAL_API_KEY` empty in the stack's `.env`; the hosted writer's key goes only in the shell environment of the `answers` command and is never committed.
 
 ```powershell
 $env:BENCH_OLLAMA_VOLUME = "<volume that holds qwen3:8b and nomic-embed-text>"
@@ -87,7 +87,7 @@ docker compose -p dvbench exec -T -e GROQ_API_KEY api python scripts/eval_retrie
 docker compose -p dvbench exec -T api python scripts/eval_retrieval.py summarise --output $out
 ```
 
-If the owner prefers Gemini, `--writer gemini` with `GEMINI_API_KEY` (`gemini-2.0-flash`) takes Groq's place, and `RUN.md` records which one ran. Only the synthetic corpus reaches the hosted model.
+If the owner prefers Gemini, `--writer gemini` with `GEMINI_API_KEY` takes Groq's place (the model is the `GEMINI_MODEL` setting, `gemini-2.5-flash` by default; one test call before the run confirms the free tier accepts it), and `RUN.md` records which one ran and the model name it returns. Only the synthetic corpus reaches the hosted model.
 
 ## What each command writes
 
@@ -136,7 +136,7 @@ Answerable questions only for ranking. Documents are counted in the order their 
 
 Rating happens after both writers have answered and `answers` has written the sheet. Neither the owner nor the classmate sees `rating_key.csv` or the other's ratings until both are done.
 
-- `rating_sheet.csv` merges both writers, rows shuffled with seed 20261120, writer hidden, item ids `R001…`. `rating_key.csv` maps item ids to writers. `second_rater_sample.csv` is a 30% sample stratified by question category, drawn with the same seed before anyone rates. Running `answers` again regenerates these files, so it is refused once `ratings_rater1.csv` exists.
+- `rating_sheet.csv` merges both writers, rows shuffled with seed 20261120, writer hidden, item ids `R001…`. `rating_key.csv` maps item ids to writers. `second_rater_sample.csv` is a 30% sample stratified by question category, drawn with the same seed before anyone rates. Running `answers` again regenerates these files, so it is refused once `ratings_rater1.csv` exists, with the message `Rating has started; answers are frozen. See RUN.md for a deviation.`
 - The owner fills `ratings_rater1.csv` for all 80 items. A classmate fills `ratings_rater2.csv` for the sample only, recorded as `rater-B`, with no name anywhere in the repository. Columns: `item_id, rating, citations_supported, unsupported_claims, notes`.
 - **Rating guide.**
   - `correct`: states the expected answer, nothing contradicting it.

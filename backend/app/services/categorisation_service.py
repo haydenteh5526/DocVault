@@ -84,7 +84,7 @@ def _categorise_gemini(text: str) -> DocumentMetadata:
     try:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
         response = with_retry(lambda: client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config={
                 "temperature": 0,

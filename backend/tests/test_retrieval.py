@@ -31,9 +31,11 @@ class _Database:
         self._vector = list(vector)
         self._keyword = list(keyword)
         self.queries: list[str] = []
+        self.statements: list[str] = []
 
     async def execute(self, statement, params):
         sql = str(statement)
+        self.statements.append(sql)
         if "ts_rank" in sql:
             self.queries.append("keyword")
             return _Rows(self._keyword)
@@ -270,3 +272,62 @@ async def test_retrieve_is_owner_scoped(mode, monkeypatch):
         assert {p.document_title for p in result.candidates} == {"owner manual"}
     finally:
         await delete_users(*user_ids)
+
+
+@pytest.mark.parametrize("mode", ["semantic", "hybrid", "hybrid_strict"])
+async def test_a_missing_similarity_counts_as_none_not_a_crash(mode):
+    # A chunk with no embedding gives a NULL similarity. The old fusion skipped it, so it reads as 0.0.
+    db = _Database([_vec("n", None), _vec("v", 0.8)], [])
+
+    result = await retrieve(db, uuid.uuid4(), "question", mode=mode, floor=0.5)
+
+    assert [p.chunk_id for p in result.passages] == ["v"]
+    assert {p.chunk_id: p.similarity for p in result.candidates} == {"n": 0.0, "v": 0.8}
+
+
+async def test_both_candidate_queries_break_ties_by_chunk_id():
+    db = _Database([_vec("v", 0.8)], [_kw("k")])
+
+    await retrieve(db, uuid.uuid4(), "question", mode="hybrid")
+
+    vector_sql, keyword_sql = (" ".join(sql.split()) for sql in db.statements)
+    assert "ORDER BY dc.embedding <=> cast(:embedding as vector), dc.id" in vector_sql
+    assert "ORDER BY rank DESC, dc.id" in keyword_sql
+
+
+@pytest.mark.parametrize("mode", ["keyword", "semantic", "hybrid"])
+async def test_identical_chunks_come_back_in_the_same_order_every_time(mode, monkeypatch):
+    shared_text = "This guarantee covers defects in materials and workmanship."
+    unit = [1.0] + [0.0] * 1535
+    monkeypatch.setattr(retrieval.embedding_service, "get_embedding", lambda question: unit)
+    user_id = None
+    try:
+        async with async_session() as db:
+            user = User(
+                email=f"ties-{uuid.uuid4()}@example.com", hashed_password=hash_password("testing123"), is_verified=True
+            )
+            db.add(user)
+            await db.flush()
+            user_id = user.id
+            for number in range(4):
+                document = Document(
+                    user_id=user.id, title=f"Card {number}", s3_key_original=f"users/{user.id}/{number}.pdf",
+                    raw_text=shared_text,
+                )
+                db.add(document)
+                await db.flush()
+                db.add(DocChunk(document_id=document.id, chunk_index=0, chunk_text=shared_text, embedding=unit))
+            await db.commit()
+
+        orders = []
+        for _ in range(5):
+            async with async_session() as db:
+                result = await retrieve(db, user_id, "guarantee covers defects", mode=mode, floor=0.0)
+            orders.append([str(p.chunk_id) for p in result.candidates])
+
+        assert len(orders[0]) == 4
+        assert all(order == orders[0] for order in orders)
+        assert orders[0] == sorted(orders[0])
+    finally:
+        if user_id:
+            await delete_users(user_id)
