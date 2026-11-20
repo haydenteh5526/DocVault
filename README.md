@@ -65,6 +65,8 @@ flowchart LR
   api --> mailpit["Mailpit<br/>local email"]
 ```
 
+When no queue is available, the API runs OCR and embedding itself. Account email goes out over SMTP (Mailpit locally), and the worker sends warranty reminders to registered phones through Expo push.
+
 **How a document becomes an answer:**
 
 1. **Capture.** `POST /api/v1/documents` stores the original file in S3-compatible storage and queues a processing job in Redis. If the queue is unavailable, the API processes the file within the request.
