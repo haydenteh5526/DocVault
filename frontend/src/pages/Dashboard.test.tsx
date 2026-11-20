@@ -5,13 +5,13 @@ import { render, screen, cleanup, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ApiError, checkBillsNow, getDocuments, getDocument, getWarranties, searchDocuments, renameDocument, type Document, type Warranty } from '@/lib/api'
+import { ApiError, bulkDeleteDocuments, checkBillsNow, deleteDocument, getDocuments, getDocument, getWarranties, searchDocuments, renameDocument, type Document, type Warranty } from '@/lib/api'
 import { ToastProvider } from '@/components/Toast'
 import Dashboard from './Dashboard'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getDocuments: vi.fn(), getDocument: vi.fn(async () => doc()), searchDocuments: vi.fn(async () => ({results:[]})), getCategories: vi.fn(async () => []), renameDocument: vi.fn(), getWarranties: vi.fn(async () => []), checkBillsNow: vi.fn() }
+  return { ...actual, getDocuments: vi.fn(), getDocument: vi.fn(async () => doc()), searchDocuments: vi.fn(async () => ({results:[]})), getCategories: vi.fn(async () => []), renameDocument: vi.fn(), deleteDocument: vi.fn(async () => undefined), bulkDeleteDocuments: vi.fn(async () => undefined), getWarranties: vi.fn(async () => []), checkBillsNow: vi.fn() }
 })
 
 const fallbackSummary = JSON.stringify({
@@ -312,6 +312,30 @@ describe("Pip's check", () => {
     await waitFor(() => expect(live()).toHaveTextContent('Pip could not check your bills. Try again.'))
   })
 
+  it('says so, without "try again", when the hourly limit is reached', async () => {
+    vi.mocked(checkBillsNow).mockRejectedValue(new ApiError(429, 'Too many requests.', 'RATE_LIMITED'))
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent('Pip has checked several times this hour. Try again later.'))
+  })
+
+  it('announces an identical result again: the region is emptied while the next check runs', async () => {
+    vi.mocked(checkBillsNow).mockResolvedValueOnce(nothing)
+    renderDashboard()
+    await checkNow()
+    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: nothing new.'))
+
+    let finish!: () => void
+    vi.mocked(checkBillsNow).mockReturnValueOnce(new Promise(resolve => { finish = () => resolve(nothing) }))
+    await checkNow()
+    // A screen reader only speaks a live region whose text changes, so the old text must go first.
+    expect(live()).toHaveTextContent(/^$/)
+    finish()
+    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: nothing new.'))
+  })
+
   it('runs once however often it is pressed while it is working', async () => {
     let finish!: () => void
     vi.mocked(checkBillsNow).mockReturnValue(new Promise(resolve => { finish = () => resolve(nothing) }))
@@ -325,6 +349,63 @@ describe("Pip's check", () => {
     expect(button).toBeDisabled()
     finish()
     await waitFor(() => expect(button).toBeEnabled())
+  })
+})
+
+describe('a warranty row follows its document', () => {
+  const warrantiesRefreshed = (invalidate: ReturnType<typeof vi.spyOn>) =>
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['warranties'] })
+
+  it('is refreshed after a delete, once the delay for Undo has passed', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for October electricity bill' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+
+    await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith('d1'), { timeout: 8000 })
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
+  }, 15_000)
+
+  it('is not refreshed when the delete is undone, because nothing was deleted', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for October electricity bill' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['warranties'] })
+  })
+
+  it('is refreshed after a bulk delete', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select October electricity bill' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete selected' }))
+
+    await waitFor(() => expect(bulkDeleteDocuments).toHaveBeenCalledWith(['d1']))
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
+  })
+
+  it('is refreshed after a rename', async () => {
+    localStorage.setItem('docvault-view', 'grid')
+    vi.mocked(renameDocument).mockResolvedValue(doc({ title: 'Renamed' }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.dblClick(await screen.findByText('October electricity bill'))
+    const input = screen.getByDisplayValue('October electricity bill')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Renamed')
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => expect(renameDocument).toHaveBeenCalledWith('d1', 'Renamed'))
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
   })
 })
 

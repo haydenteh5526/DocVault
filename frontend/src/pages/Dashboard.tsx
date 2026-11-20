@@ -135,18 +135,24 @@ export default function Dashboard() {
   const stateOf = (doc: Document) => details.data?.[doc.id] ?? (doc.bill_review !== undefined ? doc : undefined)
   const attention = allDocs.map(doc => ({doc,reason:attentionReason(stateOf(doc))})).filter(row => row.reason).slice(0,3)
   const warranties = useQuery({ queryKey: ['warranties'], queryFn: getWarranties })
+  // A warranty row shows its document's title and links to it, so a delete or rename must refresh it.
+  const refreshWarranties = () => queryClient.invalidateQueries({ queryKey: ['warranties'] })
   const warrantyRows = useMemo(() => warrantiesEndingSoon(warranties.data ?? [], new Date()), [warranties.data])
   const [checking, setChecking] = useState(false)
   async function checkNow() {
     if (checking) return
     setChecking(true)
+    // A screen reader only speaks a live region whose text changes, so an identical result needs the old text gone first.
+    setAnnouncement('')
     let message: string
     try {
       message = checkMessage((await checkBillsNow()).proposed.length)
     } catch (failure) {
       message = failure instanceof ApiError && failure.status === 409
         ? failure.message
-        : `${ASSISTANT_NAME} could not check your bills. Try again.`
+        : failure instanceof ApiError && failure.status === 429
+          ? `${ASSISTANT_NAME} has checked several times this hour. Try again later.`
+          : `${ASSISTANT_NAME} could not check your bills. Try again.`
     }
     // Said twice on purpose: the toast for people looking, the live region for people listening.
     toast(message)
@@ -194,7 +200,10 @@ export default function Dashboard() {
     // Delay actual deletion — allow undo
     let cancelled = false
     const timer = setTimeout(async () => {
-      if (!cancelled) await deleteDocument(id)
+      if (!cancelled) {
+        await deleteDocument(id)
+        void refreshWarranties()
+      }
     }, 5000)
     toast(`"${doc?.title || 'Document'}" deleted`, 'info', {
       label: 'Undo',
@@ -214,6 +223,7 @@ export default function Dashboard() {
   async function handleBulkDelete() {
     const ids = [...selected]
     await bulkDeleteDocuments(ids)
+    void refreshWarranties()
     setDocs(docs => docs.filter(d => !selected.has(d.id)))
     setSelected(new Set())
     toast(`${ids.length} document${ids.length > 1 ? 's' : ''} deleted`)
@@ -270,6 +280,7 @@ export default function Dashboard() {
     }
     try {
       await renameDocument(docId, name)
+      void refreshWarranties()
       setDocs(docs => docs.map(d => d.id === docId ? { ...d, title: name } : d))
       setRenamingDoc(null)
       toast('Document renamed')
