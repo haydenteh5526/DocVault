@@ -1,0 +1,26 @@
+Title: Nordale DW60 dishwasher user manual
+NORDALE KITCHEN
+User manual: Nordale DW60 dishwasher (synthetic example)
+
+1. Loading
+Load plates facing the centre. Do not block the spray arms.
+Use dishwasher salt and rinse aid. Scrape off large food pieces first.
+
+2. Programmes
+Eco: 4 hours 10 minutes, 50 degrees.
+Auto: 2 hours, 55 degrees.
+Quick: 30 minutes, 45 degrees.
+
+3. Care
+Clean the filter at the bottom of the tub every two weeks.
+Run an empty hot cycle with a dishwasher cleaner every three months.
+
+4. Fault codes
+Code   Meaning                       What to do
+E01    Water inlet fault             Check the tap and the hose
+E15    Leak detected                 Switch off and close the tap
+E21    Water temperature too low     Switch off and call the helpline
+E24    Drain filter blocked          Clean the filter and the drain hose
+
+If a code stays on the display, switch off at the wall and call the Nordale
+helpline on 0000 000 0006 (synthetic number).

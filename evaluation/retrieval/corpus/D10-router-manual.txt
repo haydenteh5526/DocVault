@@ -1,0 +1,24 @@
+Title: Skylark Hub X2 broadband router manual
+SKYLARK FIBRE LTD
+User manual: Skylark Hub X2 broadband router (synthetic example)
+
+1. Lights
+Power: green when on.
+Internet: green when you are online, flashing amber when there is no signal.
+Wi-Fi: green when the wireless network is on.
+
+2. Setting up
+Connect the grey cable to the wall socket and the power adapter to the mains.
+The Wi-Fi name and password are printed on the label under the router.
+
+3. Resetting
+Hold the reset button for 10 seconds to restore the factory settings.
+This removes any changes you have made to the Wi-Fi name and password.
+
+4. Fault codes
+Code    Meaning                          What to do
+ERR-3   No broadband signal on the line  Check the cable, then call support
+ERR-5   Login to the provider failed     Restart the router and wait 5 minutes
+ERR-7   Router overheating               Move it to a cooler, open place
+
+Technical support: 0000 000 0004 (synthetic number).

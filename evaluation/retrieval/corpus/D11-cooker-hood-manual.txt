@@ -1,0 +1,21 @@
+Title: Ventis CH90 cooker hood user manual
+VENTIS KITCHEN
+User manual: Ventis CH90 cooker hood (synthetic example)
+
+1. Using the hood
+Switch the hood on before you start cooking and leave it on for 10 minutes
+after you finish. Speeds 1 to 3 are for normal cooking, speed 4 is a boost.
+
+2. Filters
+Wash the metal grease filter once a month in warm soapy water or in the
+dishwasher. Replace the charcoal filter every 6 months if the hood recirculates
+air back into the room.
+
+3. Fault codes
+Code   Meaning                       What to do
+H1     Grease filter saturated       Wash the grease filter and reset
+H2     Motor overheated              Switch off for 30 minutes
+H3     Light fault                   Replace the lamp, then switch on again
+
+Hold the reset button for 3 seconds to clear a code after you have fixed it.
+Helpline: 0000 000 0006 (synthetic number).

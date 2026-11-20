@@ -1,0 +1,26 @@
+Title: Harbourline Gas bill, August to October 2026
+HARBOURLINE GAS LTD
+Natural gas bill (synthetic example, not a real account)
+
+Account number: ACC-SYN-552901
+Bill number: HG-2026-10-2210
+Meter reference: GPRN-SYN-0000-4471
+Bill date: 15 October 2026
+Billing period: 15 August 2026 to 14 October 2026
+
+Meter readings
+Previous reading: 18,442 kWh
+Current reading: 19,082 kWh
+Gas used: 640 kWh
+
+Your charges
+Gas used: 640 kWh at EUR 0.1084 per kWh ............ EUR 69.38
+Standing charge: 61 days at EUR 0.3200 per day ..... EUR 19.52
+Subtotal ........................................... EUR 88.90
+VAT at 13.5% ....................................... EUR 12.00
+Total due: EUR 100.90
+Payment due date: 6 November 2026
+
+Gas is billed every two months. If you smell gas, leave the building and
+call the emergency line on 0000 000 0003 (synthetic number).
+You can pay by direct debit, online or at any post office.

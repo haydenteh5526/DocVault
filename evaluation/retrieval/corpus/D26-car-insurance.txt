@@ -1,0 +1,18 @@
+Title: Kestrel car insurance certificate
+KESTREL MOTOR INSURANCE
+Motor insurance certificate (synthetic example)
+
+Policy number: MTR-SYN-337790
+Policyholder: Aoife Brennan (invented name)
+Vehicle: 2019 hatchback, registration 19-SYN-4521
+Policy period: 14 March 2026 to 13 March 2027
+Annual premium: EUR 689.00
+Cover: comprehensive
+No claims bonus: 4 years
+
+Excess
+Excess: EUR 400 for each claim.
+Drivers under 25 pay an extra EUR 250.
+
+Use of the car: social, domestic and pleasure, and commuting.
+Report any accident within 24 hours on 0000 000 0009 (synthetic number).

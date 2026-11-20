@@ -1,0 +1,50 @@
+# The disposable benchmark stack (Compose project dvbench). Never dvdemo, dvfriday or any other stack.
+#
+#   docker compose -p dvbench -f docker-compose.yml -f docker-compose.gpu.yml \
+#       -f evaluation/retrieval/compose.bench.yml up -d db redis ollama api
+#
+# `!override` replaces the base file's port list instead of adding to it, so the
+# only ports published are 5440 (db), 8140 (api) and 11440 (ollama), on the
+# loopback address. Every other service, including web, publishes nothing; storage,
+# mailpit and redis are started only because the api waits for them.
+#
+# BENCH_OLLAMA_VOLUME names an existing Docker volume that must hold both models
+# (qwen3:8b and nomic-embed-text). Compose never creates it and refuses to start
+# without it, so nothing is downloaded. The volume is chosen from options (a) to (c)
+# before Task 6 and recorded in `RUN.md`; the options are in evaluation/retrieval/README.md.
+services:
+  api:
+    ports: !override
+      - "127.0.0.1:8140:8000"
+    environment:
+      - EMBEDDING_PROVIDER=ollama
+      - ALLOW_EVAL_SEED=true
+      - ANSWER_MODEL=
+    volumes:
+      - ./backend:/app
+      - ./evaluation:/evaluation
+
+  db:
+    ports: !override
+      - "127.0.0.1:5440:5432"
+
+  ollama:
+    ports: !override
+      - "127.0.0.1:11440:11434"
+
+  web:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  storage:
+    ports: !override []
+
+  mailpit:
+    ports: !override []
+
+volumes:
+  ollama_data: !override
+    name: ${BENCH_OLLAMA_VOLUME:?set BENCH_OLLAMA_VOLUME to the existing volume that holds qwen3:8b and nomic-embed-text}
+    external: true
