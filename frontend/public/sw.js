@@ -38,9 +38,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          if (response.ok) {
+          if (response.ok && (response.headers.get('content-type') || '').includes('text/html')) {
+            // Rebuild the response so the cache does not keep the URL it came from (it may carry a token).
             const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)));
+            const shell = new Response(copy.body, { status: copy.status, statusText: copy.statusText, headers: copy.headers });
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', shell)));
           }
           return response;
         })

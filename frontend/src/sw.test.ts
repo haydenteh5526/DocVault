@@ -7,10 +7,19 @@ const source = readFileSync(resolve(__dirname, '../public/sw.js'), 'utf8')
 type Listener = (event: Record<string, unknown>) => void
 
 // Runs public/sw.js against a stub worker scope and records the order of cache and network calls.
-function loadWorker(options: { cached?: unknown; network?: 'ok' | 'fails' | 'error500'; cacheNames?: string[] } = {}) {
+function loadWorker(options: { cached?: unknown; network?: 'ok' | 'fails' | 'error500' | 'json'; cacheNames?: string[] } = {}) {
   const listeners: Record<string, Listener> = {}
   const calls: string[] = []
-  const networkResponse = { ok: options.network !== 'error500', clone: () => ({ copy: true }) }
+  // The network response remembers the URL that was fetched, as a real one does.
+  const networkResponse = {
+    ok: options.network !== 'error500',
+    status: options.network === 'error500' ? 500 : 200,
+    statusText: 'stub',
+    url: 'https://docvault.test/reset-password?token=SECRET',
+    headers: new Headers({ 'content-type': options.network === 'json' ? 'application/json' : 'text/html; charset=utf-8' }),
+    body: '<html></html>',
+    clone: () => ({ ...networkResponse }),
+  }
   const cache = { put: vi.fn<(...args: unknown[]) => Promise<void>>(async () => { calls.push('cache.put') }), addAll: vi.fn(async () => undefined) }
   const caches = {
     match: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => { calls.push('caches.match'); return options.cached }),
@@ -60,6 +69,23 @@ describe('service worker', () => {
     await worker.request({ url: 'https://docvault.test/reset-password?token=SECRET', mode: 'navigate' })
     await worker.request({ url: 'https://docvault.test/app/documents/abc?q=gas', mode: 'navigate' })
     expect(worker.cache.put.mock.calls.map(call => call[0])).toEqual(['/index.html', '/index.html'])
+  })
+
+  it('stores a copy that does not remember the URL it was fetched from', async () => {
+    const worker = loadWorker()
+    await worker.request({ url: 'https://docvault.test/reset-password?token=SECRET', mode: 'navigate' })
+    const stored = worker.cache.put.mock.calls[0][1] as Response
+    expect(stored).toBeInstanceOf(Response)
+    expect(stored.url).toBe('')
+    expect(stored.status).toBe(200)
+    expect(stored.headers.get('content-type')).toContain('text/html')
+  })
+
+  it('does not store a navigation response that is not HTML', async () => {
+    const worker = loadWorker({ network: 'json' })
+    const { result } = await worker.request({ url: 'https://docvault.test/manifest.json', mode: 'navigate' })
+    expect(result).toBe(worker.networkResponse)
+    expect(worker.cache.put).not.toHaveBeenCalled()
   })
 
   it('does not store a failed response', async () => {
