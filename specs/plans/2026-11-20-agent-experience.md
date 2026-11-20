@@ -265,7 +265,7 @@ Branch `feature/pip-in-ask`, cut from `main` after both PR A2 and benchmark PR 1
   - When true, the card reads the live proposal from `useQuery(['document', documentId])` and matches it by `proposal.id`.
   - If the live status is `pending`, it shows "Approve and save" (primary) and "Cancel proposal" (outline).
   - Otherwise it shows the status line the panel uses ("Saved · reminder for {date}", "Cancelled", or the stale reason), with no buttons.
-- **"Approve and save"** calls `approveReminder(documentId, proposal.id, { reviewed: proposal.details })` with the details the card shows.
+- **"Approve and save"** calls `approveReminder(documentId, proposal.id, proposal.details)` (its third argument is the reviewed details) with the details the card shows.
   - **Success:** show "Saved · reminder for {date}", then invalidate `['document', documentId]` and `['document-list-status']`.
   - **409:** show the server's message through the same code-to-text map the panel uses (export it from `BillReminder.tsx` as `REMINDER_CONFLICT_TEXT`), refetch the document, and hide the buttons unless the live status is still `pending`.
   - **Other errors:** "Could not save the reminder. Try again."
