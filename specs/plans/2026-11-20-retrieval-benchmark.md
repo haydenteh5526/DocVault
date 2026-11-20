@@ -28,7 +28,7 @@ Approved on 20 November 2026 (next-phase memo):
 1. **B1. Answer writers: both.**
    - Local: `qwen3:8b` through Ollama. It's already downloaded, so there's no new download.
    - Hosted reference: Groq `llama-3.3-70b-versatile` on its free tier. Only the synthetic corpus is sent to it.
-   - The owner creates the free key himself and puts it only in the benchmark stack's environment. It is never committed. If he prefers Gemini, `gemini-2.0-flash` takes Groq's place, and `RUN.md` records which one ran.
+   - The owner creates the free key himself and puts it only in the benchmark stack's environment. It is never committed. If he prefers Gemini, the model named by `GEMINI_MODEL` (default `gemini-2.5-flash`, see the clarifications after the PR 1 review) takes Groq's place, and `RUN.md` records which one ran.
 2. **B2. Size.** 30 synthetic documents, 10 of which also get a poor-scan version, and 60 questions.
    - **Deviation from the memo, for B3:** 20 of the 60 questions are unanswerable, not about 15. The calibration third needs 10 unanswerable questions for a 1-in-10 limit to mean anything.
 3. **B3. Floor rule.** On the calibration split, pick the floor that answers the most answerable questions with a relevant document in its passages, while at most 1 in 10 unanswerable questions gets an answer. Defined exactly in Task 4.
@@ -171,7 +171,17 @@ These come from the Reviewer's report on `4ceb093` and the owner's choices. They
 - **Unique test accounts (Reviewer S1).** `test_commands_round_trip_through_the_database` uses per-run emails. The `ingest` user's email is injectable, defaulting to `retrieval-eval-<profile>@example.invalid`. Then run the full backend suite three times in a row, with `--tb=long`, while nothing else uses the test database.
 - **`answers` after rating (Reviewer M1).** `run_answers` refuses to run once `ratings_rater1.csv` exists in the output folder, with the message `Rating has started; answers are frozen. See RUN.md for a deviation.` Test it.
 - **Benchmark stack ports (Reviewer M2).** `compose.bench.yml` gives `web` no published ports (`ports: !override []`), so only 5440, 8140 and 11440 are published. Assert it in the config test.
-- **README fixes (Reviewer N1, N2).** 20 questions about poor-scan documents, not 19. The Ollama volume is `docvault_ollama_data`, after checking it holds `qwen3:8b` and `nomic-embed-text`; never a demo stack's volume. Record it in the README, as Task 3 says, and make the compose file's comment agree.
+- **README fixes (Reviewer N1, N2; revised after the re-check).** 20 questions about poor-scan documents, not 19.
+  - **Ollama volume:** no single volume holds both models today. `docvault_ollama_data` has only `nomic-embed-text`, and `issue5chat_ollama_data` has `qwen3:8b` but no embedding model.
+  - The plan, the README and the `compose.bench.yml` comment all say: "The volume is chosen from options (a) to (c) before Task 6 and recorded in `RUN.md`."
+  - The README lists the options. Never a demo stack's volume.
+  - The owner chooses at Task 6. The Architect's suggestion is (c): copy `nomic-embed-text` into `issue5chat_ollama_data`, a local copy of about 262 MB with no download.
+- **Gemini thinking off (after the re-check, approved by the owner).** `gemini-2.5-flash` reasons before answering by default, and those tokens count against `max_output_tokens` (500). An answer could come back cut off or empty.
+  - Every Gemini call (the answer writer and categorisation) sends `thinking_config: {"thinking_budget": 0}`.
+  - An empty Gemini reply is treated like any other writer failure, never passed on as `None`.
+  - Tests: `test_gemini_calls_disable_thinking`, asserting the config for both calls, and `test_empty_gemini_reply_is_a_writer_failure`.
+- **Settings documented (re-check nit).** `GEMINI_MODEL` is added to `.env.example` and to the README's settings table.
+- **Left until Task 6:** `docvault_ollama_data` is still attached to the stopped container `docvault-ollama-1`.
 - **A failed local writer (Reviewer N6).** When `ANSWER_MODEL` is set and Ollama fails, Ask's header reads `The local model couldn't write an answer. These passages match your question:` instead of the no-key header. Test it.
 - **Left by the owner:** N3 (spacing in `eval_retrieval.py`) and N5 (NumPy comes through OpenCV rather than a direct pin; the hash check stops a run if it ever changes).
 
