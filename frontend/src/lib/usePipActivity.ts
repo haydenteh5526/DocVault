@@ -42,7 +42,7 @@ export function usePipActivity() {
     upcoming,
     warranties: (warranties.data ?? []).filter((w) => w.days_remaining >= 0 && w.days_remaining <= 30),
     people: people.data ?? [],
-    householdBill: bills.at(0),
+    householdBill: bills.length ? bills[0] : undefined,
     status,
   }
 }
