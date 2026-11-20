@@ -64,3 +64,26 @@ it('labels the email and password where the owner registers', async () => {
   expect(screen.getByLabelText('Password', {exact:true})).toHaveAttribute('placeholder','Password')
   cleanup()
 })
+
+describe('a rate-limited sign-in (L-3)', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('explains itself and never shows an object', async () => {
+    vi.mocked(getAuthProviders).mockResolvedValue({ google: false })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: { code: 'RATE_LIMITED', message: 'Too many requests.' } }), { status: 429, headers: { 'Content-Type': 'application/json' } }),
+    ))
+    const user = userEvent.setup()
+    renderLogin()
+    await user.type(await screen.findByPlaceholderText('name@example.com'), 'someone@example.com')
+    await user.click(screen.getByRole('button', { name: /continue with email/i }))
+    await user.type(await screen.findByPlaceholderText('Password'), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Too many attempts. Wait a minute, then try again.')).toBeVisible()
+    expect(document.body.textContent).not.toContain('[object Object]')
+  })
+})

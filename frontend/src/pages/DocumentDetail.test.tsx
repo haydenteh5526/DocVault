@@ -295,3 +295,43 @@ describe('DocumentDetail facts', () => {
     expect(screen.queryByText(/detecting brand/)).toBeNull()
   })
 })
+
+describe('DocumentDetail original beside the bill', () => {
+  const original = () => screen.queryByRole('complementary', { name: 'Original bill' })
+  function matchWidth(wide: boolean) {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: wide && query.includes('1200px'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })))
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('shows the original page beside the bill panels at 1200 px and wider', async () => {
+    matchWidth(true)
+    vi.mocked(getDocument).mockResolvedValue({ ...bill('x', '123.47'), image_url: 'http://example.test/bill.png' })
+    renderPage('/app/documents/x')
+    const aside = await screen.findByRole('complementary', { name: 'Original bill' })
+    expect(within(aside).getByRole('img')).toHaveAttribute('src', 'http://example.test/bill.png')
+    expect(screen.getByRole('region', { name: 'Bill review' })).toBeInTheDocument()
+  })
+
+  it('does not show it on narrower screens, where "View original bill" opens the preview', async () => {
+    matchWidth(false)
+    vi.mocked(getDocument).mockResolvedValue({ ...bill('x', '123.47'), image_url: 'http://example.test/bill.png' })
+    renderPage('/app/documents/x')
+    await screen.findByRole('region', { name: 'Bill review' })
+    expect(original()).toBeNull()
+  })
+
+  it('does not show it for a document that is not a bill', async () => {
+    matchWidth(true)
+    vi.mocked(getDocument).mockResolvedValue({
+      ...bill('x', '123.47'), confirmed_bill: null, document_type: 'manual', image_url: 'http://example.test/m.png',
+    })
+    renderPage('/app/documents/x')
+    await screen.findByRole('heading', { name: 'Bill x' })
+    expect(original()).toBeNull()
+  })
+})

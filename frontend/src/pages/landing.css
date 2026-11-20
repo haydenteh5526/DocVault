@@ -4,20 +4,16 @@
 .poster-nav { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.9rem clamp(1rem,4.5vw,5rem); border-bottom:1px solid var(--border); background:var(--background); }
 .poster-footer { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:2rem clamp(1rem,4.5vw,5rem); border-top:1px solid var(--border); }
 .poster-footer p { max-width:50ch; color:var(--muted-foreground); font-size:.87rem; }
-.poster-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); align-items:center; gap:clamp(2rem,5vw,6rem); }
+.footer-notes { display:grid; gap:.35rem; }
 .poster-hero,.poster-section { padding:clamp(3rem,7vw,7rem) clamp(1rem,4.5vw,5rem); }
-.poster-hero { min-height:min(830px,calc(100svh - 64px)); overflow:hidden; }
+.poster-hero { padding-block:clamp(1.5rem,3.5vw,3rem) clamp(2rem,4vw,3.5rem); overflow:hidden; }
 .poster h1,.poster h2,.split-numbers dd { font-family:var(--font-display); font-stretch:75%; font-weight:800; }
-.poster h1 { max-width:9.7ch; font-size:clamp(4.2rem,8.7vw,8.5rem); line-height:.88; letter-spacing:-.04em; }
-.h1-line { display:block; overflow:hidden; padding-block:.06em .1em; margin-block:-.06em -.1em; }
+.poster h1 { max-width:none; font-size:clamp(3.1rem,7.2vw,6.25rem); line-height:.9; letter-spacing:-.04em; }
+.h1-line { display:inline-block; overflow:hidden; vertical-align:top; margin-inline-end:.12em; padding-block:.06em .1em; margin-block:-.06em -.1em; }
 .h1-line > span { display:block; }
-.poster .hero-lead,.poster-section > div > p,.decision-section > p,.closing-section > p { max-width:48ch; line-height:1.55; font-size:clamp(1rem,1.35vw,1.25rem); }
+.poster .hero-lead,.decision-section > p,.closing-section > p { max-width:48ch; line-height:1.55; font-size:clamp(1rem,1.35vw,1.25rem); }
 .poster .hero-lead { color:var(--muted-foreground); margin:1.6rem 0 0; }
-.poster .phone-lead { display:none; }
-.paper-example { align-self:center; min-width:0; }
-.example-question { display:flex; align-items:center; gap:1rem; background:#18181b; color:#fff; padding:1rem 1.4rem; border-radius:12px; border:1px solid #3f3f46; margin-bottom:1.2rem; }
-.example-question span,.bill-period span,.bill-letterhead>span+span { font-size:.82rem; }
-.example-question span { color:#c1c6ce; } .example-question p { font-weight:550; }
+.bill-period span,.bill-letterhead>span+span { font-size:.82rem; }
 .bill-stack { max-width:38rem; margin:auto; color:#14171f; position:relative; }
 .back-sheet,.paper-bill { border:1px solid #494e59; background:#fff; border-radius:2px; }
 .back-sheet { display:flex; align-items:center; gap:.5rem; height:2rem; padding:0 .85rem; font-size:.8rem; font-weight:550; border-bottom:0; }
@@ -34,15 +30,9 @@
 .paper-bill .source-line { color:#545866; font-size:.72rem; }
 .paper-bill blockquote p { margin:0; font-size:clamp(.79rem,.98vw,1rem); color:#14171f; background:#ffe98a; border-left:4px solid #14171f; padding:.4rem .5rem; }
 .poster h2 { font-size:clamp(2.8rem,5.3vw,6rem); line-height:.96; letter-spacing:-.04em; margin-bottom:1.5rem; max-width:14ch; }
-.poster-section > div > p,.decision-section > p,.closing-section > p,.privacy-band details { color:var(--muted-foreground); }
-.search-example,.reminder-sample { border-radius:12px; background:#fff; color:#14171f; border:1px solid #b8bdc6; padding:clamp(1rem,2vw,2rem); }
-.search-caption,.search-count,.search-result p,.reminder-sample p,.sample-actions { font-size:.875rem; }
-.search-caption,.search-result strong { font-weight:600; }
-.search-count {color:#5b6170;margin:1.3rem 0 .4rem;}
-.search-sample,.search-result { display:flex; align-items:center; gap:.8rem; }
-.search-sample { padding:.8rem; border:1px solid #8f8f8f; border-radius:8px; margin-top:.4rem; }
-.search-result { padding:.95rem 0; border-top:1px solid #ddd; } .search-result svg { flex:none; }
-.search-result p {color:#414754;margin:.3rem 0 0;} .search-result mark {background:#ffe98a;color:#14171f;}
+.decision-section > p,.closing-section > p { color:var(--muted-foreground); }
+.reminder-sample { border-radius:12px; background:#fff; color:#14171f; border:1px solid #b8bdc6; padding:clamp(1rem,2vw,2rem); }
+.reminder-sample p,.sample-actions { font-size:.875rem; }
 /* The split band: a muted band with hairlines, numerals in the foreground colour. */
 .decision-section { background:var(--muted); border-block:1px solid var(--border); }
 .decision-section h2 {max-width:none;}
@@ -54,42 +44,58 @@
 .reminder-sample>strong {font-size:1.3rem;} .reminder-sample p {color:#505663;}
 .reminder-sample dl {margin:1rem 0;border-block:1px solid #ccc;}.reminder-sample dl div {display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;}
 .sample-actions {display:flex;gap:.6rem;margin-top:1rem;}.sample-actions span {border:1px solid #8f8f8f;border-radius:8px;padding:.4rem .65rem;}.sample-actions span:first-child {background:#14171f;color:#fff;}
-.privacy-band {min-height:0;} .privacy-band details {margin:1.25rem 0;} .privacy-band summary {cursor:pointer;}
-.privacy-band details h3 {font-weight:600;margin-top:1rem;}.privacy-band details p {margin:.5rem 0;}
 .closing-section { border-top:1px solid var(--border); }
+
+/* Three steps. */
+.steps-section h2 { max-width:none; font-size:clamp(2.2rem,4.4vw,4.25rem); }
+.steps { display:grid; grid-template-columns:minmax(0,1fr); gap:1.5rem; margin:2rem 0 0; padding:0; list-style:none; }
+.steps li { border-top:2px solid var(--foreground); padding-top:1rem; }
+.steps h3 { font-size:1.25rem; font-weight:600; letter-spacing:-.01em; }
+.steps p { margin-top:.4rem; max-width:34ch; color:var(--muted-foreground); line-height:1.5; }
+@media(min-width:768px){ .steps { grid-template-columns:repeat(3,minmax(0,1fr)); gap:2.5rem; } }
+
+/* The product preview: a still picture of Ask beside the bill it read. No animation, so it reads on first paint. */
+.hero-preview { margin:1.75rem 0 0; border:1px solid var(--border); border-radius:12px; background:var(--card); color:var(--foreground); overflow:hidden; }
+.hp-bar { display:flex; gap:6px; padding:.65rem .9rem; background:var(--muted); border-bottom:1px solid var(--border); }
+.hp-bar i { width:6px; height:6px; border-radius:50%; background:var(--muted-foreground); opacity:.55; }
+.hp-panes { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); }
+.hp-ask { display:flex; flex-direction:column; gap:1rem; padding:clamp(1rem,2vw,1.5rem); border-right:1px solid var(--border); }
+.hp-question { align-self:flex-end; max-width:90%; margin:0; padding:.6rem .9rem; border-radius:12px 12px 2px 12px; background:var(--foreground); color:var(--background); font-size:.95rem; font-weight:500; }
+.hp-answer { display:flex; flex-direction:column; align-items:flex-start; gap:.4rem; padding:1rem; border:1px solid var(--border); border-radius:8px; }
+.hp-answer strong { font-family:var(--font-display); font-weight:600; font-stretch:100%; font-size:1.5rem; line-height:1.15; letter-spacing:-.01em; }
+.hp-answer span { font-family:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:.8125rem; color:var(--muted-foreground); }
+.hp-answer .hp-chip { margin-top:.35rem; padding:.2rem .6rem; border-radius:6px; background:var(--foreground); color:var(--background); font-family:var(--font-sans); font-size:.75rem; font-weight:500; }
+.hp-bill { display:flex; flex-direction:column; justify-content:center; gap:.5rem; padding:clamp(1rem,2vw,1.5rem); min-width:0; }
+.hp-line { display:grid; grid-template-columns:2.25rem minmax(0,1fr); gap:.75rem; font-family:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:.8125rem; color:var(--muted-foreground); }
+.hp-line > span:first-child { text-align:right; }
+.hp-blank i { display:block; align-self:center; height:.6rem; border-radius:3px; background:var(--muted); }
+.hero-preview .source-tie { margin-top:.25rem; }
+@media(max-width:767px){
+  .hp-panes { grid-template-columns:minmax(0,1fr); }
+  .hp-ask { border-right:0; border-bottom:1px solid var(--border); }
+  .hp-extra { display:none; }
+}
 .closing-section h2 { max-width:16ch; }
 .link-draw { text-decoration:none; background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat; transition:background-size 200ms var(--ease,ease); padding-bottom:2px; }
 .link-draw:hover,.link-draw:focus-visible { background-size:100% 1px; }
 
 @media(max-width:850px){
-  .poster-grid,.decision-grid {grid-template-columns:minmax(0,1fr);}
-  .poster-hero {min-height:0;}.poster h1 {font-size:clamp(3.75rem,12vw,6rem);max-width:12ch;}
-  .paper-example,.search-example {width:100%;max-width:38rem;}
+  .decision-grid {grid-template-columns:minmax(0,1fr);}
 }
 @media(max-width:600px){
   .poster-nav {padding-block:.75rem;}
-  .poster .hero-lead {display:none;}.poster .phone-lead {display:block;margin:1.25rem 0;}
-  .poster-hero,.poster-section {padding-block:2.5rem;}.poster-hero{gap:2rem;}
-  .paper-bill {margin-right:.5rem;}.bill-letterhead>span:first-child {font-size:1rem;}.example-question {margin-bottom:.65rem;}
+  .poster .hero-lead {margin:1.1rem 0 0;}
+  .poster-hero,.poster-section {padding-block:2rem;}
+  .paper-bill {margin-right:.5rem;}.bill-letterhead>span:first-child {font-size:1rem;}
   .poster-footer {align-items:start;flex-direction:column;}.decision-grid {gap:2rem;}
 }
 
 /* ---- Motion (plan 0R-2, R-C). Everything below needs html.motion-ok, which lib/motion.ts adds
    only when the visitor has not asked for reduced motion. Only transform, opacity and clip-path move. */
-html.motion-ok .h1-line > span { animation:lineRise 700ms var(--ease) backwards; animation-delay:calc(var(--i) * 90ms); }
+html.motion-ok .poster .h1-line > span { animation:lineRise 700ms var(--ease) backwards; animation-delay:calc(var(--i) * 90ms); }
 html.motion-ok .poster .hero-lead { animation:fadeUp 500ms ease-out 450ms backwards; }
-html.motion-ok .poster .example-question { animation:slideFromRight 500ms var(--ease) 500ms backwards; }
-html.motion-ok .poster .back-sheet { animation:fanOut 600ms var(--ease) 650ms backwards; }
-html.motion-ok .poster .sheet-1 { animation-delay:700ms; } html.motion-ok .poster .sheet-2 { animation-delay:750ms; }
-html.motion-ok .poster .paper-bill { animation:rise 600ms var(--ease) 850ms backwards; }
-html.motion-ok .poster .paper-bill .source-value { animation:tagDraw 400ms ease-out 1100ms backwards; }
-html.motion-ok .poster .paper-bill .source-tie:last-child .source-value { animation-delay:1250ms; }
 @keyframes lineRise { from { transform:translateY(40px); } }
 @keyframes fadeUp { from { opacity:0; } }
-@keyframes slideFromRight { from { opacity:0; transform:translateX(24px); } }
-@keyframes fanOut { from { opacity:0; transform:translateY(2.5rem); } }
-@keyframes rise { from { opacity:0; transform:translateY(24px); } }
-@keyframes tagDraw { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0); } }
 
 /* Sections below the hero: the heading, then the visual, enter once. */
 html.motion-ok .reveal > * { transition:opacity 600ms var(--ease), transform 600ms var(--ease); }
@@ -97,11 +103,3 @@ html.motion-ok .reveal > :nth-child(2) { transition-delay:80ms; }
 html.motion-ok .reveal > :nth-child(3) { transition-delay:160ms; }
 html.motion-ok .reveal > :nth-child(n+4) { transition-delay:240ms; }
 html.motion-ok .reveal:not([data-revealed]) > * { opacity:.001; transform:translateY(32px); }
-
-/* As the hero scrolls out, the documents drift up. Without support, nothing moves. */
-@supports (animation-timeline: view()) {
-  html.motion-ok .drift-stack { animation:driftStack linear both; animation-timeline:view(); animation-range:exit 0% exit 100%; }
-  html.motion-ok .drift-question { animation:driftQuestion linear both; animation-timeline:view(); animation-range:exit 0% exit 100%; }
-  @keyframes driftStack { to { transform:translateY(-60px); } }
-  @keyframes driftQuestion { to { transform:translateY(-30px); } }
-}

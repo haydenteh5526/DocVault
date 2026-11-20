@@ -93,3 +93,33 @@ describe('confirming a bill and going back to Documents (M-A)', () => {
     }
   })
 })
+
+describe('the first paint after a confirm (L-2)', () => {
+  it('writes the new record into the list status at once, before any reload resolves', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const stop = syncDocumentStatus(client)
+    try {
+      client.setQueryData(['document', 'd1'], bill(false))
+      client.setQueryData(['document-list-status', ['d1']], { d1: bill(false) })
+      client.setQueryData(['document', 'd1'], bill(true))
+      const listed = client.getQueryData<Record<string, Document>>(['document-list-status', ['d1']])
+      expect(listed?.d1.confirmed_bill?.revision_number).toBe(1)
+      expect(getDocument).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
+  })
+
+  it('leaves list entries that do not hold that document alone', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const stop = syncDocumentStatus(client)
+    try {
+      client.setQueryData(['document', 'd1'], bill(false))
+      client.setQueryData(['document-list-status', ['d2']], { d2: { ...bill(false), id: 'd2' } })
+      client.setQueryData(['document', 'd1'], bill(true))
+      expect(client.getQueryData<Record<string, Document>>(['document-list-status', ['d2']])).toEqual({ d2: { ...bill(false), id: 'd2' } })
+    } finally {
+      stop()
+    }
+  })
+})

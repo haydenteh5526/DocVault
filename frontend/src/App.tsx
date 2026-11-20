@@ -6,7 +6,6 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { useFocusTrap } from './lib/useFocusTrap'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
-import { OnboardingTour } from './components/OnboardingTour'
 // Route pages are code-split so the initial bundle (landing + auth) stays small;
 // each page loads on demand behind the <Suspense> boundary below.
 const Landing = lazy(() => import('./pages/Landing'))
@@ -120,7 +119,6 @@ function AppShell() {
 
       {/* Global overlays */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      <OnboardingTour />
 
       {/* Settings modal */}
       {settingsOpen && (

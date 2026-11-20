@@ -14,6 +14,7 @@ export function statusFingerprint(doc: Partial<Document>): string {
  * The Documents list keeps each document's status for 30 s. Whenever a document's own page
  * changes what the list would show (a confirmed bill, a saved or stale split, a reminder
  * proposal), mark that status stale so the next visit to Documents fetches it again.
+ * The new record is also written into every cached list status that holds that document, so the list never paints the old one.
  * A change that does not touch the status (a rename, a tag) does nothing.
  * Returns the function that stops listening.
  */
@@ -27,6 +28,11 @@ export function syncDocumentStatus(client: QueryClient): () => void {
     const next = statusFingerprint(data)
     const previous = seen.get(key[1])
     seen.set(key[1], next)
-    if (previous !== undefined && previous !== next) void client.invalidateQueries({ queryKey: ['document-list-status'] })
+    if (previous !== undefined && previous !== next) {
+      // Write the new record first, so the next paint of Documents shows it before the reload finishes.
+      const id = key[1]
+      client.setQueriesData<Record<string, Document>>({ queryKey: ['document-list-status'] }, listed => (listed && id in listed ? { ...listed, [id]: data } : listed))
+      void client.invalidateQueries({ queryKey: ['document-list-status'] })
+    }
   })
 }

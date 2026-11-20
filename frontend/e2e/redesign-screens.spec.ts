@@ -21,7 +21,6 @@ const WIDTHS = [
 ];
 const THEMES = ['light', 'dark'] as const;
 
-test.skip(process.env.E2E_SCREENSHOTS !== '1', 'Set E2E_SCREENSHOTS=1 to record the redesign screens');
 test.describe.configure({ mode: 'serial' });
 
 async function drawDocument(page: Page, doc: SeedDocument): Promise<Buffer> {
@@ -77,6 +76,7 @@ async function shoot(page: Page, name: string, url: string, ready?: () => Promis
 }
 
 test('record the redesign screens', async ({ page }) => {
+  test.skip(process.env.E2E_SCREENSHOTS !== '1', 'Set E2E_SCREENSHOTS=1 to record the redesign screens');
   test.setTimeout(900_000);
   test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, 'A verified synthetic account is required');
   mkdirSync(OUT_DIR, { recursive: true });
@@ -115,9 +115,14 @@ test('record the redesign screens', async ({ page }) => {
   const review = page.getByRole('region', { name: 'Bill review' });
   await expect(review).toContainText('€123.47', { timeout: 120_000 });
 
-  await shoot(page, 'home', '/app');
-  await shoot(page, 'documents', '/app/documents');
-  await shoot(page, 'documents-search', '/app/documents?q=october');
+  // The list checks each document's status after it loads, so wait for that before taking the picture.
+  const listSettled = async () => {
+    await expect(page.getByRole('link', { name: /\.png$/ }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Checking status')).toHaveCount(0, { timeout: 60_000 });
+  };
+  await shoot(page, 'home', '/app', listSettled);
+  await shoot(page, 'documents', '/app/documents', listSettled);
+  await shoot(page, 'documents-search', '/app/documents?q=october', listSettled);
   await shoot(page, 'documents-no-match', '/app/documents?q=octber');
   await shoot(page, 'bill-unconfirmed', billUrl, async () => {
     await expect(review).toContainText('€123.47', { timeout: 30_000 });
@@ -175,5 +180,68 @@ test('record the redesign screens', async ({ page }) => {
       await page.waitForTimeout(1500);
       await page.screenshot({ path: path.join(OUT_DIR, `upload-mid-${size.name}-${theme}.png`) });
     }
+  }
+});
+
+// Needs no account, so it runs with the normal browser suite.
+test.describe('landing preview is above the fold', () => {
+  const bottom = async (locator: ReturnType<Page['locator']>) => {
+    await expect(locator.first()).toBeVisible();
+    const box = await locator.first().boundingBox();
+    return box!.y + box!.height;
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`at 1366 x 768 the question, the answer and the source line are on the first screen (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await page.goto('/');
+      const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
+      for (const locator of [
+        preview.getByText('When is my electricity bill due?', { exact: true }),
+        preview.getByText('23 November 2026', { exact: true }).first(),
+        preview.getByText('October electricity bill · line 17', { exact: true }),
+        preview.getByText('OCR line 17', { exact: true }),
+        preview.getByText('Payment due date: 23 November 2026', { exact: true }),
+        page.getByRole('banner').getByRole('link', { name: 'Create an account' }),
+      ]) {
+        expect(await bottom(locator)).toBeLessThanOrEqual(768);
+      }
+    });
+  }
+
+  test('at 390 x 844 the answer is on the first screen and nothing scrolls sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
+    expect(await bottom(preview.getByText('23 November 2026', { exact: true }).first())).toBeLessThanOrEqual(844);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Create an account' })).toBeVisible();
+  });
+});
+
+// Needs the verified synthetic account (E2E_EMAIL, E2E_PASSWORD); it adds one document and removes it again.
+test('documents list at 390 px does not scroll sideways, and every title link is at least 44 px tall', async ({ page }) => {
+  test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, 'A verified synthetic account is required');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  const token = await page.evaluate(() => localStorage.getItem('token'));
+  const headers = { Authorization: `Bearer ${token}` };
+  const onePixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const response = await page.request.post('/api/v1/documents', {
+    headers,
+    multipart: { file: { name: 'Row height check.png', mimeType: 'image/png', buffer: onePixel } },
+  });
+  expect(response.status()).toBe(201);
+  const id = (await response.json()).id as string;
+  try {
+    await page.goto('/app/documents');
+    await expect(page.getByRole('link', { name: 'Row height check.png' })).toBeVisible({ timeout: 15_000 });
+    const links = await page.locator('main li a[title]').all();
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
+  } finally {
+    await page.request.delete(`/api/v1/documents/${id}`, { headers });
   }
 });

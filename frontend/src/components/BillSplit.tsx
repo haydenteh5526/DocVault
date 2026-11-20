@@ -479,7 +479,7 @@ export function BillSplitPanel({
   }
 
   return (
-    <section aria-labelledby="bill-split-heading" className="rounded-xl border bg-card p-6 space-y-4">
+    <section aria-labelledby="bill-split-heading" className="min-w-0 rounded-lg border bg-card p-4 sm:p-5 space-y-4">
       <h3 id="bill-split-heading" ref={headingRef} tabIndex={-1} className="font-semibold">Bill split</h3>
       {body}
       {message && (

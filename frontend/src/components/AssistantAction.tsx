@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatBillDate } from '@/components/BillReview'
+import { SourceQuote, SourceTie } from '@/components/SourceTie'
 import type { AssistantAction, BillField } from '@/lib/api'
 
 interface Props {
@@ -77,7 +78,7 @@ function cardBody(action: AssistantAction, onOpenDocument: (id: string) => void)
 
 function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section role="region" aria-label={label} className="rounded-xl border border-border/50 bg-card/60 p-3 text-sm space-y-2">
+    <section role="region" aria-label={label} className="mt-2 rounded-lg border border-border bg-card p-3 text-sm space-y-2">
       {children}
     </section>
   )
@@ -86,11 +87,7 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
 function Quotes({ lines }: { lines: { line: number; text: string }[] }) {
   return (
     <>
-      {lines.map(source => (
-        <blockquote key={`${source.line}:${source.text}`} className="border-l-2 border-border pl-3 text-xs text-muted-foreground">
-          {source.text}
-        </blockquote>
-      ))}
+      {lines.map(source => <SourceQuote key={`${source.line}:${source.text}`} source={source} />)}
     </>
   )
 }
@@ -111,17 +108,11 @@ function FactsCard({ action, facts, openButton }: { action: AssistantAction; fac
     <Card label="Bill facts">
       {action.document_title && <p className="text-xs text-muted-foreground">{action.document_title}</p>}
       <p className="font-medium">{facts.confirmed ? `Confirmed · revision ${facts.revision}` : 'Not confirmed'}</p>
-      <dl className="space-y-2">
+      <div className="space-y-3">
         {rows.map(row => (
-          <div key={row.label}>
-            <dt className="text-xs text-muted-foreground">{row.label}</dt>
-            <dd>
-              <span>{row.value ?? 'Not readable'}</span>
-              <Quotes lines={row.lines} />
-            </dd>
-          </div>
+          <SourceTie key={row.label} label={row.label} value={row.value ?? 'Not readable'} sources={row.lines} />
         ))}
-      </dl>
+      </div>
       {openButton}
     </Card>
   )

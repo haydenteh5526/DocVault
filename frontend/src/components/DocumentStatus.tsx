@@ -7,11 +7,23 @@ export function attentionReason(detail?: Document): string | null {
   return null
 }
 
-export function DocumentStatus({ doc, detail }: {doc: Document; detail?: Document}) {
-  if (doc.processing_status === 'failed') return <StatusTag tone="danger">Could not read this file</StatusTag>
-  if (doc.processing_status && doc.processing_status !== 'complete') return <StatusTag tone="neutral">Reading the text</StatusTag>
-  if (!detail) return <StatusTag tone="neutral">Checking status</StatusTag>
+type Tone = 'neutral' | 'attention' | 'danger'
+
+function statusOf(doc: Document, detail?: Document): { label: string; tone: Tone } {
+  if (doc.processing_status === 'failed') return { label: 'Could not read this file', tone: 'danger' }
+  if (doc.processing_status && doc.processing_status !== 'complete') return { label: 'Reading the text', tone: 'neutral' }
+  if (!detail) return { label: 'Checking status', tone: 'neutral' }
   const reason = attentionReason(detail)
-  if (reason) return <StatusTag tone="attention">{reason}</StatusTag>
-  return <StatusTag tone="neutral">{detail.confirmed_bill ? 'Confirmed · revision ' + detail.confirmed_bill.revision_number : 'Ready'}</StatusTag>
+  if (reason) return { label: reason, tone: 'attention' }
+  return { label: detail.confirmed_bill ? 'Confirmed · revision ' + detail.confirmed_bill.revision_number : 'Ready', tone: 'neutral' }
+}
+
+/** The text DocumentStatus shows, so the list and its filters cannot drift apart. */
+export function statusLabel(doc: Document, detail?: Document): string {
+  return statusOf(doc, detail).label
+}
+
+export function DocumentStatus({ doc, detail }: {doc: Document; detail?: Document}) {
+  const { label, tone } = statusOf(doc, detail)
+  return <StatusTag tone={tone}>{label}</StatusTag>
 }

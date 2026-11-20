@@ -84,6 +84,16 @@ describe('AssistantActionCard', () => {
     expect(onOpenDocument).toHaveBeenCalledWith(DOC)
   })
 
+  it('shows each fact through a source tie that quotes its line', () => {
+    render(<AssistantActionCard action={action({ kind: 'bill_facts', facts: facts() })} onOpenDocument={vi.fn()} />)
+    const region = screen.getByRole('region', { name: 'Bill facts' })
+    const ties = region.querySelectorAll<HTMLElement>('.source-tie')
+    expect(ties).toHaveLength(3)
+    expect(ties[0]).toHaveTextContent('Amount due')
+    expect(within(ties[0]).getByText('€123.47', { selector: 'strong' })).toBeInTheDocument()
+    expect(within(ties[0]).getByRole('blockquote')).toHaveTextContent('OCR line')
+  })
+
   it('labels unconfirmed and unreadable facts', () => {
     const f = facts({
       confirmed: false,

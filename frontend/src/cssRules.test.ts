@@ -26,7 +26,7 @@ describe('page transitions (N3)', () => {
 
 describe('the hero load animation (N5)', () => {
   it('is scoped to the landing page, so the account pages do not play it', () => {
-    const rules = landing.split(/\r?\n/).filter(line => line.includes('html.motion-ok') && /\.(back-sheet|sheet-\d|paper-bill|example-question)/.test(line))
+    const rules = landing.split(/\r?\n/).filter(line => line.includes('html.motion-ok') && /\.(h1-line|hero-lead)/.test(line))
     expect(rules.length).toBeGreaterThan(0)
     for (const rule of rules) expect(rule.match(/html\.motion-ok\s+\S+/g)!.every(part => /\.poster/.test(rule.slice(rule.indexOf(part)).split('{')[0]))).toBe(true)
   })
