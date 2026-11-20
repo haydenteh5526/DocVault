@@ -4,7 +4,7 @@
 
 **Status:** proposed and approved by the owner on 20 November 2026, with decisions A1 to A5 and P1 to P6 as written. The assistant is named **Pip**. Nothing in it is implemented.
 
-**Issue:** none yet. Opening one needs the owner's yes. The proposed text is the "Acceptance checks" table at the end.
+**Issue:** [#35](https://github.com/haydenteh5526/DocVault/issues/35), opened on 20 November 2026 with the acceptance checks at the end of this plan.
 
 **Goal:** DocVault should feel like an assistant that works for you, not a chat page.
 - **Pip** proposes the right thing at the right time.
@@ -223,7 +223,7 @@ Branch `feature/pip-daily-check`, cut from `main` at `23f5238` or later.
 
 - [ ] `specs/Repo_Current_State.md` and the README feature list record what was run.
 - [ ] Rename the branch if it was tool-generated. The Reviewer checks the diff against this plan and Review focus 1 to 5 and 9. Show the owner the full report, and fix only what he approves.
-- [ ] Open the PR (`Part of #<issue>`). It merges on the owner's word.
+- [ ] Open the PR (`Part of #35`). It merges on the owner's word.
 
 ## PR A1 — approvals in Ask and a visible trace (after benchmark PR 1 merges)
 
