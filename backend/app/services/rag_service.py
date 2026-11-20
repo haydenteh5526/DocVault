@@ -2,14 +2,37 @@
 
 Used by both the /api/v1/ai/ask endpoint and the conversations endpoint.
 """
+import time
 import uuid
+from dataclasses import dataclass
+from typing import Literal
 
+import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.logging_config import get_logger
 from app.services import embedding_service as embedding_service  # re-exported: tests patch it here
 from app.services.retrieval import Passage, retrieve
 from app.services.retrieval import ocr_lines_of as ocr_lines_of  # re-exported for existing imports
+
+logger = get_logger("rag")
+
+ANSWER_SYSTEM_PROMPT = (
+    "You are a helpful assistant that answers questions based on the user's stored documents. "
+    "Only answer using information from the provided context. "
+    "If the answer is not in the context, say 'I don't have information about that in your documents.' "
+    "Cite which document the answer comes from. "
+    "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
+    "and numbered lists for steps. Keep responses concise and well-structured."
+)
+# A document assistant should give the same answer to the same question (D6).
+ANSWER_TEMPERATURE = 0.0
+ANSWER_MAX_TOKENS = 500
+OLLAMA_NUM_CTX = 8192
+
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GEMINI_MODEL = "gemini-2.0-flash"
 
 NOT_FOUND_ANSWER = "I couldn't find this in your documents."
 NO_KEY_HEADER = (
@@ -163,34 +186,138 @@ def _no_key_answer(context: str, passages: list[dict] | None) -> str:
     return answer
 
 
+@dataclass(frozen=True)
+class AnswerResult:
+    text: str
+    writer: str | None
+    model: str | None
+    latency_ms: int
+    prompt_tokens: int | None
+    invalid_reason: str | None
+
+
+def _default_writer() -> Literal["ollama", "groq", "gemini"] | None:
+    """D7: a local model if one is configured on purpose, then Groq, then Gemini."""
+    from app.config import settings
+
+    if settings.ANSWER_MODEL:
+        return "ollama"
+    if settings.GROQ_API_KEY:
+        return "groq"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    return None
+
+
+def _model_name(writer: str) -> str:
+    from app.config import settings
+
+    return {"ollama": settings.ANSWER_MODEL, "groq": GROQ_MODEL, "gemini": GEMINI_MODEL}[writer]
+
+
+def generate_answer(
+    question: str,
+    context: str,
+    history: list[ChatTurn] | None = None,
+    passages: list[dict] | None = None,
+    writer: Literal["ollama", "groq", "gemini"] | None = None,
+) -> AnswerResult:
+    """Write an answer from the retrieved context.
+
+    With `writer=None` the product's choice applies (see _default_writer). A forced
+    writer is for the benchmark: its failures come back as `invalid_reason`
+    instead of falling back or raising.
+    """
+    from app.services.observability import trace_generation
+
+    forced = writer is not None
+    chosen = writer or _default_writer()
+    if chosen is None:
+        return AnswerResult(_no_key_answer(context, passages), None, None, 0, None, None)
+
+    model = _model_name(chosen)
+    started = time.perf_counter()
+    prompt_tokens: int | None = None
+    invalid_reason: str | None = None
+    try:
+        with trace_generation(
+            name="rag_answer",
+            model=model,
+            input_text=question,
+            metadata={"context_chars": len(context)},
+        ) as record_output:
+            if chosen == "ollama":
+                answer, prompt_tokens = _generate_answer_ollama(question, context, history)
+                if prompt_tokens is not None and prompt_tokens >= OLLAMA_NUM_CTX:
+                    invalid_reason = "context truncated"
+            elif chosen == "groq":
+                answer = _generate_answer_groq(question, context, history)
+            else:
+                answer = _generate_answer_gemini(question, context, history)
+            record_output(answer)
+    except Exception as error:  # noqa: BLE001 - only the local writer or a forced writer may fail quietly
+        if chosen != "ollama" and not forced:
+            raise
+        latency_ms = round((time.perf_counter() - started) * 1000)
+        if forced:
+            reason = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+            return AnswerResult("", chosen, model, latency_ms, None, f"error: {reason}")
+        logger.warning("answer_writer_failed writer=ollama error=%s", type(error).__name__)
+        return AnswerResult(_no_key_answer(context, passages), None, None, latency_ms, None, None)
+
+    latency_ms = round((time.perf_counter() - started) * 1000)
+    return AnswerResult(answer, chosen, model, latency_ms, prompt_tokens, invalid_reason)
+
+
 def _generate_answer(
     question: str,
     context: str,
     history: list[ChatTurn] | None = None,
     passages: list[dict] | None = None,
 ) -> str:
+    return generate_answer(question, context, history, passages=passages).text
+
+
+def _generate_answer_ollama(
+    question: str, context: str, history: list[ChatTurn] | None = None
+) -> tuple[str, int | None]:
+    """Answer with the local model. Returns the text and Ollama's prompt token count."""
     from app.config import settings
-    from app.services.observability import trace_generation
 
-    if settings.GROQ_API_KEY:
-        model = "llama-3.3-70b-versatile"
-    elif settings.GEMINI_API_KEY:
-        model = "gemini-2.0-flash"
-    else:
-        return _no_key_answer(context, passages)
-
-    with trace_generation(
-        name="rag_answer",
-        model=model,
-        input_text=question,
-        metadata={"context_chars": len(context)},
-    ) as record_output:
-        if settings.GROQ_API_KEY:
-            answer = _generate_answer_groq(question, context, history)
-        else:
-            answer = _generate_answer_gemini(question, context, history)
-        record_output(answer)
-        return answer
+    if not settings.OLLAMA_URL:
+        raise RuntimeError("OLLAMA_URL is not set")
+    messages: list[dict] = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
+    if history:
+        for turn in history[-6:]:
+            if turn.role in ("user", "assistant"):
+                messages.append({"role": turn.role, "content": turn.content})
+    messages.append({
+        "role": "user",
+        "content": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}",
+    })
+    request = {
+        "model": settings.ANSWER_MODEL,
+        "messages": messages,
+        "stream": False,
+        "think": False,
+        "options": {
+            "temperature": ANSWER_TEMPERATURE,
+            "seed": 0,
+            "num_ctx": OLLAMA_NUM_CTX,
+            "num_predict": ANSWER_MAX_TOKENS,
+        },
+        "keep_alive": "30m",
+    }
+    url = f"{settings.OLLAMA_URL.rstrip('/')}/api/chat"
+    with httpx.Client(timeout=60) as client:
+        response = client.post(url, json=request)
+        if response.status_code == 400 and "think" in response.text:
+            # An older Ollama or a model without a thinking mode rejects the field.
+            request.pop("think")
+            response = client.post(url, json=request)
+        response.raise_for_status()
+        body = response.json()
+    return body["message"]["content"], body.get("prompt_eval_count")
 
 
 def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
@@ -201,19 +328,7 @@ def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] |
 
     client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
 
-    messages: list[dict] = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful assistant that answers questions based on the user's stored documents. "
-                "Only answer using information from the provided context. "
-                "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-                "Cite which document the answer comes from. "
-                "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
-                "and numbered lists for steps. Keep responses concise and well-structured."
-            ),
-        }
-    ]
+    messages: list[dict] = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
     if history:
         for turn in history[-6:]:
             if turn.role in ("user", "assistant"):
@@ -224,10 +339,10 @@ def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] |
     })
 
     response = with_retry(lambda: client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=GROQ_MODEL,
         messages=messages,
-        temperature=0.3,
-        max_tokens=500,
+        temperature=ANSWER_TEMPERATURE,
+        max_tokens=ANSWER_MAX_TOKENS,
     ), label="groq.chat")
 
     return response.choices[0].message.content
@@ -240,15 +355,6 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
     from app.services.retry import with_retry
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-
-    system_instruction = (
-        "You are a helpful assistant that answers questions based on the user's stored documents. "
-        "Only answer using information from the provided context. "
-        "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-        "Cite which document the answer comes from. "
-        "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
-        "and numbered lists for steps. Keep responses concise and well-structured."
-    )
 
     contents: list[dict] = []
     if history:
@@ -264,12 +370,12 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
     })
 
     response = with_retry(lambda: client.models.generate_content(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         contents=contents,
         config={
-            "system_instruction": system_instruction,
-            "temperature": 0.3,
-            "max_output_tokens": 500,
+            "system_instruction": ANSWER_SYSTEM_PROMPT,
+            "temperature": ANSWER_TEMPERATURE,
+            "max_output_tokens": ANSWER_MAX_TOKENS,
         },
     ), label="gemini.chat")
 

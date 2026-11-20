@@ -413,4 +413,4 @@ def test_generate_answer_gemini_maps_assistant_history(monkeypatch):
 
     assert result == "Gemini answer"
     assert [item["role"] for item in captured["contents"]] == ["user", "model", "user"]
-    assert captured["config"]["temperature"] == 0.3
+    assert captured["config"]["temperature"] == rag_service.ANSWER_TEMPERATURE
