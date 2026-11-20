@@ -89,6 +89,8 @@ def _categorise_gemini(text: str) -> DocumentMetadata:
             config={
                 "temperature": 0,
                 "response_mime_type": "application/json",
+                # gemini-2.5 models think by default; this is a short extraction, so skip it.
+                "thinking_config": {"thinking_budget": 0},
             },
         ), label="gemini.categorise", attempts=2)
 

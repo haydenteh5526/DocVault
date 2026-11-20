@@ -389,4 +389,6 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
         },
     ), label="gemini.chat")
 
+    if not (response.text or "").strip():
+        raise RuntimeError("Gemini returned no text")
     return response.text

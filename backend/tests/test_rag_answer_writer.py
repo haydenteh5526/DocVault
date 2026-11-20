@@ -290,17 +290,44 @@ def test_gemini_model_comes_from_settings_for_categorisation(monkeypatch):
     assert [call["model"] for call in calls] == ["test-gemini-model"]
 
 
-def test_gemini_answers_do_not_spend_the_output_cap_on_thinking(monkeypatch):
+def test_gemini_calls_disable_thinking(monkeypatch):
     # gemini-2.5 models think by default, and thinking tokens count against max_output_tokens.
-    calls = []
+    from app.services import categorisation_service
+
+    answer_calls, categorise_calls = [], []
     client = SimpleNamespace(models=SimpleNamespace(generate_content=lambda **kw: (
-        calls.append(kw) or SimpleNamespace(text="m")
+        answer_calls.append(kw) or SimpleNamespace(text="m")
     )))
     monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
     monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
 
     rag_service._generate_answer_gemini("Q", "Context")
 
-    config = calls[0]["config"]
-    assert config["thinking_config"] == {"thinking_budget": 0}
-    assert config["max_output_tokens"] == rag_service.ANSWER_MAX_TOKENS
+    class Models:
+        def generate_content(self, **kwargs):
+            categorise_calls.append(kwargs)
+            return SimpleNamespace(text='{"brand":"Sony","model":"A1","document_type":"Guide","suggested_title":"Sony A1"}')
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "key")
+    categorisation_service._categorise_gemini("setup")
+
+    assert answer_calls[0]["config"]["thinking_config"] == {"thinking_budget": 0}
+    assert answer_calls[0]["config"]["max_output_tokens"] == rag_service.ANSWER_MAX_TOKENS
+    assert categorise_calls[0]["config"]["thinking_config"] == {"thinking_budget": 0}
+
+
+@pytest.mark.parametrize("reply", [None, "", "   \n"])
+def test_empty_gemini_reply_is_a_writer_failure(monkeypatch, reply):
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=lambda **kw: SimpleNamespace(text=reply)))
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
+    monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "key")
+
+    with pytest.raises(RuntimeError, match="Gemini returned no text"):
+        rag_service._generate_answer_gemini("Q", "Context")
+
+    # A forced writer (the benchmark) records it as an invalid row; the text is never None.
+    result = rag_service.generate_answer("Q", "Context", writer="gemini")
+    assert result.text == "" and result.invalid_reason == "error: Gemini returned no text"
+    assert isinstance(result.text, str)

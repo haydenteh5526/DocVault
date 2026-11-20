@@ -10,8 +10,8 @@
 #
 # BENCH_OLLAMA_VOLUME names an existing Docker volume that must hold both models
 # (qwen3:8b and nomic-embed-text). Compose never creates it and refuses to start
-# without it, so nothing is downloaded. Which volume to use is the owner's decision,
-# described in evaluation/retrieval/README.md and recorded in RUN.md.
+# without it, so nothing is downloaded. The volume is chosen from options (a) to (c)
+# before Task 6 and recorded in `RUN.md`; the options are in evaluation/retrieval/README.md.
 services:
   api:
     ports: !override
