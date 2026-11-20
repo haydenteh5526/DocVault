@@ -103,30 +103,41 @@ def reciprocal_rank(order: list[str], relevant: set[str]) -> float:
     return 0.0
 
 
+# OCR confusables mapped in a chunk's window before the digit check. The key is never mapped.
+_CONFUSABLES = str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "|": "1", "S": "5", "B": "8", "Z": "2"})
+
+
 def passage_hit(chunks: list[str], answer_key: str) -> bool:
     """A chunk holds the normalised answer key, or a window of it that matches at a ratio of 0.8 or more.
 
-    The fuzzy match tolerates OCR noise in letters, but every run of digits in the key must appear
-    unchanged in the window: a different month's total ("100.55" for "122.05") is a different answer,
-    not noise.
+    The fuzzy match tolerates OCR noise, but every run of digits in the key must appear in the window once
+    OCR confusables (O and o to 0, I, l and | to 1, S to 5, B to 8, Z to 2) are mapped in the window: a
+    different month's total ("100.55" for "122.05") is a different answer, not noise.
     """
     key = normalise(answer_key)
     if not key:
         return False
     digit_runs = re.findall(r"\d+", key)
+    width = len(key)
     for chunk in chunks:
-        text = normalise(chunk)
+        cased = " ".join(unicodedata.normalize("NFC", chunk).split())
+        text = cased.lower()
         if key in text:
             return True
-        width = len(key)
+        if len(text) != len(cased):  # lower-casing changed the length: no confusable mapping is possible
+            cased = text
         for start in range(max(1, len(text) - width + 1)):
-            window = text[start:start + width]
-            if not all(run in window for run in digit_runs):
+            if not all(run in cased[start:start + width].translate(_CONFUSABLES) for run in digit_runs):
                 continue
-            matcher = difflib.SequenceMatcher(None, window, key, autojunk=False)
+            matcher = difflib.SequenceMatcher(None, text[start:start + width], key, autojunk=False)
             if matcher.real_quick_ratio() >= OCR_HIT_RATIO and matcher.quick_ratio() >= OCR_HIT_RATIO                     and matcher.ratio() >= OCR_HIT_RATIO:
                 return True
     return False
+
+
+def chunk_hit(document_id: str, chunk_text: str, question: dict) -> bool:
+    """A chunk counts only if its document is one of the question's relevant documents and it holds the key."""
+    return bool(question["answer_key"]) and document_id in question["relevant"]         and passage_hit([chunk_text], question["answer_key"])
 
 
 def sign_test_p(wins: int, losses: int) -> float:
@@ -649,7 +660,7 @@ async def run_retrieve(profile: str, questions: list[dict], output: Path) -> lis
                             "profile": profile, "question_id": q["id"], "mode": mode, "rank": rank,
                             "document_id": codes[passage.document_id], "similarity": passage.similarity,
                             "score": passage.score, "chunk_sha1": _sha1(passage.chunk_text),
-                            "contains_key": bool(q["answer_key"]) and passage_hit([passage.chunk_text], q["answer_key"]),
+                            "contains_key": chunk_hit(codes[passage.document_id], passage.chunk_text, q),
                         })
         return rows
 

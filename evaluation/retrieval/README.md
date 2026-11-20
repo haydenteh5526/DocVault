@@ -62,7 +62,7 @@ Sixty questions, each with `id`, `split` (`calibration` or `test`), `category`, 
 | unanswerable (plausible but absent, or near misses) | 10 | 10 |
 | **Total** | **20** | **40** |
 
-Forty are answerable and twenty are not. Twenty questions are unanswerable, not about fifteen, so that the calibration third has the 10 unanswerable questions a one-in-ten limit needs. Every question about a poor-scan document is in the test split (19 of them), so the degraded condition is measured only on held-out questions. For a cross-document question, `answer_key` is text from one of the relevant documents (its `note` says which); passage hit@5 therefore checks that one document.
+Forty are answerable and twenty are not. Twenty questions are unanswerable, not about fifteen, so that the calibration third has the 10 unanswerable questions a one-in-ten limit needs. Every question about a poor-scan document is in the test split (19 of them), so the degraded condition is measured only on held-out questions. For a cross-document question, `answer_key` is text from one of the relevant documents (its `note` says which); a chunk of any relevant document that holds the key counts as a hit.
 
 ## Stack and commands
 
@@ -104,7 +104,10 @@ Answerable questions only for ranking. Documents are counted in the order their 
 - **P@5:** relevant documents among the first 5 documents ÷ 5.
 - **R@5:** relevant documents among the first 5 ÷ relevant documents.
 - **RR:** 1 ÷ the rank of the first relevant document within the first 10, else 0. **MRR** is the mean.
-- **Passage hit@5:** a chunk among the first 5 contains the normalised `answer_key` (lower case, NFC, whitespace collapsed), or a window of the chunk, as long as the key, matches it with `difflib.SequenceMatcher` ratio 0.8 or more **and** contains every run of digits in the key unchanged. The digit rule keeps a different month's total ("100.55" for "122.05") from counting as OCR noise; letters may be noisy. For a cross-document question only the document holding the key is checked.
+- **Passage hit@5** (clarified 20 November 2026, approved by the owner): a chunk among the first 5 counts only if both hold:
+  1. its document is one of the question's `relevant` documents, the same list used for P@5 and R@5;
+  2. it contains the normalised `answer_key` (lower case, NFC, whitespace collapsed), or some window of the chunk the length of the key has a `difflib.SequenceMatcher` ratio of 0.8 or more against the key **and** every run of digits in the key appears as a substring of that window.
+  Before the digit check, OCR confusables in the window are mapped: O and o to 0; I, l and | to 1; S to 5; B to 8; Z to 2. The key is not mapped. A ratio alone would let the September chunk "Total due: EUR 100.55" match the October key "Total due: EUR 122.05" (ratio about 0.81), and exact digits alone would miss poor-scan misreads such as "I22.O5".
 - **Word error rate:** `(substitutions + insertions + deletions) / reference words` over whitespace-separated words, Unicode NFC, case and punctuation kept, as in `EVALUATION_PLAN.md` section 2.
 - **At the chosen floor, per mode,** on the held-out questions: the *no-answer false-positive rate* (unanswerable questions answered ÷ unanswerable) and the *answerable refusal rate* (answerable questions declined ÷ answerable). A question is answered in `keyword` mode whenever it has a keyword match; in `semantic` and `hybrid_strict` mode when a candidate's similarity reaches the floor; in `hybrid` mode in that case or when a keyword match exists (the fallback).
 - **Paired comparison** on the held-out answerable questions: for hybrid against keyword and hybrid against semantic, per-question RR wins, ties and losses, and an exact two-sided sign test p-value (`math.comb`, ties dropped).

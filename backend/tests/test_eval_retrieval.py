@@ -72,10 +72,39 @@ def test_reciprocal_rank_looks_only_at_the_first_ten_documents():
 def test_passage_hit_tolerates_ocr_noise():
     key = "Total due: EUR 122.05"
 
+    # An exact hit, ignoring case and spacing.
     assert ev.passage_hit(["Payment due date. total due:   eur 122.05 then more"], key)
-    assert ev.passage_hit(["Payment due date. Totai due: EUR 122,05 then more words follow"], key)
+    # One misread letter.
+    assert ev.passage_hit(["Payment due date. Totai due: EUR 122.05 then more words follow"], key)
+    # Misread digits, as poor scans give: I for 1 and O for 0.
+    assert ev.passage_hit(["Payment due date. Total due: EUR I22.O5 then more words follow"], key)
+    assert ev.passage_hit(["Total due: EUR l22.OS and so on"], key)
+    # Another month's total is a different answer, not noise, though its ratio alone is about 0.81.
     assert not ev.passage_hit(["Total due: EUR 100.55 and nothing else relevant here"], key)
+    assert not ev.passage_hit(["Previous balance: EUR 100.55 and nothing else relevant here"], key)
     assert not ev.passage_hit([], key)
+
+
+def test_keys_with_letters_and_digits_match_their_own_text():
+    assert ev.passage_hit(["Model O55-Q is listed here"], "O55-Q")
+    assert ev.passage_hit(["Model 055-Q is listed here"], "O55-Q")  # the O read as a zero is OCR noise
+    assert not ev.passage_hit(["Model X99-Q is listed here"], "O55-Q")
+
+
+def test_a_chunk_counts_only_in_a_relevant_document():
+    question = _question("Q9", "test", "exact", ["D02"], "Total due: EUR 122.05")
+
+    assert ev.chunk_hit("D02", "Total due: EUR 122.05", question)
+    assert ev.chunk_hit("D02", "Total due: EUR I22.O5", question)
+    # The September chunk from the September document: wrong document and wrong digits.
+    assert not ev.chunk_hit("D01", "Total due: EUR 100.55", question)
+    # The right text in the wrong document.
+    assert not ev.chunk_hit("D01", "Total due: EUR 122.05", question)
+    # A chunk of the relevant document that does not hold the key.
+    assert not ev.chunk_hit("D02", "Payment due date: 20 November 2026", question)
+    # Right document, wrong digits.
+    assert not ev.chunk_hit("D02", "Previous balance: EUR 100.55", question)
+    assert not ev.chunk_hit("D02", "anything", _question("Q8", "test", "unanswerable"))
 
 
 def test_passage_hit_looks_at_every_chunk_it_is_given():
