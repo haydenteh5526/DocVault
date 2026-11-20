@@ -128,4 +128,3 @@
 .pip-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
 .pip-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
 .pip-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }
-
