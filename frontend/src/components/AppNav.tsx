@@ -89,7 +89,7 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
         {navItems(primary)}
       </nav>
       <div className="mt-5"><p className="mb-2 px-2 text-sm text-muted-foreground">More</p>
-        {navItems(more)}<button className={menuButton} onClick={settings}>Settings</button>
+        {navItems(more)}
       </div>
     </div>
     <div className="flex items-center gap-1 border-t p-3">{account}{bell}</div>
