@@ -1,4 +1,4 @@
-"""Pip's daily check: which bills get a reminder proposal, how often, and for whom."""
+"""DocBot's daily check: which bills get a reminder proposal, how often, and for whom."""
 
 import uuid
 from datetime import date, datetime
@@ -101,7 +101,7 @@ async def test_a_bill_due_soon_gets_a_pending_proposal_with_the_default_lead(bil
     assert proposal.status == "pending"
     assert proposal.details["days_before_due"] == 3
     assert proposal.details["remind_on"] == "2026-11-20"
-    # Pip proposes; it never saves.
+    # DocBot proposes; it never saves.
     async with async_session() as db:
         assert (await db.execute(select(Reminder).where(Reminder.document_id == document_id))).first() is None
 
@@ -553,7 +553,7 @@ async def test_check_now_says_when_the_daily_check_is_off(bill, fixed_today):
     assert response.status_code == 409
     assert response.json()["detail"] == {
         "code": "routines_off",
-        "message": "Pip's daily check is switched off in Settings.",
+        "message": "DocBot's daily check is switched off in Settings.",
     }
     assert await _proposals(document_id) == []
 

@@ -151,9 +151,9 @@ describe('household settings', () => {
     expect(await days()).toHaveValue(3)
     expect(screen.getByRole('radio', { name: 'Equally' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'By days at home' })).not.toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Let Pip check my bills each morning' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Let DocBot check my bills each morning' })).toBeChecked()
     expect(screen.getByText(
-      'Pip proposes a reminder for bills due in the next two weeks. Nothing is saved until you approve it.',
+      'DocBot proposes a reminder for bills due in the next two weeks. Nothing is saved until you approve it.',
     )).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People you live with' })).toBeInTheDocument()
     expect(await screen.findByText('Aoife')).toBeInTheDocument()
@@ -168,7 +168,7 @@ describe('household settings', () => {
 
     expect(await days()).toHaveValue(7)
     expect(screen.getByRole('radio', { name: 'By days at home' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Let Pip check my bills each morning' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Let DocBot check my bills each morning' })).not.toBeChecked()
   })
 
   it('saves the chosen values, says so and refreshes the saved preferences', async () => {
@@ -181,7 +181,7 @@ describe('household settings', () => {
     await userEvent.clear(input)
     await userEvent.type(input, '5')
     await userEvent.click(screen.getByRole('radio', { name: 'By days at home' }))
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Let Pip check my bills each morning' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Let DocBot check my bills each morning' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument()

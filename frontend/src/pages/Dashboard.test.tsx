@@ -246,7 +246,7 @@ describe('the page head (plan 0R-4, R13)', () => {
   })
 })
 
-describe("Pip's check", () => {
+describe("DocBot's check", () => {
   const nothing = { proposed: [], skipped: [], warranties_ending: [] }
   const proposed = (n: number) => ({
     ...nothing,
@@ -265,7 +265,7 @@ describe("Pip's check", () => {
 
     await checkNow()
 
-    const message = 'Pip checked your bills: 1 reminder proposed.'
+    const message = 'DocBot checked your bills: 1 reminder proposed.'
     expect((await screen.findAllByText(message)).length).toBeGreaterThan(0)
     expect(live()).toHaveTextContent(message)
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['documents'] })
@@ -280,7 +280,7 @@ describe("Pip's check", () => {
 
     await checkNow()
 
-    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: 2 reminders proposed.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: 2 reminders proposed.'))
   })
 
   it('says when there is nothing new', async () => {
@@ -289,18 +289,18 @@ describe("Pip's check", () => {
 
     await checkNow()
 
-    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: nothing new.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
   })
 
   it("shows the server's message when the daily check is switched off", async () => {
     vi.mocked(checkBillsNow).mockRejectedValue(
-      new ApiError(409, "Pip's daily check is switched off in Settings.", 'routines_off'),
+      new ApiError(409, "DocBot's daily check is switched off in Settings.", 'routines_off'),
     )
     renderDashboard()
 
     await checkNow()
 
-    await waitFor(() => expect(live()).toHaveTextContent("Pip's daily check is switched off in Settings."))
+    await waitFor(() => expect(live()).toHaveTextContent("DocBot's daily check is switched off in Settings."))
   })
 
   it('says so when the check failed for another reason', async () => {
@@ -309,7 +309,7 @@ describe("Pip's check", () => {
 
     await checkNow()
 
-    await waitFor(() => expect(live()).toHaveTextContent('Pip could not check your bills. Try again.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot could not check your bills. Try again.'))
   })
 
   it('says so, without "try again", when the hourly limit is reached', async () => {
@@ -318,14 +318,14 @@ describe("Pip's check", () => {
 
     await checkNow()
 
-    await waitFor(() => expect(live()).toHaveTextContent('Pip has checked several times this hour. Try again later.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot has checked several times this hour. Try again later.'))
   })
 
   it('announces an identical result again: the region is emptied while the next check runs', async () => {
     vi.mocked(checkBillsNow).mockResolvedValueOnce(nothing)
     renderDashboard()
     await checkNow()
-    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: nothing new.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
 
     let finish!: () => void
     vi.mocked(checkBillsNow).mockReturnValueOnce(new Promise(resolve => { finish = () => resolve(nothing) }))
@@ -333,7 +333,7 @@ describe("Pip's check", () => {
     // A screen reader only speaks a live region whose text changes, so the old text must go first.
     expect(live()).toHaveTextContent(/^$/)
     finish()
-    await waitFor(() => expect(live()).toHaveTextContent('Pip checked your bills: nothing new.'))
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
   })
 
   it('runs once however often it is pressed while it is working', async () => {

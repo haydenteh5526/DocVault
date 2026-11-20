@@ -45,9 +45,9 @@ async def check_now(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    """Run Pip's bill check for the signed-in account only. It proposes; nothing is saved until approval."""
+    """Run DocBot's bill check for the signed-in account only. It proposes; nothing is saved until approval."""
     if not (await get_preferences(db, user_id)).routines_enabled:
-        raise HTTPException(409, {"code": "routines_off", "message": "Pip's daily check is switched off in Settings."})
+        raise HTTPException(409, {"code": "routines_off", "message": "DocBot's daily check is switched off in Settings."})
     report = await run_bill_check(db, user_id=user_id)
     return CheckOut(
         proposed=[

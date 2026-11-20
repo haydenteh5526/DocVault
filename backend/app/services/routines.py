@@ -1,4 +1,4 @@
-"""Pip's daily check: propose a reminder for each confirmed bill that is due soon.
+"""DocBot's daily check: propose a reminder for each confirmed bill that is due soon.
 
 The check only proposes. It calls the same `propose_reminder` service as the bill panel and the assistant,
 with source "routine", so every proposal waits for the owner's approval of the exact details. Each

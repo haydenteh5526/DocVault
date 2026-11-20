@@ -1,5 +1,5 @@
 /** The assistant's name. Used only in text people read, never in code identifiers or storage keys. */
-export const ASSISTANT_NAME = 'Pip'
+export const ASSISTANT_NAME = 'DocBot'
 
 /** Who proposed a reminder, as the history of the bill panel says it. Anything unknown counts as the owner. */
 export function proposedByText(source: string): string {

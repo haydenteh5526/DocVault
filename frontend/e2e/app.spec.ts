@@ -531,7 +531,7 @@ test.describe('Bill review and split', () => {
       await proposal.getByRole('button', { name: 'Open bill to see its status' }).click();
       const reminder = page.getByRole('region', { name: 'Reminder' });
       await expect(reminder.getByText('Approve this reminder', { exact: true })).toBeVisible({ timeout: 30_000 });
-      await expect(reminder.getByRole('group', { name: 'History' })).toContainText('Proposed by Pip');
+      await expect(reminder.getByRole('group', { name: 'History' })).toContainText('Proposed by DocBot');
       await reminder.getByRole('button', { name: 'Approve and save' }).click();
       await expect(reminder.getByText('Saved · reminder for 21 November 2026', { exact: true })).toBeVisible();
     } finally {

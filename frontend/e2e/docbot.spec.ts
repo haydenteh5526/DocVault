@@ -9,7 +9,7 @@ import { submitSignIn } from './signInSubmit';
 const DUE_IN_DAYS = 10;
 const LEAD_DAYS = 2;
 
-/** Today's date in Ireland, as year, month (1 to 12) and day, which is the date Pip's check uses. */
+/** Today's date in Ireland, as year, month (1 to 12) and day, which is the date DocBot's check uses. */
 function dublinToday(): { y: number; m: number; d: number } {
   const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Dublin' }).format(new Date()).split('-').map(Number);
   return { y, m, d };
@@ -108,7 +108,7 @@ async function proposalCount(page: Page, id: string): Promise<number> {
   }, id);
 }
 
-test.describe("Pip's daily check", () => {
+test.describe("DocBot's daily check", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('docvault-onboarding-done', '1');
@@ -116,20 +116,20 @@ test.describe("Pip's daily check", () => {
     });
   });
 
-  test("Pip's daily check proposes a reminder", async ({ page }) => {
+  test("DocBot's daily check proposes a reminder", async ({ page }) => {
     test.setTimeout(120_000);
     const email = process.env.E2E_EMAIL_2;
     const password = process.env.E2E_PASSWORD_2;
     test.skip(!email || !password, 'Seed a second verified account for the daily check scenario');
 
-    // The bill falls due ten days from today, inside Pip's 14-day window whatever day this runs.
+    // The bill falls due ten days from today, inside DocBot's 14-day window whatever day this runs.
     const due = dublinDatePlus(DUE_IN_DAYS);
     const remindOn = dublinDatePlus(DUE_IN_DAYS - LEAD_DAYS);
     const image = await billImage(page, due);
     await signIn(page, email!, password!);
 
     // A name no other run or scenario uses, so a bill left behind by a crashed run cannot match the title too.
-    const fileName = `playwright-pip-${Date.now()}.png`;
+    const fileName = `playwright-docbot-${Date.now()}.png`;
     let documentId: string | undefined;
     try {
       // 1. Confirm the synthetic bill, due within 14 days.
@@ -151,23 +151,23 @@ test.describe("Pip's daily check", () => {
       await page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
 
-      // 3. Press "Check now". Pip says it checked; this bill's own row, below, shows what it proposed.
+      // 3. Press "Check now". DocBot says it checked; this bill's own row, below, shows what it proposed.
       await goInApp(page, '/app/documents');
       await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Check now' }).click();
-      await expect(page.getByText(/Pip checked your bills: /).first()).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText(/DocBot checked your bills: /).first()).toBeVisible({ timeout: 30_000 });
 
       // 4. The bill is under Needs attention with "Reminder awaiting approval".
       const attention = page.getByRole('region', { name: 'Needs attention' });
       const row = attention.getByRole('listitem').filter({ hasText: title });
       await expect(row).toContainText('Reminder awaiting approval', { timeout: 30_000 });
 
-      // 5. In the bill panel, the history says "Proposed by Pip's daily check". Nothing was saved yet.
+      // 5. In the bill panel, the history says "Proposed by DocBot's daily check". Nothing was saved yet.
       await row.getByRole('link', { name: 'Open bill' }).click();
       const reminder = page.getByRole('region', { name: 'Reminder' });
       await expect(reminder.getByText('Approve this reminder', { exact: true })).toBeVisible({ timeout: 30_000 });
       await expect(reminder.getByText(`(${LEAD_DAYS} days before the due date)`, { exact: true })).toBeVisible();
-      await expect(reminder.getByRole('group', { name: 'History' })).toContainText("Proposed by Pip's daily check");
+      await expect(reminder.getByRole('group', { name: 'History' })).toContainText("Proposed by DocBot's daily check");
 
       // 6. "Approve and save" saves it once.
       await reminder.getByRole('button', { name: 'Approve and save' }).click();
@@ -180,7 +180,7 @@ test.describe("Pip's daily check", () => {
       await goInApp(page, '/app/documents');
       await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Check now' }).click();
-      await expect(page.getByText(/Pip checked your bills: /).first()).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText(/DocBot checked your bills: /).first()).toBeVisible({ timeout: 30_000 });
       await expect.poll(() => proposalCount(page, documentId!)).toBe(1);
       await expect(attention.getByRole('listitem').filter({ hasText: title })).toHaveCount(0);
     } finally {
@@ -189,7 +189,7 @@ test.describe("Pip's daily check", () => {
         await resetPreferences(page);
         if (documentId) await deleteDocument(page, documentId);
       } catch (error) {
-        console.error("Clean-up after Pip's daily check scenario failed:", error);
+        console.error("Clean-up after DocBot's daily check scenario failed:", error);
       }
     }
   });

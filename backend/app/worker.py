@@ -26,7 +26,7 @@ async def warranty_expiry_cron(ctx: dict) -> None:
 
 
 async def bill_check_cron(ctx: dict) -> None:
-    logger.info("Running Pip's daily bill check")
+    logger.info("Running DocBot's daily bill check")
     async with async_session() as db:
         await run_bill_check(db)  # logs how many reminders it proposed and skipped
 
