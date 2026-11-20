@@ -262,7 +262,8 @@ function safeJson(text: string): { detail?: unknown } | undefined {
 
 /**
  * Turn a FastAPI `detail` into text for the user. String details pass through;
- * a 422 validation list shows its first item's `msg`, else `listFallback`.
+ * a 422 validation list shows its first item's `msg`, else `listFallback`;
+ * an object detail ({code, message}) explains a rate limit, or shows its `message`.
  */
 export function detailMessage(detail: unknown, fallback: string, listFallback = fallback): string {
   if (typeof detail === 'string' && detail) return detail
@@ -270,6 +271,12 @@ export function detailMessage(detail: unknown, fallback: string, listFallback = 
     const msg = (detail[0] as { msg?: unknown } | undefined)?.msg
     // The server's own validators reach the client as "Value error, <our text>".
     return typeof msg === 'string' && msg ? msg.replace(/^Value error, /, '') : listFallback
+  }
+  if (detail && typeof detail === 'object') {
+    // The server sends a rate limit as {code, message}, and other refusals may use the same shape.
+    const { code, message } = detail as { code?: unknown; message?: unknown }
+    if (code === 'RATE_LIMITED') return 'Too many attempts. Wait a minute, then try again.'
+    return typeof message === 'string' && message ? message : fallback
   }
   return fallback
 }
@@ -313,7 +320,7 @@ export async function loginUser(email: string, password: string, rememberMe = fa
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Login failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Login failed') : 'Server unavailable')
   }
   return res.json()
 }
@@ -326,7 +333,7 @@ export async function verify2FA(email: string, password: string, code: string, r
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Invalid code') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Invalid code') : 'Server unavailable')
   }
   return res.json()
 }
@@ -361,7 +368,7 @@ export async function forgotPassword(email: string): Promise<{ message: string }
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? (JSON.parse(text).detail || 'Request failed') : 'Server unavailable')
+    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Request failed') : 'Server unavailable')
   }
   return res.json()
 }
