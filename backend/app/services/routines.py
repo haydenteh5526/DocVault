@@ -103,15 +103,16 @@ async def run_bill_check(
         if revision.due_date < today:
             items.append(_skipped(document, "past_due"))
             continue
+        # Read the numbers the request will carry first. A proposal made before this read is then seen by the
+        # check below; one made after it fails the request's base proposal with "proposal_changed".
+        numbers = await current_request_numbers(db, document.id)
+        if numbers is None:
+            continue
         already = await db.execute(
             select(exists().where(ReminderProposal.bill_revision_id == revision.id))
         )
         if already.scalar_one():
             items.append(_skipped(document, "already_proposed"))
-            continue
-
-        numbers = await current_request_numbers(db, document.id)
-        if numbers is None:
             continue
         lead = preferences.reminder_days_before_due if preferences is not None else DEFAULT_LEAD_DAYS
         days_left = (revision.due_date - today).days

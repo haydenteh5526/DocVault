@@ -1,7 +1,7 @@
 """An account's household preferences: typed fields only, one row per account."""
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +46,11 @@ async def save_preferences(
     # An upsert, so two saves at once cannot collide on the primary key.
     statement = insert(HouseholdPreferences).values(user_id=user_id, **values)
     await db.execute(
-        statement.on_conflict_do_update(index_elements=[HouseholdPreferences.user_id], set_=values)
+        statement.on_conflict_do_update(
+            index_elements=[HouseholdPreferences.user_id],
+            # An ON CONFLICT update skips the column's onupdate, so the time is set here.
+            set_={**values, "updated_at": func.now()},
+        )
     )
     await db.commit()
     row = await get_preferences_row(db, user_id)

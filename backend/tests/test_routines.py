@@ -301,6 +301,40 @@ async def test_routine_survives_conflict(bill, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_proposal_made_and_cancelled_during_the_check_is_not_repeated(bill, monkeypatch):
+    owner_id, _, document_id = bill
+    await _confirmed(owner_id, document_id)
+    real = routines.current_request_numbers
+    interfered = []
+
+    async def propose_and_cancel_first(db, doc_id):
+        if not interfered:
+            # The owner proposes and cancels from the bill panel while the check is working on this bill.
+            interfered.append(doc_id)
+            async with _client() as client:
+                proposed = await client.post(
+                    f"/api/v1/documents/{doc_id}/reminder-proposals", headers=_headers(owner_id), json=_body()
+                )
+                assert proposed.status_code == 201
+                cancelled = await client.post(
+                    f"/api/v1/documents/{doc_id}/reminder-proposals/{proposed.json()['id']}/cancel",
+                    headers=_headers(owner_id),
+                )
+                assert cancelled.status_code == 200
+        return await real(db, doc_id)
+
+    monkeypatch.setattr(routines, "current_request_numbers", propose_and_cancel_first)
+
+    report = await _check(user_id=owner_id)
+
+    assert interfered == [document_id]
+    # One proposal for the revision, whatever its status: the cancelled one stands and the check adds none.
+    [only] = await _proposals(document_id)
+    assert (only.source, only.status) == ("owner", "cancelled")
+    assert _item(report, document_id).outcome == "skipped"
+
+
+@pytest.mark.asyncio
 async def test_routine_records_a_conflict_code_and_continues(bill, monkeypatch):
     owner_id, _, first_id = bill
     second_id = await _add_document(owner_id, "Gas bill")

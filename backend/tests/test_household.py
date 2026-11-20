@@ -1,5 +1,8 @@
 """Household preferences saved per account: defaults, saving, validation, isolation and database limits."""
 
+import asyncio
+from datetime import datetime
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
@@ -67,6 +70,26 @@ async def test_saving_and_reading_back(accounts):
     async with async_session() as db:
         rows = (await db.execute(select(HouseholdPreferences).where(HouseholdPreferences.user_id == owner_id))).all()
     assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_second_save_moves_updated_at(accounts):
+    owner_id, _ = accounts
+
+    async def stored() -> datetime:
+        async with async_session() as db:
+            return (
+                await db.execute(
+                    select(HouseholdPreferences.updated_at).where(HouseholdPreferences.user_id == owner_id)
+                )
+            ).scalar_one()
+
+    async with _client() as client:
+        await client.put(URL, headers=_headers(owner_id), json=SAVED)
+        first = await stored()
+        await asyncio.sleep(0.05)
+        await client.put(URL, headers=_headers(owner_id), json={**SAVED, "reminder_days_before_due": 6})
+    assert await stored() > first
 
 
 @pytest.mark.asyncio
