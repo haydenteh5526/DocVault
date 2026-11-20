@@ -69,22 +69,22 @@ flowchart LR
 
 1. **Capture.** `POST /api/v1/documents` stores the original file in S3-compatible storage and queues a processing job in Redis. If the queue is unavailable, the API processes the file within the request.
 2. **Read.** The ARQ worker extracts the text with Tesseract OCR. It splits the text into passages of about 500 characters, with a 50-character overlap.
-3. **Remember.** Each passage is stored in PostgreSQL twice over: with a full-text index for exact words, and with a `nomic-embed-text` vector in pgvector for meaning.
-4. **Answer.** A question is embedded with the same model. The keyword and vector rankings are fused with reciprocal rank fusion (k = 60). Each passage in the reply names its document and the OCR lines it covers. A question asked across all documents that matches nothing above a similarity of 0.55 (provisional) gets "I couldn't find this in your documents."
-5. **Act.** In a chat, a keyword router picks one action from a fixed list. Bill answers use only values the owner has confirmed, and the server works out splits in whole cents. A reminder is saved only when the owner approves the exact proposal; approving twice saves it once.
+3. **Remember.** Each passage is stored once in PostgreSQL, with its text and a `nomic-embed-text` vector (pgvector). Keyword search uses PostgreSQL full-text matching on the text when a question is asked.
+4. **Answer.** A question is embedded with the same model. The keyword and vector rankings are fused with reciprocal rank fusion (k = 60). Without a language model key, the reply lists each passage with its document and, where it can be located, the OCR lines it covers. A question asked across all documents gets "I couldn't find this in your documents" when no passage reaches a similarity of 0.55 (provisional) and no keyword search matches.
+5. **Act.** In a chat, a keyword router picks one action from a fixed list by default. Splits and reminder proposals use only values the owner has confirmed; bill facts that are not yet confirmed are shown labelled as unconfirmed. The server works out splits in whole cents. A reminder is saved only when the owner approves the exact proposal; approving twice saves it once.
 
 **Design decisions:**
 
 - **Hybrid search.** Keyword search finds exact amounts and dates, and meaning-based search finds paraphrases. Reciprocal rank fusion combines the two rankings without tuning weights ([Cormack, Clarke and Buettcher, 2009](https://doi.org/10.1145/1571941.1572114)).
 - **Answers from retrieved passages.** Answers come from the user's own documents and show their evidence, following retrieval-augmented generation ([Lewis et al., 2020](https://arxiv.org/abs/2005.11401)).
 - **Bounded tool use.** The assistant chooses from allowlisted tools, as in reasoning-and-acting agents ([Yao et al., 2023](https://arxiv.org/abs/2210.03629)), but every value is checked and every change is approved on the server.
-- **Ownership and untrusted text.** Every read and write checks that the document belongs to the signed-in user. Document text is treated as evidence, never as instructions.
-- **Local, €0.** Everything runs locally with local OCR and embeddings. The `terraform/` folder holds an optional AWS setup; no cloud deployment has been tested yet.
+- **Ownership and untrusted text.** Every read and write checks that the document belongs to the signed-in user. Document text never chooses an action: the router sees only the owner's message, bill titles and housemate names.
+- **Local, €0.** The default stack runs locally with local OCR and embeddings. Optional provider keys (Groq, Gemini, Mistral) and mobile push notifications call external services. The `terraform/` folder holds an optional AWS setup; no cloud deployment has been tested yet.
 
 **Known limitations:**
 
-- OCR on a poor scan can give wrong text, so bill values are confirmed by the owner before they are used.
-- Retrieval can rank the wrong document first, and the 0.55 cut-off is not yet calibrated. The retrieval benchmark is planned before Demo 2.
+- OCR on a poor scan can give wrong text, so splits and reminders use only values the owner has confirmed.
+- Retrieval can rank the wrong document first, and the 0.55 cut-off is not yet calibrated. A retrieval benchmark is planned to calibrate it.
 - No language model writes answers unless a Groq or Gemini key is set. Without one, the reply shows the matching passages.
 - The stack runs on a single machine and has not been load-tested.
 
