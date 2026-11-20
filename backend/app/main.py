@@ -15,6 +15,7 @@ from app.routers import (
     categories,
     conversations,
     documents,
+    household,
     housemates,
     notifications,
     search,
@@ -122,6 +123,7 @@ app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(conversations.router, prefix="/api/v1/conversations", tags=["conversations"])
 app.include_router(housemates.router, prefix="/api/v1/housemates", tags=["housemates"])
+app.include_router(household.router, prefix="/api/v1/household", tags=["household"])
 
 
 @app.get("/health")

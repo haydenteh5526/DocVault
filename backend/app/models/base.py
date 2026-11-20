@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, ForeignKey, Index, String, Table, Text, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, String, Table, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -180,6 +180,28 @@ class Housemate(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "label_key", name="uq_housemates_user_label_key"),
+    )
+
+
+class HouseholdPreferences(Base):
+    __tablename__ = "household_preferences"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    reminder_days_before_due: Mapped[int] = mapped_column(nullable=False, default=3, server_default=text("3"))
+    default_split_rule: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="equal", server_default="equal"
+    )
+    routines_enabled: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=text("true"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "reminder_days_before_due >= 0 AND reminder_days_before_due <= 60",
+            name="ck_household_preferences_lead_days",
+        ),
+        CheckConstraint(
+            "default_split_rule IN ('equal', 'days_home')", name="ck_household_preferences_split_rule"
+        ),
     )
 
 
