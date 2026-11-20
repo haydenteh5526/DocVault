@@ -39,6 +39,20 @@ describe('isAppPath', () => {
   })
 })
 
+describe('isAppPath is not case-sensitive (N1)', () => {
+  it('treats /APP/documents as the app, because the router does', () => {
+    expect(isAppPath('/APP')).toBe(true)
+    expect(isAppPath('/APP/documents')).toBe(true)
+    expect(isAppPath('/App/Documents')).toBe(true)
+  })
+
+  it('still treats /apple and /application as public pages', () => {
+    expect(isAppPath('/apple')).toBe(false)
+    expect(isAppPath('/APPLE')).toBe(false)
+    expect(isAppPath('/application')).toBe(false)
+  })
+})
+
 describe('public pages are always light (R-D)', () => {
   it.each(['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify', '/auth/callback'])(
     'has no dark class on %s, even with a dark system theme',

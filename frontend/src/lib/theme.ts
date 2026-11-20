@@ -20,7 +20,9 @@ function subscribe(update: () => void) {
 
 /** The signed-in app: /app and anything under it. Every other page is public and always light. */
 export function isAppPath(pathname: string): boolean {
-  return pathname === '/app' || pathname.startsWith('/app/')
+  // React Router matches paths without regard to case, so /APP/documents is the app too.
+  const path = pathname.toLowerCase()
+  return path === '/app' || path.startsWith('/app/')
 }
 
 export function initialiseTheme() {
