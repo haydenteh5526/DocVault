@@ -12,7 +12,7 @@ import { Wordmark } from './Wordmark'
 import { NotificationCenter, useNotifications } from './NotificationCenter'
 
 const primary = [
-  { label: 'Ask', path: '/app/ask', icon: MessageSquare },
+  { label: 'Ask', path: '/app', icon: MessageSquare },
   { label: 'Documents', path: '/app/documents', icon: FileText },
   { label: 'Upload', path: '/app/upload', icon: Upload },
 ]
@@ -69,13 +69,15 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   </div>
   const navItems = (items: typeof primary, phone = false) => items.map(({label, path, icon: Icon}) => {
     const current = isCurrent(label, path)
-    return <button key={path} aria-label={label} aria-current={current ? 'page' : undefined} onClick={() => go(path)}
+    return <button key={path} aria-label={label === 'Ask' ? 'Ask '+ASSISTANT_NAME : label} aria-description={label === 'Ask' ? activity.status : undefined} aria-current={current ? 'page' : undefined} onClick={() => go(path)}
       className={(phone ? 'flex flex-1 flex-col items-center justify-center gap-0.5 text-[13px]' : 'flex min-h-9 w-full items-center gap-3 rounded-md px-3 text-sm') + (current ? ' bg-accent font-semibold text-foreground' : ' text-muted-foreground hover:bg-accent hover:text-foreground')}>
       {label === 'Ask' ? <PipMark size={phone ? 20 : 32} state={activity.pending.length ? 'needs-you' : 'idle'}/> : <Icon size={18} strokeWidth={1.75}/>}
       {label === 'Ask' ? <span className="text-left">{ASSISTANT_NAME}{!phone && <small className="block font-normal text-muted-foreground">{activity.status}</small>}</span> : label}
     </button>
   })
-  const isCurrent = (label: string, path: string) => pathname === path || pathname.startsWith(path + '/') || (pathname === '/app' && label === 'Ask')
+  const isCurrent = (label: string, path: string) => label === 'Ask'
+    ? pathname === '/app' || pathname === '/app/ask' || pathname.startsWith('/app/ask/')
+    : pathname === path || pathname.startsWith(path + '/')
   const brand = <button aria-label="DocVault" onClick={() => go('/app')}><Wordmark /></button>
   const bell = <NotificationCenter notifications={notifs.notifications} unreadCount={notifs.unreadCount} onMarkAllRead={notifs.markAllRead} onMarkRead={notifs.markRead} onRemove={notifs.remove}/>
   if (!desktop) return <>

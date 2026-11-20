@@ -91,7 +91,7 @@ describe('AppShell navigation', () => {
     await screen.findByText('Ask page')
     await user.tab()
     expect(screen.getByRole('link', {name: 'Skip to content'})).toHaveFocus()
-    expect(screen.getByRole('button', {name: 'Ask'})).toHaveAttribute('aria-current','page')
+    expect(screen.getByRole('button', {name: 'Ask Pip'})).toHaveAttribute('aria-current','page')
   })
 
   it('puts the three labelled destinations in the phone tab bar', async () => {
@@ -129,10 +129,12 @@ describe('AppShell navigation', () => {
       renderShell('/app/documents')
       await screen.findByText('Documents page')
       const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-      expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Ask', 'Documents', 'Upload'])
-      await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+      expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Ask Pip', 'Documents', 'Upload'])
+      await user.click(within(nav).getByRole('button', { name: 'Ask Pip' }))
       expect(await screen.findByText('Ask page')).toBeVisible()
       expect(start).toHaveBeenCalled()
+      expect(window.location.pathname).toBe('/app')
+      expect(within(nav).getByRole('button', { name: 'Ask Pip' })).toHaveAccessibleDescription('All caught up')
     } finally {
       delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
     }
@@ -200,7 +202,7 @@ describe('the phone account menu (L5, M2)', () => {
     renderShell('/app/documents')
     await screen.findByText('Documents page')
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-    await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+    await user.click(within(nav).getByRole('button', { name: 'Ask Pip' }))
     await screen.findByText('Ask page')
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(nav)
   })
