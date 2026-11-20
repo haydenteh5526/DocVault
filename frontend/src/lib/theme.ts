@@ -18,10 +18,17 @@ function subscribe(update: () => void) {
   return () => {media.removeEventListener('change',update);window.removeEventListener('storage',update);window.removeEventListener('theme-change',update)}
 }
 
+/** The signed-in app: /app and anything under it. Every other page is public and always light. */
+export function isAppPath(pathname: string): boolean {
+  return pathname === '/app' || pathname.startsWith('/app/')
+}
+
 export function initialiseTheme() {
-  const apply = () => document.documentElement.classList.toggle('dark', resolved() === 'dark')
+  const apply = () => document.documentElement.classList.toggle('dark', resolved() === 'dark' && isAppPath(window.location.pathname))
   apply()
-  return subscribe(apply)
+  window.addEventListener('route-change', apply)
+  const unsubscribe = subscribe(apply)
+  return () => { window.removeEventListener('route-change', apply); unsubscribe() }
 }
 function setPreference(value: ThemePreference) {
   if (value === 'system') localStorage.removeItem('theme')
