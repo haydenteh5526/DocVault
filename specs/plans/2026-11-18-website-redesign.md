@@ -1017,7 +1017,7 @@ Approved by the owner on 20 November 2026 (01:00), before Demo 1. Owner's answer
 - the [redesign review](https://claude.ai/artifact/PTaMXVE7b8zjQDHS7u6XQN) D1 to D5 as recommended
 - the next-phase memo's C1 (0R-4 inside PR 2), C2 (reuse the 19 November drafts if they apply cleanly) and C3 (the findings list below)
 
-This text needs his approval before the build starts. Where it disagrees with an earlier section, this section wins.
+The owner approved this revision as written on 20 November 2026. Where it disagrees with an earlier section, this section wins.
 
 **Why:** the signed-in app still looks like an LLM chat site, mainly because the rail lists "Recent chats" with conversation menus. The homepage shows a picture of paper instead of the product answering. The fix borrows one idea each from two references:
 - SlateAi's stacked hero with a window of the real app
