@@ -254,7 +254,18 @@ The inputs most likely to break this, each with a test:
   - **P@5:** relevant documents among the first 5 documents ÷ 5.
   - **R@5:** relevant documents among the first 5 ÷ relevant documents.
   - **RR:** 1 ÷ rank of the first relevant document within the first 10, else 0. **MRR** is the mean.
-  - **Passage hit@5:** a first-5 chunk contains the normalised `answer_key` (lower case, whitespace collapsed), or `difflib.SequenceMatcher` finds a block with ratio ≥ 0.8 for OCR'd text.
+  - **Passage hit@5** (clarified 20 November 2026, approved by the owner): a first-5 chunk counts only if both hold:
+    1. its document is one of the question's relevant documents, the gold list used for P@5 and R@5
+    2. it contains the normalised `answer_key` (lower case, whitespace collapsed), or some window of the chunk the length of the key has a `difflib.SequenceMatcher` ratio ≥ 0.8 against the key, and every digit run in the key appears as a substring of that window
+    - Before the digit check, OCR confusables in the window are mapped: O and o → 0; I, l and | → 1; S → 5; B → 8; Z → 2. The key is not mapped.
+    - Why: a ratio alone let the September chunk "Total due: EUR 100.55" match the October key "Total due: EUR 122.05" (ratio about 0.81), and exact digits alone would miss poor-scan misreads such as "I22.O5".
+    - Scorer unit tests cover:
+      - an exact hit
+      - one misread letter (hit)
+      - "EUR I22.O5" against "Total due: EUR 122.05" (hit)
+      - the September chunk from the September document (miss: wrong document)
+      - "Previous balance: EUR 100.55" in the right document (miss: digits)
+      - a relevant-document chunk without the key (miss)
   - **At the chosen floor**, per mode: no-answer false-positive rate (unanswerable questions answered ÷ unanswerable) and answerable refusal rate (answerable questions declined ÷ answerable).
   - **Paired comparison** on the test split: for hybrid vs keyword and hybrid vs semantic, per-question RR wins, ties and losses, and an exact two-sided sign test p-value (`math.comb`, ties dropped).
   - **Answers**, per writer: rater 1's share of `correct`, `partial`, `wrong` and `safely_declined`, for answerable and unanswerable questions separately; the grounded-citation rate; the unsupported-claim rate; median and p95 latency (nearest rank).
