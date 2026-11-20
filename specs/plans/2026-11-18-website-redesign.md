@@ -1010,3 +1010,225 @@ Approved by the owner on 20 November 2026 (01:00), before Demo 1. Owner's answer
 - the app after sign-in is dark
 - the tab shows the dark rounded-square document icon
 - the gates and the four hosted checks pass, the Reviewer's verdict is clean, and the 3700 preview is refreshed to the merge
+
+## 0R-4. Revision, 20 November 2026: redesign PR 2, the product preview and a worklist Documents page
+
+**Status:** proposed on 20 November 2026. On the same day, after Demo 1, the owner approved the direction:
+- the [redesign review](https://claude.ai/artifact/PTaMXVE7b8zjQDHS7u6XQN) D1 to D5 as recommended
+- the next-phase memo's C1 (0R-4 inside PR 2), C2 (reuse the 19 November drafts if they apply cleanly) and C3 (the findings list below)
+
+This text needs his approval before the build starts. Where it disagrees with an earlier section, this section wins.
+
+**Why:** the signed-in app still looks like an LLM chat site, mainly because the rail lists "Recent chats" with conversation menus. The homepage shows a picture of paper instead of the product answering. The fix borrows one idea each from two references:
+- SlateAi's stacked hero with a window of the real app
+- shadcn's Tasks page: page head, faceted filters, a table, one ⋯ menu per row
+
+**Decisions (approved 20 November 2026):**
+- **D1:** build it now, inside PR 2.
+- **D2:** the only "Create an account" above the fold is the header's (0R-2).
+- **D3:** keep the rail and take the chats out of it.
+- **D4:** a table at 768 px and up, stacked rows below.
+- **D5:** three steps replace the search and privacy sections, and the privacy point becomes one footer line.
+
+**Two corrections to the review, from the code:**
+- **The Documents page keeps the button text "Upload", not "Upload document".** `e2e/app.spec.ts:114` clicks `getByRole('main').getByRole('button', { name: 'Upload', exact: true })`, and the e2e lines change only where this plan allows.
+- **Two items from the review's row menu change:**
+  - "Ask about this" is dropped. Ask has no way to open scoped to one document from a link, and adding one is agent-experience work, not restyling.
+  - Delete doesn't open a confirm dialog today; it removes the row and offers "Undo" for 5 seconds. The menu keeps that behaviour exactly.
+
+### PR 2 scope and order
+
+PR 2 is one branch, `feature/website-redesign-pr2`, cut from `main` at `2048c3f` or later. Tasks in this order, each with its own commit and gates:
+
+1. **R8**, as written.
+2. **R9**, as written.
+3. **R12**, the landing product preview (new, below).
+4. **R13**, the Documents worklist and a rail without chats (new, below).
+5. **R14**, the findings left from PRs 30 and 31 (new, below).
+6. **R11**, the "after" screenshots and review, as written. Last, so the screenshots show R12 and R13.
+
+**Starting from the 19 November drafts (C2).** Branch `feature/website-redesign-bill-preview` holds two unreviewed commits made for the demo preview before PRs 29 and 30 merged:
+- `349369d`, "Restyle the document page and keep every bill check in view" (R8)
+- `a1efb3e`, "Restyle Ask and its result cards" (R9, which also deletes `OnboardingTour.tsx` and its e2e lines)
+
+How the Issue session uses them:
+- **Try each:** run `git cherry-pick 349369d`, then `git cherry-pick a1efb3e`.
+- **Keep a draft** only if it applies with no conflict, or with conflicts limited to import lines and class names, and if R8's or R9's added tests then exist and every gate passes.
+- **Otherwise:** run `git cherry-pick --abort` and build that task from the plan.
+- **Either way:** record which way each task went in the PR description. The Reviewer reviews the result against R8 and R9 as if it were new code. The draft is never accepted as already reviewed.
+
+**The welcome tour** goes in R9, as the 18 November clarification says:
+- delete `OnboardingTour.tsx` and its mount in `App.tsx`
+- remove `accessibility.spec.ts`'s tour assertions (the "Welcome to DocVault!" dialog and "Skip tour")
+- remove the test-only tour wait that PR 31 added to `app.spec.ts` (the comment near line 50 and the step it describes)
+
+These are the only e2e edits allowed outside D2.
+
+### Task R12: Landing, a product preview above the fold
+
+- **Files:**
+  - `frontend/src/pages/Landing.tsx`, `landing.css`
+  - new `frontend/src/components/landing/HeroPreview.tsx`
+  - `frontend/src/components/Footer.tsx`
+  - `ExampleBill.tsx`: delete it if `Landing.tsx` was its only importer, and move any `identity.test.tsx` assertion about it that still applies to `HeroPreview`
+  - tests: `Landing.test.tsx`, `e2e/redesign-screens.spec.ts`, `e2e/accessibility.spec.ts`
+- **Hero, top to bottom, one column at every width:**
+  - the existing `h1` and its four animated lines, unchanged
+  - **one** lead paragraph for every width, the existing phone lead word for word: "Ask in your own words. Every answer comes with the line it came from, and nothing is saved until you approve it." The longer desktop lead and the `phone-lead` duplicate are removed.
+  - `<HeroPreview />`, full content width, directly under the lead
+- **`HeroPreview`** is a static picture of the product, not a working form.
+  - `export function HeroPreview(): JSX.Element` renders `<figure role="img" aria-label="DocVault answering “When is my electricity bill due?” with 23 November 2026, from the October electricity bill, line 17.">`.
+  - **Window bar:** three 6 px dots (`aria-hidden`), on `--muted`, 1 px `--border`, radius 12 px (panel).
+  - **Left pane (Ask):**
+    - a right-aligned question bubble: "When is my electricity bill due?"
+    - an answer card: "23 November 2026" in Archivo 600 at 1.5rem, then "October electricity bill · line 17" in Geist Mono at 0.8125rem, `--muted-foreground`
+    - a `<span>` styled as a small dark chip, "Open bill", not focusable
+  - **Right pane (the bill):** monospace lines with right-aligned line numbers:
+    - "9 Billing period: 1–31 Oct 2026"
+    - "15 Total amount due: EUR 123.47"
+    - a blank bar for line 16
+    - line 17 through the existing `SourceTie` (`label="Due date" value="23 November 2026" lineNumber={17} quote="Payment due date: 23 November 2026"`), so the yellow highlight is the same component the bill review uses
+  - **Below 768 px**, the panes stack (Ask first) and the bill shows only lines 15 and 17.
+  - **No animation.** It's above the fold and must be readable on first paint.
+- **Sections after the hero:**
+  - **New, "Three steps, and you decide."** (`h2`), an ordered list of three items, each an `h3` and one line:
+    1. "Upload": "A bill, a lease, a manual or a receipt."
+    2. "Ask": "In your own words. Every answer shows the line it came from."
+    3. "Check and approve": "See the source line. Nothing is saved without you."
+
+    On desktop it's three columns with a 2 px top rule each, as in the review's wireframe. Below 768 px it's one column.
+  - **Kept unchanged:** "It proposes. You decide." and "Start with one document." with its "Create an account" button.
+  - **Removed:** "Find anything by what it says or what it means." (the search sample) and "Your documents stay on your computer." with its "How does asking a question work?" details.
+- **`Footer.tsx`:** add one line before the existing links: "DocVault runs on your own computer. Each account sees only its own documents." It's shared with the account pages, which is intended.
+- **Tests first:**
+  - **`Landing.test.tsx`:**
+    - exactly one `h1`, and no `input`, `textarea` or `select`
+    - the figure's accessible name contains "When is my electricity bill due?", "23 November 2026" and "line 17"
+    - the three step headings appear in order
+    - "Find anything by what it says" and "Your documents stay on your computer" are gone
+    - the footer line is present
+    - PR 26's banned-claims assertions still pass unchanged
+  - **`e2e/redesign-screens.spec.ts`**, new scenario "landing preview is above the fold":
+    - at 1366 × 768, the bounding boxes of the question, "23 November 2026", "line 17", the highlighted quote and the header's "Create an account" link all end at or above y = 768
+    - at 390 × 844, "23 November 2026" ends at or above y = 844, `scrollWidth === innerWidth`, and the header's "Create an account" is visible
+  - **`e2e/accessibility.spec.ts`:** the existing landing axe checks in light and dark schemes pass unchanged.
+- [ ] Gates. Commit: `Show the product answering on the landing page`
+
+### Task R13: Documents as a worklist, and a rail without chats
+
+- **Files:**
+  - `frontend/src/pages/Dashboard.tsx`
+  - new `frontend/src/components/FacetFilter.tsx`
+  - new `frontend/src/components/DocumentRowMenu.tsx`
+  - `frontend/src/components/DocumentStatus.tsx`
+  - `frontend/src/components/AppNav.tsx`
+  - `frontend/src/pages/AskAI.tsx`
+  - `frontend/src/pages/SearchChats.tsx`
+  - tests: `AppNav.test.tsx`, `Dashboard.test.tsx`, new `Dashboard.filters.test.tsx`, new `SearchChats.test.tsx`
+- **Page head:**
+  - left: `h1` (unchanged), then the count line, unchanged: "{n} documents · {m} folders"
+  - right, in this order: an outline button "Ask" (to `/app/ask`) and the primary button "Upload" (to `/app/upload`)
+  - the toolbar's current "Upload" button moves here, so there is still exactly one button named "Upload" inside `main`
+- **Order below the head:** Needs attention (unchanged content and copy), then the toolbar, then the list. Today the toolbar comes first.
+- **Toolbar, left to right:**
+  - the search box (unchanged)
+  - `FacetFilter` "Status"
+  - `FacetFilter` "Type", which replaces the `<select aria-label="Document type">` (no test or e2e line uses it)
+  - the existing "Folders" and "List options" menus, unchanged
+- **`DocumentStatus.tsx`:** add `export function statusLabel(doc: Document, detail?: Document): string`, returning exactly the text `DocumentStatus` shows. `DocumentStatus` then uses it, so the two can't drift.
+  - For filtering, "Confirmed · revision n" counts as "Confirmed".
+  - "Checking status" is never offered as a filter option.
+- **`FacetFilter`**
+  - **Props:** `{ label: string; options: { value: string; label: string; count: number }[]; selected: ReadonlySet<string>; onChange: (next: Set<string>) => void }`
+  - **Trigger:** built on the existing `dropdown-menu`. An outline `Button` with a dashed border, `PlusCircle` icon and the label. Once anything is selected, it adds a separator and the number selected. Its accessible name is "Filter by {label lower-cased}" plus ", {n} selected" when that applies.
+  - **Content:** one `DropdownMenuCheckboxItem` per option, with its count right-aligned in tabular figures. Options with a count of 0 are hidden. When anything is selected, a "Clear filter" item follows a separator.
+  - **Status option order:** Needs confirming, Reminder awaiting approval, Split out of date, Confirmed, Ready, Reading the text, Could not read this file.
+  - **Type options:** the document types present, capitalised as the old select did, in alphabetical order.
+- **Filtering:** within one facet, options combine with OR; the facets combine with AND, and also with the search and the folder. The empty state's "Clear search" button also clears both facets (its copy is unchanged).
+- **List view at 768 px and up**, `components/ui/table.tsx`:
+  - **Columns:** an unlabelled checkbox column (each box keeps `aria-label="Select {title}"`), "Document", "Type", "Added", "Status", and an unlabelled actions column.
+  - **Document column:** the title as the row's only link. A starred document gets a `Star` icon before the title with the hidden text "Starred". Below the title, the search excerpt as today when searching.
+  - **Status column:** `DocumentStatus`, plus the existing "Try again" for a failed document.
+  - **Actions column:** `DocumentRowMenu`.
+- **Below 768 px (and in list view):** one stacked row per document, at least 44 px tall: the title link, then "{Type} · {date}", then the status, with the ⋯ menu on the right. Rows are not clickable outside the link and the menu.
+- **Grid view** keeps its cards and replaces their four icon buttons with `DocumentRowMenu`.
+- **`DocumentRowMenu`**
+  - **Props:** `{ doc: Document; onPreview: () => void; onRename: () => void; onToggleFavourite: () => void; onDelete: () => void }`
+  - **Trigger:** a ghost icon button, `MoreHorizontal`, `aria-label="Actions for {title}"`.
+  - **Items:** "Open" (navigate to the document), "Preview", "Rename", "Star" or "Remove star", a separator, then "Delete" (destructive styling).
+  - **Delete** calls today's `handleDelete`, so the row disappears with the "Undo" toast for 5 seconds, unchanged.
+  - The old buttons "Favourite", "Preview", "Rename document" and "Delete document" are removed. No test or e2e line uses them.
+- **`AppNav.tsx`:**
+  - delete `RecentChats`
+  - delete the "Search chats" entry from `more`
+  - on the desktop rail, the "More" fold becomes a plain group: "Search", "Warranties", "Settings", with no `details` element
+  - the phone account menu keeps Search and Warranties, and loses "Search chats"
+- **`AskAI.tsx`:** a text link "Recent chats" in the page header, to `/app/chats`. Ask's own behaviour doesn't change in this task.
+- **`SearchChats.tsx`:**
+  - its `h1` becomes "Recent chats"
+  - each conversation row gets a ⋯ menu (`aria-label="Conversation options for {title}"`, the label the rail used) with "Pin conversation" or "Unpin", "Rename" and "Delete"
+  - these use the same API calls and the same error toast as the rail did: "Could not update the conversation."
+  - the rename field keeps `aria-label="Conversation title"`
+- **Tests first:**
+  - **`AppNav.test.tsx`:**
+    - no "Recent chats" text and no "Conversation options" button in the rail
+    - "Search", "Warranties" and "Settings" are reachable on desktop and from the phone account menu
+    - the existing navigation cases still pass
+  - **`Dashboard.test.tsx` and `Dashboard.filters.test.tsx`**, with the eight-document fixture from the review: two bills (one needs confirming, one has a reminder awaiting approval), a lease, a manual, two warranty cards and two receipts:
+    - Needs attention comes before the toolbar in document order
+    - exactly one button named "Upload" in `main`, and it's the primary variant
+    - Status → "Needs confirming" leaves one row, and the trigger's name ends ", 1 selected"
+    - Type → "Bill" leaves two rows
+    - both facets together combine with AND
+    - "Clear filter" restores all eight
+    - each row has one link, its full title
+    - the ⋯ menu lists Open, Preview, Rename, Star and Delete, in that order
+    - Delete removes the row and shows the "Undo" toast
+    - `statusLabel` returns what `DocumentStatus` renders, for each state
+  - **`SearchChats.test.tsx`:** pin, rename and delete call their API functions, and a failure shows "Could not update the conversation."
+  - **`e2e/redesign-screens.spec.ts`:** at 390 px, `/app/documents` has `scrollWidth === innerWidth`, and each row's title link is at least 44 px tall.
+  - **Unchanged:** every existing e2e scenario, including `app.spec.ts:114`.
+- [ ] Gates. Commit: `Make Documents a worklist and keep chats on Ask`
+
+### Task R14: Findings left from PRs 30 and 31
+
+Each item is test first, with its own commit.
+
+- **L-1 (PR 30):** a reminder proposal made on Ask leaves Documents stale for up to 30 s.
+  - `AskAI.tsx` already invalidates `['document', id]` after a `reminder_proposal` action. It must also invalidate `['document-list-status']`.
+  - **Test** (`AskAI.test.tsx`): after a reply whose action is a reminder proposal, `['document-list-status']` is invalidated.
+  - Commit: `Refresh the Documents status after a proposal made on Ask`
+- **L-2 (PR 30):** after a confirm, the first paint of Documents shows the old status until the reload finishes.
+  - In `syncDocumentStatus`, when a document's fingerprint changes, first write the new record into every cached `['document-list-status', …]` entry that already holds that id (`client.setQueriesData`), then invalidate as today.
+  - **Test** (`documentStatusSync.test.tsx`): with a list-status entry holding the old record, updating `['document', id]` with a confirmed bill leaves the entry holding the new record, synchronously, before any fetch resolves.
+  - Commit: `Show the new status on Documents before the reload finishes`
+- **N-1 (PR 30):** the production wiring is untested.
+  - **Test** (`queryClient.test.ts`, new): set `['document', 'x']` twice on the exported `queryClient` with different statuses, and expect a `['document-list-status', ['x']]` query to be invalidated.
+  - Commit with L-2.
+- **N-2 (PR 30):** in `evaluation/redesign/README.md` (the sentence about main's merge run, line 86 on `2048c3f`), replace "which also hit `main`'s own merge run" with "and the same scenario was flaky on `main`'s merge run".
+  - Commit with R11's records.
+- **"[object Object]" on a rate-limited sign-in:**
+  - The server answers 429 with `detail: {code: "RATE_LIMITED", message: "Too many requests."}`, and `loginUser` shows `detail` itself.
+  - **Fix in `frontend/src/lib/api.ts`:**
+    - `detailMessage` also accepts an object detail: code `RATE_LIMITED` gives "Too many attempts. Wait a minute, then try again."; any other object with a string `message` gives that message; else the fallback
+    - `loginUser`, `verify2FA` and `forgotPassword` (the other `JSON.parse(text).detail || …` calls) use `detailMessage` through `safeJson`
+  - **Tests:** `Auth.test.tsx`, a 429 on sign-in shows "Too many attempts. Wait a minute, then try again." and never "[object Object]"; plus unit cases for `detailMessage`.
+  - Commit: `Explain a rate-limited sign-in instead of showing an object`
+- **N1 (PR 31):** `isAppPath` is case-sensitive.
+  - Compare `pathname.toLowerCase()`, because React Router matches `/APP/documents` to the app.
+  - **Test** (`theme.test.ts`): `isAppPath('/APP/documents')` is true, and `isAppPath('/apple')` stays false.
+  - Commit: `Treat app paths the same in any letter case`
+- **Left by the owner (C3):** PR 31's N2 (cleanup untested), S1 (suspected one-frame flash, not reproduced) and S2 (the service worker caches `/` and `index.html`). S2 is pre-existing and worth a separate small fix. Record all three in the PR description as left by the owner's decision.
+
+### Acceptance checks added by 0R-4
+
+| # | Check | Verified by |
+| --- | --- | --- |
+| 9 | At 1366 × 768, the landing's first screen shows the question, "23 November 2026", "line 17", the highlighted due-date line and the header's "Create an account", with no scrolling. At 390 × 844, the answer is on the first screen and nothing scrolls sideways. | `redesign-screens.spec.ts` "landing preview is above the fold" (R12) |
+| 10 | The landing has one `h1`, no form controls, a preview whose accessible name gives the question, the answer and the source line, and axe passes in light and dark. | `Landing.test.tsx`; `accessibility.spec.ts` (R12) |
+| 11 | On Documents, Needs attention sits above the toolbar, "Upload" is the page's only primary button, and Ask is one click away at every width. | `Dashboard.test.tsx`; `AppNav.test.tsx` (R13) |
+| 12 | The Status and Type filters narrow the list with correct counts and clear back to all documents; each row has one link and a ⋯ menu with Open, Preview, Rename, Star and Delete; Delete keeps its Undo. | `Dashboard.filters.test.tsx` (R13) |
+| 13 | The rail has no chat history; "Recent chats" on Ask reaches it in one click, where pin, rename and delete still work. | `AppNav.test.tsx`; `SearchChats.test.tsx` (R13) |
+| 14 | A proposal made on Ask or a confirm shows on Documents without waiting out the 30 s cache, and the production wiring is tested. | `AskAI.test.tsx`, `documentStatusSync.test.tsx`, `queryClient.test.ts` (R14) |
+| 15 | A rate-limited sign-in explains itself; `/APP/…` paths get the app theme. | `Auth.test.tsx`; `theme.test.ts` (R14) |
+| 16 | Reminder approval is unchanged: the `BillReminder` tests and the approval e2e pass without edits. | Gates on every task |
