@@ -10,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
+import { ApiError, checkBillsNow, getWarranties, retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document, type Warranty } from '@/lib/api'
 import { useToast } from '@/components/Toast'
+import { formatBillDate } from '@/components/BillReview'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 const AnalyticsWidgets = lazy(() => import('@/components/AnalyticsWidgets').then(({ AnalyticsWidgets }) => ({ default: AnalyticsWidgets })))
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
 
@@ -19,6 +21,27 @@ type SortKey = 'name' | 'date' | 'size' | 'type'
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'grid' | 'list'
 type FileFilter = 'all' | 'pdf' | 'image'
+
+const WARRANTY_WINDOW_DAYS = 30
+const MAX_WARRANTY_ROWS = 2
+
+/** Warranties ending today or within 30 days, soonest first, at most two. Dates are whole days, so no clock-time or zone maths. */
+function warrantiesEndingSoon(warranties: Warranty[], now: Date) {
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  return warranties
+    .filter((w): w is Warranty & { expiry_date: string } => !!w.expiry_date)
+    .filter(w => {
+      const days = (Date.parse(w.expiry_date.slice(0, 10)) - today) / 86_400_000
+      return days >= 0 && days <= WARRANTY_WINDOW_DAYS
+    })
+    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
+    .slice(0, MAX_WARRANTY_ROWS)
+}
+
+function checkMessage(proposed: number) {
+  if (proposed === 0) return `${ASSISTANT_NAME} checked your bills: nothing new.`
+  return `${ASSISTANT_NAME} checked your bills: ${proposed} ${proposed === 1 ? 'reminder' : 'reminders'} proposed.`
+}
 
 export default function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -111,6 +134,31 @@ export default function Dashboard() {
   })
   const stateOf = (doc: Document) => details.data?.[doc.id] ?? (doc.bill_review !== undefined ? doc : undefined)
   const attention = allDocs.map(doc => ({doc,reason:attentionReason(stateOf(doc))})).filter(row => row.reason).slice(0,3)
+  const warranties = useQuery({ queryKey: ['warranties'], queryFn: getWarranties })
+  const warrantyRows = useMemo(() => warrantiesEndingSoon(warranties.data ?? [], new Date()), [warranties.data])
+  const [checking, setChecking] = useState(false)
+  async function checkNow() {
+    if (checking) return
+    setChecking(true)
+    let message: string
+    try {
+      message = checkMessage((await checkBillsNow()).proposed.length)
+    } catch (failure) {
+      message = failure instanceof ApiError && failure.status === 409
+        ? failure.message
+        : `${ASSISTANT_NAME} could not check your bills. Try again.`
+    }
+    // Said twice on purpose: the toast for people looking, the live region for people listening.
+    toast(message)
+    setAnnouncement(message)
+    // The check may have proposed a reminder, so the lists, the statuses and any bill page already opened are read again.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['documents'] }),
+      queryClient.invalidateQueries({ queryKey: ['document-list-status'] }),
+      queryClient.invalidateQueries({ queryKey: ['document'] }),
+    ])
+    setChecking(false)
+  }
   const loading = docsQuery.isLoading
   const error = docsQuery.isError
 
@@ -364,10 +412,16 @@ export default function Dashboard() {
     </header>
     <p className="sr-only" aria-live="polite">{announcement}</p>
     {!loading && !error && <section className="mb-6 rounded-lg border bg-card p-4" aria-labelledby="attention-title">
-      <h2 id="attention-title" className="font-semibold">Needs attention</h2>
-      {attention.length ? <ul className="mt-2 divide-y">{attention.map(({doc,reason}) => <li key={doc.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="attention-title" className="font-semibold">Needs attention</h2>
+        <Button variant="ghost" size="sm" onClick={() => void checkNow()} disabled={checking}>Check now</Button>
+      </div>
+      {attention.length || warrantyRows.length ? <ul className="mt-2 divide-y">{attention.map(({doc,reason}) => <li key={doc.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
         <span><strong className="block font-medium">{doc.title}</strong><span className="text-attention">{reason}</span></span>
         <Link className="underline underline-offset-4" to={'/app/documents/' + doc.id}>{reason === 'Needs confirming' ? 'Review and confirm' : 'Open bill'}</Link>
+      </li>)}{warrantyRows.map(w => <li key={'warranty-' + w.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+        <span><strong className="block font-medium">{w.document_title}</strong><span className="text-attention">Warranty ends {formatBillDate(w.expiry_date.slice(0, 10))}</span></span>
+        <Link className="underline underline-offset-4" to={'/app/documents/' + w.document_id}>Open</Link>
       </li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">{details.isError ? 'Could not check document status.' : details.isFetching ? 'Checking documents…' : 'Nothing needs your attention.'}</p>}
     </section>}
     <div className="mb-4 flex flex-wrap items-center gap-2">

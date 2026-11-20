@@ -308,7 +308,10 @@ describe('BillReminderPanel', () => {
     ])
     cleanup()
     const assistant = setup({ proposals: [{ ...saved, source: 'assistant' }] })
-    expect(assistant.region()).toHaveTextContent('Proposed by the assistant · 12 November 2026')
+    expect(assistant.region()).toHaveTextContent('Proposed by Pip · 12 November 2026')
+    cleanup()
+    const routine = setup({ proposals: [{ ...saved, source: 'routine' }] })
+    expect(routine.region()).toHaveTextContent("Proposed by Pip's daily check · 12 November 2026")
     cleanup()
     const stale = setup({
       proposals: [

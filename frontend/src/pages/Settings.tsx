@@ -1,21 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Download } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Download, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
-import { setup2FA, confirm2FA, disable2FA, deleteAccount, getProfile, updateProfile, exportDocuments } from '@/lib/api'
+import {
+  ApiError,
+  addHousemate,
+  confirm2FA,
+  deleteAccount,
+  disable2FA,
+  exportDocuments,
+  getProfile,
+  removeHousemate,
+  saveHouseholdPreferences,
+  setup2FA,
+  updateProfile,
+  type HouseholdPreferences,
+} from '@/lib/api'
+import { ASSISTANT_NAME } from '@/lib/assistant'
+import { storeHousemates } from '@/lib/billSplit'
+import { useHousemates } from '@/lib/housemates'
+import { householdPreferencesKey, useHouseholdPreferences } from '@/lib/householdPreferences'
 import { useToast } from '@/components/Toast'
 import { useTheme } from '@/lib/theme'
 
-type Tab = 'general' | 'account'
+type Tab = 'general' | 'household' | 'account'
 
 export default function Settings({ initialTab }: { initialTab?: Tab }) {
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>(() => {
     if (initialTab) return initialTab
     const t = searchParams.get('tab')
-    if (t === 'account') return t
+    if (t === 'account' || t === 'household') return t
     return 'general'
   })
 
@@ -26,6 +44,7 @@ export default function Settings({ initialTab }: { initialTab?: Tab }) {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Settings</p>
         <nav className="space-y-0.5">
           <SettingsNavItem active={tab === 'general'} onClick={() => setTab('general')} icon={<SettingsIcon size={15} />} label="General" />
+          <SettingsNavItem active={tab === 'household'} onClick={() => setTab('household')} icon={<Home size={15} />} label="Household" />
           <SettingsNavItem active={tab === 'account'} onClick={() => setTab('account')} icon={<ShieldCheck size={15} />} label="Account" />
         </nav>
       </div>
@@ -34,6 +53,7 @@ export default function Settings({ initialTab }: { initialTab?: Tab }) {
       <div className="flex-1 overflow-auto p-8">
         <div className="max-w-2xl">
           {tab === 'general' && <GeneralSettings />}
+          {tab === 'household' && <HouseholdSettings />}
           {tab === 'account' && <AccountSettings />}
         </div>
       </div>
@@ -169,6 +189,220 @@ function GeneralSettings() {
         </div>
       </section>
     </div>
+  )
+}
+
+const MAX_LABEL_LENGTH = 40
+const DAYS_MESSAGE = 'Enter a number of days from 0 to 60.'
+
+function HouseholdSettings() {
+  const preferences = useHouseholdPreferences()
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">Household</h2>
+        <p className="text-sm text-muted-foreground mt-1">Who you share bills with, and how {ASSISTANT_NAME} helps</p>
+      </div>
+
+      <HousemateList />
+
+      <hr className="border-border/30" />
+
+      <section aria-labelledby="household-preferences-heading">
+        <h3 id="household-preferences-heading" className="text-sm font-semibold mb-4">Reminders and splits</h3>
+        {preferences.isError ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Could not load your household settings.</p>
+            <Button variant="outline" size="sm" onClick={() => void preferences.refetch()}>Try again</Button>
+          </div>
+        ) : preferences.data ? (
+          <PreferencesForm initial={preferences.data} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading your household settings…</p>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function HousemateList() {
+  const { accountId } = useAuth()
+  const queryClient = useQueryClient()
+  const housemates = useHousemates(true)
+  const nameId = useId()
+  const [newName, setNewName] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [removing, setRemoving] = useState<string[]>([])
+
+  async function add(event: FormEvent) {
+    event.preventDefault()
+    const label = newName.trim()
+    if (!label) return setMessage('Enter a name.')
+    if ([...label].length > MAX_LABEL_LENGTH) return setMessage('Use 40 characters or fewer.')
+    setAdding(true)
+    setMessage(null)
+    try {
+      const created = await addHousemate(label)
+      storeHousemates(queryClient, accountId, list => [...list, created])
+      setNewName('')
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : undefined
+      setMessage(
+        code === 'duplicate_label' ? 'That name is already in your list.'
+          : code === 'too_many_housemates' ? 'You can save up to 12 housemates.'
+            : 'Could not add that name. Try again.',
+      )
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function remove(id: string) {
+    if (removing.includes(id)) return
+    setRemoving(ids => [...ids, id])
+    setMessage(null)
+    try {
+      try {
+        await removeHousemate(id)
+      } catch (error) {
+        // Already removed (in another tab, say): the list only needs to catch up.
+        if (!(error instanceof ApiError && error.status === 404)) throw error
+      }
+      storeHousemates(queryClient, accountId, list => list.filter(h => h.id !== id))
+    } catch {
+      setMessage('Could not remove that name. Try again.')
+    } finally {
+      setRemoving(ids => ids.filter(other => other !== id))
+    }
+  }
+
+  return (
+    <section aria-labelledby="housemates-heading">
+      <h3 id="housemates-heading" className="text-sm font-semibold mb-4">People you live with</h3>
+      <div className="space-y-2">
+        {housemates.isError && <p className="text-sm text-muted-foreground">Your housemates could not be loaded.</p>}
+        {housemates.isPending && !housemates.isError && <p className="text-sm text-muted-foreground">Loading your housemates…</p>}
+        {housemates.data?.length === 0 && <p className="text-sm text-muted-foreground">Add the people who share your bills.</p>}
+        {housemates.data && housemates.data.length > 0 && (
+          <ul className="divide-y">
+            {housemates.data.map(h => (
+              <li key={h.id} className="flex items-center justify-between py-2 text-sm">
+                <span>{h.label}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Remove ${h.label}`}
+                  disabled={removing.includes(h.id)}
+                  onClick={() => void remove(h.id)}
+                >
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="mt-4 space-y-2">
+        <label htmlFor={nameId} className="text-sm text-muted-foreground">Add a housemate</label>
+        <form className="flex gap-2" onSubmit={add}>
+          <Input id={nameId} value={newName} onChange={event => setNewName(event.target.value)} />
+          <Button type="submit" size="sm" variant="outline" disabled={adding}>Add</Button>
+        </form>
+        {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
+      </div>
+    </section>
+  )
+}
+
+function PreferencesForm({ initial }: { initial: HouseholdPreferences }) {
+  const { accountId } = useAuth()
+  const queryClient = useQueryClient()
+  const ids = { days: useId(), rule: useId(), routinesHelp: useId() }
+  const [days, setDays] = useState(String(initial.reminder_days_before_due))
+  const [rule, setRule] = useState(initial.default_split_rule)
+  const [routines, setRoutines] = useState(initial.routines_enabled)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    setSaved(false)
+    // Only a whole number can be sent; whether it is in range is the server's call.
+    if (!/^\d+$/.test(days.trim())) return setError(DAYS_MESSAGE)
+    setError(null)
+    setSaving(true)
+    try {
+      await saveHouseholdPreferences({
+        reminder_days_before_due: Number(days.trim()),
+        default_split_rule: rule,
+        routines_enabled: routines,
+      })
+      setSaved(true)
+      await queryClient.invalidateQueries({ queryKey: householdPreferencesKey(accountId) })
+    } catch (failure) {
+      setError(failure instanceof ApiError && failure.status === 422 ? DAYS_MESSAGE : 'Could not save. Try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="space-y-5" noValidate onSubmit={save}>
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={ids.days} className="text-sm">Remind me before a bill is due</label>
+        <Input
+          id={ids.days}
+          type="number"
+          min={0}
+          max={60}
+          step={1}
+          inputMode="numeric"
+          className="h-8 w-20 text-sm"
+          value={days}
+          onChange={event => { setDays(event.target.value); setSaved(false) }}
+        />
+        <span className="text-sm text-muted-foreground">days</span>
+      </div>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm">Usually split bills</legend>
+        {([['equal', 'Equally'], ['days_home', 'By days at home']] as const).map(([value, label]) => (
+          <label key={value} className="mr-4 inline-flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name={ids.rule}
+              checked={rule === value}
+              onChange={() => { setRule(value); setSaved(false) }}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+
+      <div className="space-y-1">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={routines}
+            aria-describedby={ids.routinesHelp}
+            onChange={event => { setRoutines(event.target.checked); setSaved(false) }}
+          />
+          Let {ASSISTANT_NAME} check my bills each morning
+        </label>
+        <p id={ids.routinesHelp} className="pl-6 text-sm text-muted-foreground">
+          {ASSISTANT_NAME} proposes a reminder for bills due in the next two weeks. Nothing is saved until you approve it.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" size="sm" disabled={saving}>Save</Button>
+        <p role="status" className="text-sm text-muted-foreground">{saved && 'Saved.'}</p>
+      </div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    </form>
   )
 }
 

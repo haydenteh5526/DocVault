@@ -10,6 +10,7 @@ import {
   type BillSplit,
   type BillSplitPreview,
   type Housemate,
+  type HouseholdPreferences,
 } from '@/lib/api'
 import { BillSplitPanel } from './BillSplit'
 
@@ -755,5 +756,56 @@ describe('days at home', () => {
     const s = await chooseDays({ onPreview: vi.fn().mockRejectedValue(error) })
     await s.click('Calculate shares')
     expect(screen.getByRole('alert')).toHaveTextContent(error.message)
+  })
+})
+
+describe("the household's usual split rule", () => {
+  const preferences = (rule: HouseholdPreferences['default_split_rule'], isSaved: boolean): HouseholdPreferences => ({
+    reminder_days_before_due: 3, default_split_rule: rule, routines_enabled: true, saved: isSaved,
+  })
+  const rules = () => ({
+    equal: within(screen.getByRole('region', { name: 'Bill split' })).getByRole('radio', { name: 'Split equally' }),
+    days: within(screen.getByRole('region', { name: 'Bill split' })).getByRole('radio', { name: 'Split by days at home' }),
+  })
+
+  it('starts on days at home when the saved preference says so', async () => {
+    const { click } = setup({ preferences: preferences('days_home', true) })
+    await click('Split this bill')
+
+    expect(rules().days).toBeChecked()
+    expect(rules().equal).not.toBeChecked()
+  })
+
+  it('ignores a preference that was never saved', async () => {
+    const { click } = setup({ preferences: preferences('days_home', false) })
+    await click('Split this bill')
+
+    expect(rules().equal).toBeChecked()
+  })
+
+  it('starts equally for an equal preference, and with no preferences loaded', async () => {
+    const equal = setup({ preferences: preferences('equal', true) })
+    await equal.click('Split this bill')
+    expect(rules().equal).toBeChecked()
+    cleanup()
+
+    const none = setup()
+    await none.click('Split this bill')
+    expect(rules().equal).toBeChecked()
+  })
+
+  it('leaves a saved split showing its own rule', () => {
+    setup({ split: { ...saved, rule: 'equal' }, preferences: preferences('days_home', true) })
+
+    expect(screen.getByText(/^Equal split of €123.47/)).toBeInTheDocument()
+  })
+
+  it('applies the preference when splitting again too, and the person can still change it', async () => {
+    const { click, user } = setup({ split: saved, preferences: preferences('days_home', true) })
+    await click('Split again')
+    expect(rules().days).toBeChecked()
+
+    await user.click(rules().equal)
+    expect(rules().equal).toBeChecked()
   })
 })

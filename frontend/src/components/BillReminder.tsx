@@ -10,6 +10,7 @@ import {
   type ReminderProposalRequest,
 } from '@/lib/api'
 import { formatBillDate } from '@/components/BillReview'
+import { proposedByText } from '@/lib/assistant'
 import { formatTimestamp } from '@/lib/dates'
 
 const MAX_DAYS = 60
@@ -445,7 +446,7 @@ function eventText(proposal: ReminderProposal, event: ReminderProposal['history'
   const date = formatTimestamp(event.created_at)
   switch (event.event) {
     case 'proposed':
-      return `${proposal.source === 'assistant' ? 'Proposed by the assistant' : 'Proposed by you'} · ${date} · remind on ${formatBillDate(proposal.details.remind_on)}`
+      return `${proposedByText(proposal.source)} · ${date} · remind on ${formatBillDate(proposal.details.remind_on)}`
     case 'approved':
       return `Approved · ${date}`
     case 'saved':

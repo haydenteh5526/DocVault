@@ -189,7 +189,7 @@ export interface ReminderProposal {
   document_id: string
   proposal_number: number
   action: string
-  source: 'owner' | 'assistant'
+  source: 'owner' | 'assistant' | 'routine'
   status: 'pending' | 'cancelled' | 'stale' | 'saved'
   inputs_changed: 'revision_changed' | 'split_changed' | null
   details: ReminderDetails
@@ -483,6 +483,45 @@ export async function addHousemate(label: string): Promise<Housemate> {
 export async function removeHousemate(id: string): Promise<void> {
   const res = await authorizedFetch(`${BASE}/housemates/${id}`, { method: 'DELETE' })
   if (!res.ok) throw await apiErrorFrom(res, 'Could not remove that name')
+}
+
+export interface HouseholdPreferences {
+  reminder_days_before_due: number
+  default_split_rule: 'equal' | 'days_home'
+  routines_enabled: boolean
+  /** False until the account saves them; the other fields are then the defaults. */
+  saved: boolean
+}
+
+export async function getHouseholdPreferences(): Promise<HouseholdPreferences> {
+  const res = await authorizedFetch(`${BASE}/household/preferences`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load your household settings')
+  return res.json()
+}
+
+export async function saveHouseholdPreferences(
+  body: Omit<HouseholdPreferences, 'saved'>,
+): Promise<HouseholdPreferences> {
+  const res = await authorizedFetch(`${BASE}/household/preferences`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not save your household settings')
+  return res.json()
+}
+
+export interface BillCheckResult {
+  proposed: { document_id: string; title: string; proposal_number: number; remind_on: string }[]
+  skipped: { document_id: string; title: string; reason: string }[]
+  warranties_ending: { document_id: string; title: string; expiry_date: string }[]
+}
+
+/** Runs the daily check for the signed-in account now. It only proposes; nothing is saved until approval. */
+export async function checkBillsNow(): Promise<BillCheckResult> {
+  const res = await authorizedFetch(`${BASE}/routines/check`, { method: 'POST' })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not check your bills')
+  return res.json()
 }
 
 export async function previewBillSplit(documentId: string, body: BillSplitRequest): Promise<BillSplitPreview> {
