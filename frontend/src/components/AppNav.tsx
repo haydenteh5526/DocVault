@@ -28,7 +28,8 @@ export function AppNav({ openSettings, openSearch }: {openSettings: () => void; 
   const { pathname } = useLocation()
   const { logout } = useAuth()
   const profile = useQuery({queryKey:['profile'], queryFn: getProfile})
-  const activity = usePipActivity()
+  // Observe cached activity here. Only the thread or Documents should request bill details.
+  const activity = usePipActivity(false)
   const notifs = useNotifications()
   const [desktop, setDesktop] = useState(() => matchMedia('(min-width: 1024px)').matches)
   // The account menu belongs to the page it was opened on, so any change of page closes it.

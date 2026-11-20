@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { getDocument, type Document } from './api'
 
-export function useBillRecords(allDocs: Document[]) {
+export function useBillRecords(allDocs: Document[], enabled = true) {
   const completeIds = allDocs.filter((d) => d.processing_status === 'complete').map((d) => d.id)
   return useQuery({
     queryKey: ['document-list-status', completeIds],
-    enabled: completeIds.length > 0,
+    enabled: enabled && completeIds.length > 0,
     staleTime: 30_000,
     queryFn: async ({ signal }) => {
       const records: Record<string, Document> = {}

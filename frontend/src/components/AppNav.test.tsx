@@ -5,13 +5,14 @@ import { render, screen, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
-import { listConversations, type Conversation } from '../lib/api'
+import { getDocument, getDocuments, listConversations, type Conversation, type Document } from '../lib/api'
 
 vi.mock('../lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('../lib/api')>()
   return {
     ...actual,
     listConversations: vi.fn(async () => []),
+    getDocument: vi.fn(),
     getProfile: vi.fn(async () => ({ display_name: 'Test', email: 'test@example.com' })),
     getDocuments: vi.fn(async () => ({ documents: [], total: 0 })),
     getExpiringWarranties: vi.fn(async () => []),
@@ -134,7 +135,7 @@ describe('AppShell navigation', () => {
       expect(await screen.findByText('Ask page')).toBeVisible()
       expect(start).toHaveBeenCalled()
       expect(window.location.pathname).toBe('/app')
-      expect(within(nav).getByRole('button', { name: 'Ask Pip' })).toHaveAccessibleDescription('All caught up')
+      expect(within(nav).getByRole('button', { name: 'Ask Pip' })).toHaveAccessibleDescription('Open Pip for activity')
     } finally {
       delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
     }
@@ -226,7 +227,7 @@ describe('a rail without chats (plan 0R-4, R13)', () => {
     await screen.findByText('Documents page')
     expect(container.querySelector('aside details')).toBeNull()
     expect(screen.queryByRole('button', {name:'Settings'})).toBeNull()
-    expect(await screen.findByText('All caught up')).toBeVisible()
+    expect(await screen.findByText('Open Pip for activity')).toBeVisible()
     for (const name of ['Search', 'Warranties']) expect(screen.getByRole('button', { name })).toBeVisible()
   })
 
@@ -241,4 +242,10 @@ describe('a rail without chats (plan 0R-4, R13)', () => {
     expect(screen.getByRole('button', { name: 'Settings' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
   })
+})
+it('does not open every completed bill when visiting Profile', async () => {
+  vi.mocked(getDocuments).mockResolvedValueOnce({documents:[{id:'bill',processing_status:'complete'} as Document],total:1})
+  renderShell('/app/profile')
+  await screen.findByText('Profile page')
+  expect(getDocument).not.toHaveBeenCalled()
 })

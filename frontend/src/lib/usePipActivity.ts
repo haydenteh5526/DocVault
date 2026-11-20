@@ -5,15 +5,15 @@ import { useBillRecords } from './useBillRecords'
 import { useHousemates } from './housemates'
 import { daysUntil } from './format'
 
-export function usePipActivity() {
+export function usePipActivity(fetchActivity = true) {
   const { accountId } = useAuth()
-  const enabled = Boolean(accountId)
+  const enabled = Boolean(accountId) && fetchActivity
   const documents = useQuery({
     queryKey: ['documents'],
     queryFn: async () => (await getDocuments()).documents,
     enabled,
   })
-  const details = useBillRecords(documents.data ?? [])
+  const details = useBillRecords(documents.data ?? [], enabled)
   const warranties = useQuery({
     queryKey: ['pip-warranties', accountId],
     queryFn: () => getExpiringWarranties(30),
@@ -34,6 +34,8 @@ export function usePipActivity() {
     ? pending.length + (pending.length === 1 ? ' needs approval' : ' need approval')
     : documents.isError || details.isError
       ? 'Bill status unavailable'
+      : !fetchActivity && (!documents.data || (documents.data.some(d => d.processing_status === 'complete') && !details.data))
+        ? 'Open Pip for activity'
       : documents.isPending || details.isFetching
         ? 'Checking bills'
         : 'All caught up'

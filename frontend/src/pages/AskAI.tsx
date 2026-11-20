@@ -13,7 +13,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery'
 import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import { AssistantActionCard } from '@/components/AssistantAction'
-import { askQuestion, type AskResponse, type AssistantAction, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
+import { ApiError, askQuestion, type AskResponse, type AssistantAction, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -31,6 +31,9 @@ export default function AskAI({home = false}: {home?: boolean}) {
   const [activityOpen, setActivityOpen] = useState(false)
   const [hideRail, setHideRail] = useState(false)
   const hasActivity = Boolean(activity.pending.length || activity.upcoming.length || activity.warranties.length || activity.people.length)
+  const [restoreAttempt, setRestoreAttempt] = useState(0)
+  const [historyStatus, setHistoryStatus] = useState<'ready' | 'loading' | 'failed'>(() =>
+    conversationId || (homeKey && sessionStorage.getItem(homeKey)) ? 'loading' : 'ready')
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,11 +57,14 @@ export default function AskAI({home = false}: {home?: boolean}) {
       // Skip reload if we just created this conversation locally
       if (skipReloadRef.current) {
         skipReloadRef.current = false
+        setHistoryStatus('ready')
         return
       }
+      setHistoryStatus('loading')
       getConversation(id)
         .then(data => {
           if (!current) return
+          setHistoryStatus('ready')
           setIsPinned(data.is_pinned)
           setConversationTitle(data.title || '')
           setMessages(
@@ -70,19 +76,24 @@ export default function AskAI({home = false}: {home?: boolean}) {
             }))
           )
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!current) return
+          if (!(error instanceof ApiError && [403, 404].includes(error.status))) {
+            setHistoryStatus('failed')
+            return
+          }
           if (homeKey) sessionStorage.removeItem(homeKey)
           // Conversation not found, redirect to fresh ask
           navigate('/app/ask', { replace: true })
         })
     } else {
+      setHistoryStatus('ready')
       // New chat — reset state
       setActiveConversationId(null)
       setMessages([])
     }
     return () => { current = false }
-  }, [conversationId, homeKey, navigate])
+  }, [conversationId, homeKey, navigate, restoreAttempt])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
@@ -99,7 +110,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault()
-    if (!input.trim() || loading) return
+    if (!input.trim() || loading || historyStatus !== 'ready') return
     const question = input
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question }])
@@ -233,8 +244,10 @@ export default function AskAI({home = false}: {home?: boolean}) {
       <div className={`flex-1 min-h-0 py-6 relative ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         {/* Top fade vignette */}
         <div className={`max-w-3xl mx-auto px-4 sm:px-8 space-y-6 ${messages.length === 0 ? 'h-full' : ''}`}>
+        {historyStatus === 'failed' && <p role="alert">Could not load this conversation. <button className="underline" onClick={() => setRestoreAttempt(n => n + 1)}>Try again</button></p>}
+        {historyStatus === 'loading' && <p role="status">Loading conversation…</p>}
         {/* Empty state */}
-        {messages.length === 0 && (
+        {messages.length === 0 && historyStatus === 'ready' && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="mb-5 grid size-12 place-items-center rounded-lg border bg-card text-muted-foreground">
               <PipMark size={44}/>
@@ -315,7 +328,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 aria-label={`Message ${ASSISTANT_NAME}`} placeholder={`Message ${ASSISTANT_NAME}`}
-                disabled={loading}
+                disabled={loading || historyStatus !== 'ready'}
                 rows={1}
                 className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-sm focus:outline-none max-h-40 leading-relaxed placeholder:text-muted-foreground"
               />
@@ -325,7 +338,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
                   size="icon"
                   aria-label="Send message"
                   className="relative h-10 w-10 rounded-full transition-colors duration-150 disabled:opacity-40"
-                  disabled={loading || !input.trim()}
+                  disabled={loading || historyStatus !== 'ready' || !input.trim()}
                 >
                   <Send size={15} />
                 </Button>

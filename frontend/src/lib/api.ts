@@ -785,6 +785,7 @@ export async function createConversation(title?: string): Promise<Conversation> 
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
   const res = await authorizedFetch(`${BASE}/conversations/${id}`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load conversation')
   return res.json()
 }
 

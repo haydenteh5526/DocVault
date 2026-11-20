@@ -121,3 +121,30 @@ describe('a reminder proposal made on Ask (L-1)', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
   })
 })
+it('keeps the home thread after a temporary failure and waits for history before sending', async () => {
+  const user = userEvent.setup()
+  const token = 'h.' + btoa(JSON.stringify({sub:'owner-a'})) + '.s'
+  localStorage.setItem('token',token)
+  sessionStorage.setItem('pip-thread:owner-a','saved-thread')
+  let finish!: (data: ConversationDetail) => void
+  vi.mocked(getConversation)
+    .mockRejectedValueOnce(new Error('Temporary outage'))
+    .mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  try {
+    render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>
+      <AuthProvider><MemoryRouter initialEntries={['/app']}><AskAI home/></MemoryRouter></AuthProvider>
+    </QueryClientProvider>)
+    await screen.findByRole('alert')
+    expect(sessionStorage.getItem('pip-thread:owner-a')).toBe('saved-thread')
+    expect(screen.getByPlaceholderText('Message Pip')).toBeDisabled()
+    await user.click(screen.getByRole('button',{name:'Try again'}))
+    expect(screen.getByPlaceholderText('Message Pip')).toBeDisabled()
+    expect(sendMessage).not.toHaveBeenCalled()
+    finish(conversation('saved-thread'))
+    await screen.findByLabelText('Draft to edit')
+    expect(screen.getByPlaceholderText('Message Pip')).toBeEnabled()
+  } finally {
+    localStorage.removeItem('token')
+    sessionStorage.removeItem('pip-thread:owner-a')
+  }
+})
