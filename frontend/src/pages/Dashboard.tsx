@@ -1,3 +1,4 @@
+import { useBillRecords } from '@/lib/useBillRecords'
 import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { lazy, Suspense, useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { retryDocumentProcessing, getDocument, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
+import { retryDocumentProcessing, getDocuments, searchDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 const AnalyticsWidgets = lazy(() => import('@/components/AnalyticsWidgets').then(({ AnalyticsWidgets }) => ({ default: AnalyticsWidgets })))
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
@@ -94,21 +95,7 @@ export default function Dashboard() {
   const search = useQuery({queryKey:['document-search', query], queryFn:() => searchDocuments(query), enabled:!!query})
   const excerpts = useMemo(() => new Map((search.data?.results ?? []).filter(r => r.similarity === 1 || r.chunk_text.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(r => [r.document_id, r.chunk_text.replace(/<\/?b>/gi,'')])), [search.data,query])
   // Every complete document is checked: the type the categoriser gives does not say whether a bill review exists. The result is kept for 30 s and refreshed when a document's own page changes it (lib/documentStatusSync).
-  const completeIds = allDocs.filter(d => d.processing_status === 'complete').map(d => d.id)
-  const details = useQuery({
-    queryKey:['document-list-status',completeIds],
-    enabled:completeIds.length > 0,
-    staleTime:30_000,
-    queryFn: async ({signal}) => {
-      const records: Record<string, Document> = {}
-      for (let start = 0; start < completeIds.length; start += 6) {
-        if (signal.aborted) break
-        const batch = await Promise.all(completeIds.slice(start, start + 6).map(async id => [id, await getDocument(id)] as const))
-        for (const [id,record] of batch) if (record.id) records[id] = record
-      }
-      return records
-    },
-  })
+  const details = useBillRecords(allDocs)
   const stateOf = (doc: Document) => details.data?.[doc.id] ?? (doc.bill_review !== undefined ? doc : undefined)
   const attention = allDocs.map(doc => ({doc,reason:attentionReason(stateOf(doc))})).filter(row => row.reason).slice(0,3)
   const loading = docsQuery.isLoading

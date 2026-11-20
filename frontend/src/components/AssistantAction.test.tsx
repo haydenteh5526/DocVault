@@ -91,7 +91,7 @@ describe('AssistantActionCard', () => {
     expect(ties).toHaveLength(3)
     expect(ties[0]).toHaveTextContent('Amount due')
     expect(within(ties[0]).getByText('€123.47', { selector: 'strong' })).toBeInTheDocument()
-    expect(within(ties[0]).getByRole('blockquote')).toHaveTextContent('OCR line')
+    expect(within(ties[0]).getByRole('blockquote')).toHaveTextContent(/· line \d+/)
   })
 
   it('labels unconfirmed and unreadable facts', () => {

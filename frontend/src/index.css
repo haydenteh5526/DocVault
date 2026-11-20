@@ -3,6 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --pip-yellow: #FFD83D;
   --background: #FFFFFF;
   --foreground: #0A0A0A;
   --card: #FFFFFF;
@@ -33,9 +34,9 @@
   color-scheme: light;
 }
 .dark {
-  --background: #0A0A0A;
-  --foreground: #FAFAFA;
-  --card: #171717;
+  --background: #0A0A0B;
+  --foreground: #F2F2F3;
+  --card: #17171A;
   --card-foreground: #FAFAFA;
   --popover: #171717;
   --popover-foreground: #FAFAFA;
@@ -44,10 +45,10 @@
   --secondary: #262626;
   --secondary-foreground: #FAFAFA;
   --muted: #262626;
-  --muted-foreground: #A1A1A1;
+  --muted-foreground: #A9A9AF;
   --accent: #262626;
   --accent-foreground: #FAFAFA;
-  --border: #2E2E2E;
+  --border: #222226;
   --input: #6B6B6B;
   --ring: #737373;
   --destructive: #FF6467;
@@ -86,6 +87,7 @@
   --color-mark: var(--mark);
   --color-mark-text: var(--mark-text);
   --color-mark-edge: var(--mark-edge);
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-sans: 'Geist', system-ui, sans-serif;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -117,3 +119,12 @@
   outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }
+.pip-blink { transform-origin: center; animation: pipBlink 7s infinite; }
+@keyframes pipBlink { 0%, 95%, 98%, 100% {transform:scaleY(1)} 96.5% {transform:scaleY(.1)} }
+.pip-composer:focus-within { border-color: var(--muted-foreground); }
+.pip-composer textarea:focus-visible { outline: none; }
+.pip-activity section + section { margin-top: 2rem }
+.pip-activity h2 { font-size: .95rem; font-weight: 650; margin-bottom: .75rem }
+.pip-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
+.pip-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
+.pip-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }

@@ -402,6 +402,7 @@ export async function getDocuments(categoryId?: string): Promise<{ documents: Do
   const params = new URLSearchParams({ limit: '1000' })
   if (categoryId) params.set('category_id', categoryId)
   const res = await authorizedFetch(`${BASE}/documents?${params.toString()}`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load documents')
   return res.json()
 }
 
@@ -425,6 +426,7 @@ export async function retryDocumentProcessing(id: string): Promise<void> {
 
 export async function getDocument(id: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${id}`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load document')
   return res.json()
 }
 
@@ -642,6 +644,7 @@ export async function getWarranties(): Promise<Warranty[]> {
 
 export async function getExpiringWarranties(days = 30): Promise<{ warranty_id: string; document_title: string; expiry_date: string; days_remaining: number }[]> {
   const res = await authorizedFetch(`${BASE}/warranties/expiring?days=${days}`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load expiring warranties')
   return res.json()
 }
 
@@ -782,6 +785,7 @@ export async function createConversation(title?: string): Promise<Conversation> 
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
   const res = await authorizedFetch(`${BASE}/conversations/${id}`)
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not load conversation')
   return res.json()
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
 import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,14 @@ export default function DocumentDetail() {
     },
   })
   const doc = docQuery.data ?? null
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (docQuery.data?.id && ['#bill-reminder-heading', '#bill-split-heading'].includes(hash)) {
+      const heading = document.getElementById(hash.slice(1))
+      heading?.scrollIntoView({ block: 'start' })
+      heading?.focus({ preventScroll: true })
+    }
+  }, [docQuery.data?.id, hash])
   const { accountId } = useAuth()
   const housemates = useHousemates(!!(doc?.bill_review || doc?.confirmed_bill))
   // A failed reload keeps the document already loaded; only a document that never loaded is "not found".

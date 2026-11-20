@@ -5,13 +5,14 @@ import { render, screen, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
-import { listConversations, type Conversation } from '../lib/api'
+import { getDocument, getDocuments, listConversations, type Conversation, type Document } from '../lib/api'
 
 vi.mock('../lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('../lib/api')>()
   return {
     ...actual,
     listConversations: vi.fn(async () => []),
+    getDocument: vi.fn(),
     getProfile: vi.fn(async () => ({ display_name: 'Test', email: 'test@example.com' })),
     getDocuments: vi.fn(async () => ({ documents: [], total: 0 })),
     getExpiringWarranties: vi.fn(async () => []),
@@ -80,17 +81,18 @@ describe('AppShell navigation', () => {
     expect(await screen.findByText('Warranties page')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/app/warranties')
 
+    await user.click(screen.getByRole('button', { name: /Account/ }))
     await user.click(screen.getByRole('button', { name: 'Settings' }))
     expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
   })
 
-  it('opens Documents at the home route and exposes the skip link first', async () => {
+  it('opens Pip at the home route and exposes the skip link first', async () => {
     const user = userEvent.setup()
     renderShell('/app')
-    await screen.findByText('Documents page')
+    await screen.findByText('Ask page')
     await user.tab()
     expect(screen.getByRole('link', {name: 'Skip to content'})).toHaveFocus()
-    expect(screen.getByRole('button', {name: 'Documents'})).toHaveAttribute('aria-current','page')
+    expect(screen.getByRole('button', {name: 'Ask Pip'})).toHaveAttribute('aria-current','page')
   })
 
   it('puts the three labelled destinations in the phone tab bar', async () => {
@@ -99,7 +101,7 @@ describe('AppShell navigation', () => {
     renderShell('/app/ask')
     await screen.findByText('Ask page')
     const nav = screen.getByRole('navigation', {name:'Main navigation'})
-    expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(['Documents','Ask','Upload'])
+    expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(['Pip','Documents','Upload'])
     await user.click(within(nav).getByRole('button', {name:'Upload'}))
     expect(await screen.findByText('Upload page')).toBeVisible()
     expect(screen.queryByRole('button', {name:'Open menu'})).not.toBeInTheDocument()
@@ -128,10 +130,12 @@ describe('AppShell navigation', () => {
       renderShell('/app/documents')
       await screen.findByText('Documents page')
       const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-      expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(['Documents', 'Ask', 'Upload'])
-      await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+      expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Ask Pip', 'Documents', 'Upload'])
+      await user.click(within(nav).getByRole('button', { name: 'Ask Pip' }))
       expect(await screen.findByText('Ask page')).toBeVisible()
       expect(start).toHaveBeenCalled()
+      expect(window.location.pathname).toBe('/app')
+      expect(within(nav).getByRole('button', { name: 'Ask Pip' })).toHaveAccessibleDescription('Open Pip for activity')
     } finally {
       delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
     }
@@ -199,7 +203,7 @@ describe('the phone account menu (L5, M2)', () => {
     renderShell('/app/documents')
     await screen.findByText('Documents page')
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-    await user.click(within(nav).getByRole('button', { name: 'Ask' }))
+    await user.click(within(nav).getByRole('button', { name: 'Ask Pip' }))
     await screen.findByText('Ask page')
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(nav)
   })
@@ -218,11 +222,13 @@ describe('a rail without chats (plan 0R-4, R13)', () => {
     expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
   })
 
-  it('keeps Search, Warranties and Settings in a plain group on the desktop rail', async () => {
+  it('shows Pip’s status and keeps Settings in the account menu', async () => {
     const { container } = renderShell()
     await screen.findByText('Documents page')
     expect(container.querySelector('aside details')).toBeNull()
-    for (const name of ['Search', 'Warranties', 'Settings']) expect(screen.getByRole('button', { name })).toBeVisible()
+    expect(screen.queryByRole('button', {name:'Settings'})).toBeNull()
+    expect(await screen.findByText('Open Pip for activity')).toBeVisible()
+    for (const name of ['Search', 'Warranties']) expect(screen.getByRole('button', { name })).toBeVisible()
   })
 
   it('offers Search and Warranties, but not Search chats, from the phone account menu', async () => {
@@ -236,4 +242,10 @@ describe('a rail without chats (plan 0R-4, R13)', () => {
     expect(screen.getByRole('button', { name: 'Settings' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
   })
+})
+it('does not open every completed bill when visiting Profile', async () => {
+  vi.mocked(getDocuments).mockResolvedValueOnce({documents:[{id:'bill',processing_status:'complete'} as Document],total:1})
+  renderShell('/app/profile')
+  await screen.findByText('Profile page')
+  expect(getDocument).not.toHaveBeenCalled()
 })
