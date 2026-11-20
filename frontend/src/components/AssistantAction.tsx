@@ -110,7 +110,7 @@ function FactsCard({ action, facts, openButton }: { action: AssistantAction; fac
       <p className="font-medium">{facts.confirmed ? `Confirmed · revision ${facts.revision}` : 'Not confirmed'}</p>
       <div className="space-y-3">
         {rows.map(row => (
-          <SourceTie key={row.label} label={row.label} value={row.value ?? 'Not readable'} sources={row.lines} />
+          <SourceTie key={row.label} documentTitle={action.document_title} label={row.label} value={row.value ?? 'Not readable'} sources={row.lines} />
         ))}
       </div>
       {openButton}

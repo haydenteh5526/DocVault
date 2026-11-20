@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createConversation, getConversation, sendMessage, type ConversationDetail } from '@/lib/api'
+import { AuthProvider } from '@/lib/auth'
 import AskAI from './AskAI'
 
 vi.mock('@/lib/api', async importOriginal => {
@@ -53,12 +54,12 @@ describe('AskAI result cards', () => {
     vi.mocked(getConversation).mockImplementation(async id => conversation(id))
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/app/ask/a']}>
+        <AuthProvider><MemoryRouter initialEntries={['/app/ask/a']}>
           <Link to="/app/ask/b">Open B</Link>
           <Routes>
             <Route path="/app/ask/:conversationId" element={<AskAI />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></AuthProvider>
       </QueryClientProvider>,
     )
 
@@ -78,11 +79,11 @@ describe('AskAI page header (plan 0R-4, R13)', () => {
     vi.mocked(getConversation).mockImplementation(async id => conversation(id))
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/app/ask']}>
+        <AuthProvider><MemoryRouter initialEntries={['/app/ask']}>
           <Routes>
             <Route path="/app/ask" element={<AskAI />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></AuthProvider>
       </QueryClientProvider>,
     )
     const link = await screen.findByRole('link', { name: 'Recent chats' })
@@ -107,15 +108,15 @@ describe('a reminder proposal made on Ask (L-1)', () => {
     } as never)
     render(
       <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/app/ask']}>
+        <AuthProvider><MemoryRouter initialEntries={['/app/ask']}>
           <Routes>
             <Route path="/app/ask" element={<AskAI />} />
             <Route path="/app/ask/:conversationId" element={<AskAI />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter></AuthProvider>
       </QueryClientProvider>,
     )
-    await user.type(await screen.findByPlaceholderText(/Ask a question/), 'Remind me before the bill is due{Enter}')
+    await user.type(await screen.findByPlaceholderText('Message Pip'), 'Remind me before the bill is due{Enter}')
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document', 'doc-1'] }))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
   })

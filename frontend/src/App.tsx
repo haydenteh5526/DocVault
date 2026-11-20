@@ -53,7 +53,7 @@ function ThemeRouteSync() {
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, accountId } = useAuth()
   const { pathname } = useLocation()
   const publicAccount = pathname !== '/' && !pathname.startsWith('/app')
 
@@ -70,7 +70,7 @@ function AppRoutes() {
         <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/app" /> : <ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />} />
+        <Route path="/app/*" element={isAuthenticated ? <AppShell key={accountId} /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       </div>
@@ -101,7 +101,7 @@ function AppShell() {
         <div className="min-h-0 flex-1 overflow-hidden">
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route index element={<Dashboard />} />
+              <Route index element={<AskAI key="home" home />} />
               <Route path="documents" element={<Dashboard />} />
               <Route path="upload" element={<UploadPage />} />
               <Route path="documents/:id" element={<DocumentDetail />} />

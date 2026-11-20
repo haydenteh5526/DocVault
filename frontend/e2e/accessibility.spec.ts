@@ -54,7 +54,7 @@ test.describe('WCAG regression checks', () => {
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
     await submitSignIn(page);
-    await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Pip', exact: true })).toBeVisible({
       timeout: 10_000,
     });
     await expectNoWcagViolations(page);
@@ -68,7 +68,7 @@ test.describe('WCAG regression checks', () => {
 test.describe('with a dark system theme', () => {
   test.use({ colorScheme: 'dark' });
 
-  test('the public pages are light and the signed-in app is dark', async ({ page }) => {
+  test('the landing and signed-in pages are dark and account entry is light', async ({ page }) => {
     const email = process.env.E2E_EMAIL;
     const password = process.env.E2E_PASSWORD;
     test.skip(!email || !password, 'CI seed credentials are required for this integration test');
@@ -78,7 +78,7 @@ test.describe('with a dark system theme', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(await isDark()).toBe(false);
-    expect(await page.locator('.poster').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
+    expect(await page.locator('.pip-site').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(10, 10, 11)');
     await expectNoWcagViolations(page);
 
     await page.goto('/login');
@@ -90,7 +90,7 @@ test.describe('with a dark system theme', () => {
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
     await submitSignIn(page);
-    await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'Pip', exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/app$/);
     expect(await isDark()).toBe(true);
     await page.goto('/app/documents');
