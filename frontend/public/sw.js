@@ -1,5 +1,11 @@
-const CACHE_NAME = 'docvault-v2';
+const CACHE_NAME = 'docvault-v3';
 const STATIC_ASSETS = ['/', '/index.html'];
+
+function isPage(request) {
+  if (request.mode === 'navigate') return true;
+  const path = new URL(request.url).pathname;
+  return path === '/' || path === '/index.html';
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -24,6 +30,23 @@ self.addEventListener('fetch', (event) => {
 
   // API responses are never stored or served from a cache: the key would not identify the account.
   if (event.request.url.includes('/api/')) return;
+
+  // Pages go to the network first, so a release is never hidden behind an old index.html.
+  // A successful response refreshes the cache, and the cached copy is the offline fallback.
+  if (isPage(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // Cache-first for static assets
   event.respondWith(
