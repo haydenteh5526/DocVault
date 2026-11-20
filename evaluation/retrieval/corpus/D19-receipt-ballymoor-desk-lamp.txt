@@ -1,0 +1,17 @@
+Title: Ballymoor Electrical receipt, 3 September 2026
+BALLYMOOR ELECTRICAL
+Unit 7, Example Retail Park, Exampletown (synthetic example)
+
+Receipt number: BM-SYN-71533
+Date: 3 September 2026
+
+Item                                      Qty     Price
+Lumio Desk Lamp L2                          1     39.95
+LED bulb pack (2)                           1      6.50
+
+Total: EUR 46.45
+VAT at 23% included: EUR 8.69
+Paid by card (test card ending 0000)
+
+Returns: bring this receipt within 30 days. Faults are covered by the
+manufacturer's guarantee card supplied with the product.

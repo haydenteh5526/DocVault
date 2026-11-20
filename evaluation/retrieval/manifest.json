@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "seed": 20261120,
+  "files": [
+    {
+      "document_id": "D01",
+      "profile": "clean",
+      "title": "Brightwell Energy electricity bill, September 2026",
+      "path": "clean/D01.png",
+      "sha256": "b071a9113e6270d9e695e1d327c8dc5fa8ecc36dc705037900130646f565f979"
+    },
+    {
+      "document_id": "D02",
+      "profile": "clean",
+      "title": "Brightwell Energy electricity bill, October 2026",
+      "path": "clean/D02.png",
+      "sha256": "d0b7d224b2d8589a79576182776b0206a35e3c9c8675ad74c35da283c8f4c9ff"
+    },
+    {
+      "document_id": "D02",
+      "profile": "poor",
+      "title": "Brightwell Energy electricity bill, October 2026",
+      "path": "poor/D02.jpg",
+      "sha256": "8821b978302a933b2c2e5e04a99ced3680ed7991fd2f17061059ebcf5b5224cb"
+    },
+    {
+      "document_id": "D03",
+      "profile": "clean",
+      "title": "Brightwell Energy electricity bill, November 2026",
+      "path": "clean/D03.png",
+      "sha256": "738ba82f1e7b3faca6b41e59b5d83cd56dc8c9dc584998458fecc381139bca2a"
+    },
+    {
+      "document_id": "D04",
+      "profile": "clean",
+      "title": "Harbourline Gas bill, August to October 2026",
+      "path": "clean/D04.png",
+      "sha256": "8a04177e252ad08ebf5472ab827a89f862c0145fcb3d8b20c748b9dff6c72c09"
+    },
+    {
+      "document_id": "D05",
+      "profile": "clean",
+      "title": "Skylark Fibre broadband bill, November 2026",
+      "path": "clean/D05.png",
+      "sha256": "0887ea771bf67e26b65134829d0f085a9d138f4033e7e32c841ff55f94e05802"
+    },
+    {
+      "document_id": "D06",
+      "profile": "clean",
+      "title": "Greenway Waste bin collection bill, July to September 2026",
+      "path": "clean/D06.png",
+      "sha256": "1f09878290cd353bec97655aa62d63718bdb5c7895bc5f8fbdad07b0733850bf"
+    },
+    {
+      "document_id": "D07",
+      "profile": "clean",
+      "title": "Vantor WD8-1400 washer-dryer user manual",
+      "path": "clean/D07.png",
+      "sha256": "f86266025a08cc58ceb1c786330761ef730913819a4aec79040ff5c6e3af27ee"
+    },
+    {
+      "document_id": "D07",
+      "profile": "poor",
+      "title": "Vantor WD8-1400 washer-dryer user manual",
+      "path": "poor/D07.jpg",
+      "sha256": "3cf0c4aa13b5a9db62f4f304981bdc9a230a0a1d7f8a24f50e92440b6b9a1e0a"
+    },
+    {
+      "document_id": "D08",
+      "profile": "clean",
+      "title": "Nordale DW60 dishwasher user manual",
+      "path": "clean/D08.png",
+      "sha256": "a0e6509b45a076b487f3de5f82506555ecade05d9bdfec2f6fff1e79f658ae07"
+    },
+    {
+      "document_id": "D09",
+      "profile": "clean",
+      "title": "Aerotherm B24 gas boiler user manual",
+      "path": "clean/D09.png",
+      "sha256": "a67d6b10e9699d0fe72ec29fea4239d9223e09dd6b4bc34ad7cdad564d1a15f0"
+    },
+    {
+      "document_id": "D09",
+      "profile": "poor",
+      "title": "Aerotherm B24 gas boiler user manual",
+      "path": "poor/D09.jpg",
+      "sha256": "dbead229949a2c12ef8555b001e39343a5599cff00739ba78f81599c7338c97e"
+    },
+    {
+      "document_id": "D10",
+      "profile": "clean",
+      "title": "Skylark Hub X2 broadband router manual",
+      "path": "clean/D10.png",
+      "sha256": "6a972e1cb04b01a5a4eda03ffc00b5926b61c11b57e62e0d50adae834194fe5e"
+    },
+    {
+      "document_id": "D11",
+      "profile": "clean",
+      "title": "Ventis CH90 cooker hood user manual",
+      "path": "clean/D11.png",
+      "sha256": "6da403dddadaf996181c8e4f2646421e9bd26c5ef2f4410a146277a422f4d30a"
+    },
+    {
+      "document_id": "D12",
+      "profile": "clean",
+      "title": "Vantor WD8 guarantee card",
+      "path": "clean/D12.png",
+      "sha256": "9d6910eebacd84cf23b4b98f265af54a70061b95ba4f502483dda2462c2b7f8b"
+    },
+    {
+      "document_id": "D12",
+      "profile": "poor",
+      "title": "Vantor WD8 guarantee card",
+      "path": "poor/D12.jpg",
+      "sha256": "403f4ccb38f1131a98777bec58acb269c356f14b67fb770a939b8513d4c57ef6"
+    },
+    {
+      "document_id": "D13",
+      "profile": "clean",
+      "title": "Lumio desk lamp guarantee card",
+      "path": "clean/D13.png",
+      "sha256": "d591753b49abcf92378ee8f948ef50cd02364573850a832c80f0daf9fdaee4c2"
+    },
+    {
+      "document_id": "D14",
+      "profile": "clean",
+      "title": "Hearthstone kettle guarantee",
+      "path": "clean/D14.png",
+      "sha256": "928e7a56f3731305b153f2adc56f61931274a6d8087eb9fc86419fd4f1efee50"
+    },
+    {
+      "document_id": "D15",
+      "profile": "clean",
+      "title": "Fernhill laptop warranty",
+      "path": "clean/D15.png",
+      "sha256": "5fe330fab77d0f23bd9849e8bd06433b70e7170c64d5102463ebb737e195b68a"
+    },
+    {
+      "document_id": "D16",
+      "profile": "clean",
+      "title": "Orbis television guarantee",
+      "path": "clean/D16.png",
+      "sha256": "05c0adf59818ac5c061a5210395db46f32dc12ee4cfd5a07481c1210a586ea5b"
+    },
+    {
+      "document_id": "D16",
+      "profile": "poor",
+      "title": "Orbis television guarantee",
+      "path": "poor/D16.jpg",
+      "sha256": "e74839b52002d7f7fa5bd5dcdf4e3fe4fc9ab710349f4321b069cfd6ef19f156"
+    },
+    {
+      "document_id": "D17",
+      "profile": "clean",
+      "title": "Zephyr vacuum cleaner guarantee",
+      "path": "clean/D17.png",
+      "sha256": "4281d088845b5828c9a2e15338cb3ef3e63b338d2be70a19583c9e8248d33344"
+    },
+    {
+      "document_id": "D17",
+      "profile": "poor",
+      "title": "Zephyr vacuum cleaner guarantee",
+      "path": "poor/D17.jpg",
+      "sha256": "3caffe5f85d735607cd00297887c55465e0a940aaff2168d63762a9a0c45f8e1"
+    },
+    {
+      "document_id": "D18",
+      "profile": "clean",
+      "title": "Ballymoor Electrical receipt, 12 March 2026",
+      "path": "clean/D18.png",
+      "sha256": "9a6c68b2961adcbf00ee17e7205e1410dadf8cc63c32b73b52e9027dd3377c8b"
+    },
+    {
+      "document_id": "D19",
+      "profile": "clean",
+      "title": "Ballymoor Electrical receipt, 3 September 2026",
+      "path": "clean/D19.png",
+      "sha256": "275d5a16a5ad396ff5c9658f680de168d8ae964d599ad27eee0f2d65379e4c0b"
+    },
+    {
+      "document_id": "D20",
+      "profile": "clean",
+      "title": "Corner Home Store receipt, 20 June 2025",
+      "path": "clean/D20.png",
+      "sha256": "f38daaffdd3987452457e7f5083db0c9a029fed6b381579e3e64714cebc52305"
+    },
+    {
+      "document_id": "D20",
+      "profile": "poor",
+      "title": "Corner Home Store receipt, 20 June 2025",
+      "path": "poor/D20.jpg",
+      "sha256": "85dae9515f51f03eacd81397a392b123757bb900ca5d5bd529fbee5937948562"
+    },
+    {
+      "document_id": "D21",
+      "profile": "clean",
+      "title": "ByteBarn Computers receipt, 8 January 2026",
+      "path": "clean/D21.png",
+      "sha256": "20d355d35d5811ce8412b3fb94f26e116a9f6540eaa35a34695e52d67b03f43d"
+    },
+    {
+      "document_id": "D22",
+      "profile": "clean",
+      "title": "Greenfield Supermarket receipt, 14 October 2026",
+      "path": "clean/D22.png",
+      "sha256": "5ff78bb849553096ab93db39a3be0b6f66c13542fd9b34af87d6d1ce89b3d816"
+    },
+    {
+      "document_id": "D22",
+      "profile": "poor",
+      "title": "Greenfield Supermarket receipt, 14 October 2026",
+      "path": "poor/D22.jpg",
+      "sha256": "35692050fdcaedcd0d880cbfc90bf456a73851a2ffe55a9788c2d9c45d20ba49"
+    },
+    {
+      "document_id": "D23",
+      "profile": "clean",
+      "title": "Tenancy agreement, Unit 4 Fictional Court",
+      "path": "clean/D23.png",
+      "sha256": "94e0badc60912811cf6c20fe65827dbd53a1e0a815079ecbd5f83feb7571a9b5"
+    },
+    {
+      "document_id": "D24",
+      "profile": "clean",
+      "title": "Oakline home insurance schedule",
+      "path": "clean/D24.png",
+      "sha256": "4348de3c408e5c12030b400029e6e9c7580dc3188831cc278c9cf067eafb297f"
+    },
+    {
+      "document_id": "D25",
+      "profile": "clean",
+      "title": "Oakline contents insurance schedule",
+      "path": "clean/D25.png",
+      "sha256": "09f70f0f4ab8a586915689af85f7eebf8d1a8e87e4f245c02141c2b73b294dd5"
+    },
+    {
+      "document_id": "D25",
+      "profile": "poor",
+      "title": "Oakline contents insurance schedule",
+      "path": "poor/D25.jpg",
+      "sha256": "75b4753f5727fe55313c16f277ebc31524cbb6dbe9eeb2499c7dc7a0f1d7428a"
+    },
+    {
+      "document_id": "D26",
+      "profile": "clean",
+      "title": "Kestrel car insurance certificate",
+      "path": "clean/D26.png",
+      "sha256": "5fe0817949d11b4ffc7ae02c262a7241492c573402b3d6693e70d468d263fe74"
+    },
+    {
+      "document_id": "D27",
+      "profile": "clean",
+      "title": "National car test certificate",
+      "path": "clean/D27.png",
+      "sha256": "deedc8a26291ec9b5e956aca409ff523897acfbf07063c5cbd4ad5e4e4c6d501"
+    },
+    {
+      "document_id": "D28",
+      "profile": "clean",
+      "title": "Letter from the landlord about the rent",
+      "path": "clean/D28.png",
+      "sha256": "ff8575b773302c70d49d7cfbca82dcc258b3092ed2dbe1fa0c74589c07abc9b0"
+    },
+    {
+      "document_id": "D28",
+      "profile": "poor",
+      "title": "Letter from the landlord about the rent",
+      "path": "poor/D28.jpg",
+      "sha256": "e2f1d59ffebd25f1fce9194d792b41b692ce551bf4438822ffb03f2ae97d7dca"
+    },
+    {
+      "document_id": "D29",
+      "profile": "clean",
+      "title": "Greenway Waste collection calendar, November 2026 to January 2027",
+      "path": "clean/D29.png",
+      "sha256": "450aad73ccdc586cfc293d7ce9d6302e35117ad9492b00bff068de116cef2e07"
+    },
+    {
+      "document_id": "D30",
+      "profile": "clean",
+      "title": "Television licence renewal notice",
+      "path": "clean/D30.png",
+      "sha256": "d78c66b18b1d85f562a54a03a5583d99e4682938a72245a0e997b5c41c2f91ec"
+    }
+  ]
+}

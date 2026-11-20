@@ -1,0 +1,18 @@
+Title: Greenfield Supermarket receipt, 14 October 2026
+GREENFIELD SUPERMARKET
+Main Street, Exampletown (synthetic example)
+
+Receipt number: GS-SYN-90812
+Date: 14 October 2026
+
+Item                                      Qty     Price
+Dishwasher tablets 60 pack                  1     11.49
+Kettle descaler                             1      3.29
+Milk 2 litres                               1      2.10
+Brown bread                                 1      1.95
+Washing powder 1.5 kg                       1      6.50
+
+Total: EUR 25.33
+Paid by card (test card ending 0000)
+
+Thank you for shopping at Greenfield.

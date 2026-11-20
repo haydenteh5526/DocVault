@@ -1,0 +1,16 @@
+Title: National car test certificate
+NATIONAL CAR TEST CERTIFICATE (synthetic example, not an official document)
+
+Certificate number: NCT-SYN-0091772
+Vehicle: 2019 hatchback
+Registration number: 19-SYN-4521
+Test date: 22 May 2026
+Test centre: Exampletown Test Centre
+Result: PASS
+Valid until: 21 May 2028
+
+Advisory notes
+Rear tyres: wear approaching the limit. Check the tyres before the next test.
+
+Keep this certificate with the car documents. The next test is due before
+the valid until date.
