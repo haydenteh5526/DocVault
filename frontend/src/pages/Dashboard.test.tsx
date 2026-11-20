@@ -228,3 +228,20 @@ describe('every complete document is checked (L-A)', () => {
     expect(vi.mocked(getDocument).mock.calls.map(call => call[0]).sort()).toEqual(['plain-1', 'typed-1'])
   })
 })
+
+describe('the page head (plan 0R-4, R13)', () => {
+  it('has the title and counts on the left and Ask and Upload on the right', async () => {
+    renderDashboard()
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Documents' })
+    expect(await screen.findByText('1 document · 0 folders')).toBeVisible()
+    const head = heading.closest('header')!
+    const buttons = Array.from(head.querySelectorAll('button')).map(button => button.textContent?.trim())
+    expect(buttons).toEqual(['Ask', 'Upload'])
+  })
+
+  it('has no select for the document type any more', async () => {
+    renderDashboard()
+    await screen.findByText('October electricity bill')
+    expect(screen.queryByRole('combobox', { name: 'Document type' })).not.toBeInTheDocument()
+  })
+})

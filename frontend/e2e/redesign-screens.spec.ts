@@ -214,3 +214,29 @@ test.describe('landing preview is above the fold', () => {
     await expect(page.getByRole('banner').getByRole('link', { name: 'Create an account' })).toBeVisible();
   });
 });
+
+// Needs the verified synthetic account (E2E_EMAIL, E2E_PASSWORD); it adds one document and removes it again.
+test('documents list at 390 px does not scroll sideways, and every title link is at least 44 px tall', async ({ page }) => {
+  test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, 'A verified synthetic account is required');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  const token = await page.evaluate(() => localStorage.getItem('token'));
+  const headers = { Authorization: `Bearer ${token}` };
+  const onePixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const response = await page.request.post('/api/v1/documents', {
+    headers,
+    multipart: { file: { name: 'Row height check.png', mimeType: 'image/png', buffer: onePixel } },
+  });
+  expect(response.status()).toBe(201);
+  const id = (await response.json()).id as string;
+  try {
+    await page.goto('/app/documents');
+    await expect(page.getByRole('link', { name: 'Row height check.png' })).toBeVisible({ timeout: 15_000 });
+    const links = await page.locator('main li a[title]').all();
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
+  } finally {
+    await page.request.delete(`/api/v1/documents/${id}`, { headers });
+  }
+});

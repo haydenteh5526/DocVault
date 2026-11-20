@@ -1,6 +1,6 @@
 import { useTransitionNavigate } from '@/lib/useTransitionNavigate'
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Send, FileText, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
 import Markdown from 'react-markdown'
@@ -146,6 +146,9 @@ export default function AskAI() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
+      <div className="flex shrink-0 items-center px-4 sm:px-8 py-3">
+        <Link to="/app/chats" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">Recent chats</Link>
+      </div>
       {/* Top-right 3-dot menu for active conversation */}
       {activeConversationId && messages.length > 0 && (
         <div className="absolute top-3 right-4 z-20">

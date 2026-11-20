@@ -72,3 +72,19 @@ describe('AskAI result cards', () => {
     expect(await screen.findByLabelText('Draft to edit')).toHaveValue(DRAFT)
   })
 })
+
+describe('AskAI page header (plan 0R-4, R13)', () => {
+  it('links to Recent chats', async () => {
+    vi.mocked(getConversation).mockImplementation(async id => conversation(id))
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/app/ask']}>
+          <Routes>
+            <Route path="/app/ask" element={<AskAI />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByRole('link', { name: 'Recent chats' })).toHaveAttribute('href', '/app/chats')
+  })
+})

@@ -5,6 +5,7 @@ import { render, screen, cleanup, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
+import { listConversations, type Conversation } from '../lib/api'
 
 vi.mock('../lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('../lib/api')>()
@@ -201,5 +202,38 @@ describe('the phone account menu (L5, M2)', () => {
     await user.click(within(nav).getByRole('button', { name: 'Ask' }))
     await screen.findByText('Ask page')
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(nav)
+  })
+})
+
+describe('a rail without chats (plan 0R-4, R13)', () => {
+  const chats = [{ id: 'c1', title: 'When is my bill due', is_pinned: false, created_at: '2026-11-11T10:00:00', updated_at: '2026-11-11T10:00:00' }] as Conversation[]
+
+  it('shows no Recent chats and no conversation menus, even when conversations exist', async () => {
+    vi.mocked(listConversations).mockResolvedValue(chats)
+    renderShell()
+    await screen.findByText('Documents page')
+    expect(screen.queryByText('Recent chats')).not.toBeInTheDocument()
+    expect(screen.queryByText('When is my bill due')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Conversation options/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
+  })
+
+  it('keeps Search, Warranties and Settings in a plain group on the desktop rail', async () => {
+    const { container } = renderShell()
+    await screen.findByText('Documents page')
+    expect(container.querySelector('aside details')).toBeNull()
+    for (const name of ['Search', 'Warranties', 'Settings']) expect(screen.getByRole('button', { name })).toBeVisible()
+  })
+
+  it('offers Search and Warranties, but not Search chats, from the phone account menu', async () => {
+    mediaAt(390)
+    const user = userEvent.setup()
+    renderShell()
+    await screen.findByText('Documents page')
+    await user.click(await screen.findByRole('button', { name: /Account/ }))
+    expect(screen.getByRole('button', { name: 'Search' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Warranties' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
   })
 })
