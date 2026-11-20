@@ -163,6 +163,7 @@ Use [`.env.example`](.env.example) for the full local configuration.
 | `OCR_BACKEND` | `tesseract` for local text extraction |
 | `EMBEDDING_PROVIDER` | `auto`. Set `ollama` to pin local embeddings for an evaluation run. |
 | `GROQ_API_KEY` or `GEMINI_API_KEY` | Optional. Enable generated Q&A. Without a key, development mode returns retrieved excerpts. |
+| `GEMINI_MODEL` | `gemini-2.5-flash`. The Gemini model used for answers and for document categorisation. |
 | `FRONTEND_URL` | `http://localhost:3000`. Used in verification and recovery links. |
 | `EXPO_PUBLIC_API_URL` | Optional API base URL for the mobile client. Set it in the shell that starts Expo. |
 

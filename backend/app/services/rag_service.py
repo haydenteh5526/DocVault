@@ -384,6 +384,8 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
             "system_instruction": ANSWER_SYSTEM_PROMPT,
             "temperature": ANSWER_TEMPERATURE,
             "max_output_tokens": ANSWER_MAX_TOKENS,
+            # gemini-2.5 models think by default, and thinking tokens count against the output cap.
+            "thinking_config": {"thinking_budget": 0},
         },
     ), label="gemini.chat")
 

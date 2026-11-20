@@ -288,3 +288,19 @@ def test_gemini_model_comes_from_settings_for_categorisation(monkeypatch):
     categorisation_service._categorise_gemini("setup")
 
     assert [call["model"] for call in calls] == ["test-gemini-model"]
+
+
+def test_gemini_answers_do_not_spend_the_output_cap_on_thinking(monkeypatch):
+    # gemini-2.5 models think by default, and thinking tokens count against max_output_tokens.
+    calls = []
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=lambda **kw: (
+        calls.append(kw) or SimpleNamespace(text="m")
+    )))
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
+    monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
+
+    rag_service._generate_answer_gemini("Q", "Context")
+
+    config = calls[0]["config"]
+    assert config["thinking_config"] == {"thinking_budget": 0}
+    assert config["max_output_tokens"] == rag_service.ANSWER_MAX_TOKENS
