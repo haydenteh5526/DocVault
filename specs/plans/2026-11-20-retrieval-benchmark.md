@@ -4,7 +4,7 @@
 
 **Status:** proposed and approved by the owner on 20 November 2026, with decisions B1 to B5 and D6 to D10 as written. Nothing in it is implemented.
 
-**Issue:** none yet. Opening one needs the owner's yes. The proposed issue text is the "Acceptance checks" table at the end.
+**Issue:** [#33](https://github.com/haydenteh5526/DocVault/issues/33), opened on 20 November 2026 with the acceptance checks at the end of this plan.
 
 **Goal:** measure, on a frozen synthetic set:
 - how well DocVault's retrieval finds the right document with keyword, semantic and hybrid search, on clean and poorly scanned pages
