@@ -14,8 +14,8 @@ export default function SearchChats() {
   const [editing, setEditing] = useState('')
   const [name, setName] = useState('')
   const { toast } = useToast()
-  // Rename puts focus in a field, so the menu must not pull it back to its button.
-  const handOff = useRef(false)
+  // Rename moves focus into the title field, and the menu would take it back to its button while it closes.
+  const renaming = useRef<string | null>(null)
 
   async function load() {
     const data = await listConversations()
@@ -106,6 +106,7 @@ export default function SearchChats() {
                     {editing === conv.id ? (
                       <form className="flex-1" onSubmit={e => { e.preventDefault(); if (name.trim()) void change(conv, 'rename') }}>
                         <input
+                          id={'rename-' + conv.id}
                           className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
                           aria-label="Conversation title"
                           autoFocus
@@ -130,12 +131,15 @@ export default function SearchChats() {
                         <DropdownMenuContent
                           align="end"
                           onCloseAutoFocus={event => {
-                            if (handOff.current) event.preventDefault()
-                            handOff.current = false
+                            const id = renaming.current
+                            if (!id) return
+                            renaming.current = null
+                            event.preventDefault()
+                            requestAnimationFrame(() => document.getElementById('rename-' + id)?.focus())
                           }}
                         >
                           <DropdownMenuItem onSelect={() => void change(conv, 'pin')}>{conv.is_pinned ? 'Unpin' : 'Pin conversation'}</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => { handOff.current = true; setEditing(conv.id); setName(conv.title) }}>Rename</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => { renaming.current = conv.id; setEditing(conv.id); setName(conv.title) }}>Rename</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void change(conv, 'delete')}>Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

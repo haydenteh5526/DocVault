@@ -336,7 +336,7 @@ export default function Dashboard() {
 
   function titleBlock(doc: Document, stacked: boolean) {
     return <div className="min-w-0 flex-1">
-      {renamingDoc === doc.id ? <form onSubmit={e => {e.preventDefault();void handleRenameDoc(doc.id)}}><Input aria-label="Document title" autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => {if(e.key === 'Escape')setRenamingDoc(null)}}/></form> :
+      {renamingDoc === doc.id ? <form onSubmit={e => {e.preventDefault();void handleRenameDoc(doc.id)}}><Input id={'rename-' + doc.id} aria-label="Document title" autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => {if(e.key === 'Escape')setRenamingDoc(null)}}/></form> :
         <Link to={'/app/documents/' + doc.id} className={'font-medium hover:underline ' + (stacked ? 'flex min-h-11 min-w-0 items-center' : 'block truncate')} title={doc.title} onClick={e => {if (viewMode === 'grid' && e.detail > 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
           e.preventDefault()
           clearTimeout(titleClick.current)

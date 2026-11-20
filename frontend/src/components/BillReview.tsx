@@ -286,11 +286,11 @@ function CompareView({ review, draft, saving, error, onConfirm, onBack }: {
   return (
     <>
       <h4 className="font-medium">Confirm these values</h4>
-      <div className="space-y-5">
+      <dl className="space-y-5">
         <CompareField label="Amount due" value={draft.amount} candidate={review.amount_due.value} display={formatAmount} />
         <CompareField label="Due date" value={draft.dueDate} candidate={review.due_date.value} display={formatBillDate} />
         <CompareField label="Billing period" value={period} candidate={review.billing_period.value} display={formatPeriod} />
-      </div>
+      </dl>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button size="sm" onClick={onConfirm} disabled={saving}>Confirm and save</Button>

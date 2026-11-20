@@ -246,12 +246,24 @@ describe('the row menu', () => {
     expect(deleteDocument).not.toHaveBeenCalled()
   })
 
-  it('renames in place from the menu', async () => {
+  it('renames in place from the menu, with the cursor in the field', async () => {
     const user = userEvent.setup()
     renderDashboard()
     await openMenu(user, 'Kettle receipt')
     await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
-    expect(await screen.findByRole('textbox', { name: 'Document title' })).toHaveValue('Kettle receipt')
+    const field = await screen.findByRole('textbox', { name: 'Document title' })
+    expect(field).toHaveValue('Kettle receipt')
+    await waitFor(() => expect(field).toHaveFocus())
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('textbox', { name: 'Document title' })).not.toBeInTheDocument()
+  })
+
+  it('gives focus back to the menu button after Preview, so the keyboard keeps its place', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await openMenu(user, 'Kettle receipt')
+    await user.click(await screen.findByRole('menuitem', { name: 'Preview' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for Kettle receipt' })).toHaveFocus())
   })
 })
 

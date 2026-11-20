@@ -85,7 +85,9 @@ describe('AskAI page header (plan 0R-4, R13)', () => {
         </MemoryRouter>
       </QueryClientProvider>,
     )
-    expect(await screen.findByRole('link', { name: 'Recent chats' })).toHaveAttribute('href', '/app/chats')
+    const link = await screen.findByRole('link', { name: 'Recent chats' })
+    expect(link).toHaveAttribute('href', '/app/chats')
+    expect(link).toHaveClass('min-h-11')
   })
 })
 

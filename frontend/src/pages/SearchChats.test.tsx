@@ -79,6 +79,7 @@ describe('Recent chats', () => {
     await openMenu(user, 'When is my bill due')
     await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
     const field = await screen.findByRole('textbox', { name: 'Conversation title' })
+    await waitFor(() => expect(field).toHaveFocus())
     await user.clear(field)
     await user.type(field, 'Electricity due date{Enter}')
     await waitFor(() => expect(renameConversation).toHaveBeenCalledWith('c1', 'Electricity due date'))

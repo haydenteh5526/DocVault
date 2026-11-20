@@ -393,3 +393,15 @@ describe('BillReviewPanel source ties', () => {
     expect(ties[0]).toHaveTextContent('Corrected from €123.47')
   })
 })
+
+describe('the compare step markup', () => {
+  it('keeps every term and description inside a description list', async () => {
+    const { container } = render(panel({ confirmed: null }))
+    await userEvent.click(button('Review and confirm'))
+    await userEvent.click(button('Check values'))
+    expect(await screen.findByText('Confirm these values')).toBeInTheDocument()
+    const items = container.querySelectorAll('dt, dd')
+    expect(items.length).toBeGreaterThan(0)
+    items.forEach(item => expect(item.closest('dl')).not.toBeNull())
+  })
+})

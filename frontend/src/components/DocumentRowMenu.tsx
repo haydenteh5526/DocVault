@@ -20,11 +20,12 @@ export function DocumentRowMenu({ doc, onPreview, onRename, onToggleFavourite, o
   onDelete: () => void
 }) {
   const goTo = useTransitionNavigate()
-  // Rename and Preview put focus somewhere else (a field, a dialog), so the menu must not pull it back to its button.
-  const handOff = useRef(false)
-  const handOffTo = (action: () => void) => () => {
-    handOff.current = true
-    action()
+  // Rename moves focus into the title field. The menu traps focus while it closes and would take it back to its button,
+  // so the field is focused once the menu has gone. Every other choice leaves focus on the button, where the keyboard was.
+  const renaming = useRef(false)
+  const rename = () => {
+    renaming.current = true
+    onRename()
   }
   return (
     <DropdownMenu>
@@ -36,13 +37,15 @@ export function DocumentRowMenu({ doc, onPreview, onRename, onToggleFavourite, o
       <DropdownMenuContent
         align="end"
         onCloseAutoFocus={event => {
-          if (handOff.current) event.preventDefault()
-          handOff.current = false
+          if (!renaming.current) return
+          renaming.current = false
+          event.preventDefault()
+          requestAnimationFrame(() => document.getElementById('rename-' + doc.id)?.focus())
         }}
       >
         <DropdownMenuItem onSelect={() => goTo('/app/documents/' + doc.id)}>Open</DropdownMenuItem>
-        <DropdownMenuItem onSelect={handOffTo(onPreview)}>Preview</DropdownMenuItem>
-        <DropdownMenuItem onSelect={handOffTo(onRename)}>Rename</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onPreview}>Preview</DropdownMenuItem>
+        <DropdownMenuItem onSelect={rename}>Rename</DropdownMenuItem>
         <DropdownMenuItem onSelect={onToggleFavourite}>{doc.is_favourite ? 'Remove star' : 'Star'}</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>Delete</DropdownMenuItem>
