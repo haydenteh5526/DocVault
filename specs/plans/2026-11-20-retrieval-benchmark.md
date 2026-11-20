@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** proposed on 20 November 2026. The owner approved the direction the same day (decisions B1 to B5 in the next-phase memo). This file needs his approval before any build starts. Nothing in it is implemented.
+**Status:** proposed and approved by the owner on 20 November 2026, with decisions B1 to B5 and D6 to D10 as written. Nothing in it is implemented.
 
 **Issue:** none yet. Opening one needs the owner's yes. The proposed issue text is the "Acceptance checks" table at the end.
 
