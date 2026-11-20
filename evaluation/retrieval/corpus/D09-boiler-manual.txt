@@ -1,0 +1,25 @@
+Title: Aerotherm B24 gas boiler user manual
+AEROTHERM HEATING
+User manual: Aerotherm B24 gas boiler (synthetic example)
+
+1. Pressure
+The pressure gauge should read between 1.0 and 1.5 bar when the boiler is cold.
+Top up the system through the filling loop if the pressure drops below 1.0 bar.
+
+2. Heating controls
+Set the room thermostat to 20 degrees. Use the timer to switch the heating on
+30 minutes before you get up and off 30 minutes before you leave.
+
+3. Service
+Have the boiler checked by a registered engineer once a year.
+Do not open the sealed case yourself.
+
+4. Fault codes
+Code   Meaning                       What to do
+F1     Low water pressure            Top up to 1.5 bar and press reset
+F28    Ignition failed               Press reset once; call an engineer if
+                                     it repeats
+F75    Pressure sensor or pump fault Switch off and call an engineer
+
+Smell of gas: turn off the boiler, open the windows and call the emergency
+line on 0000 000 0003 (synthetic number).

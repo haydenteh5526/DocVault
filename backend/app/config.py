@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = "docvault-local-storage"
     S3_BUCKET: str = "documents"
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GROQ_API_KEY: str = ""
     MISTRAL_API_KEY: str = ""
     OCR_BACKEND: str = "tesseract"
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
     OLLAMA_URL: str = ""
+    ANSWER_MODEL: str = ""  # Ollama tag; empty: answers come from Groq, Gemini or the no-key reply
     ASSISTANT_MODEL: str = ""  # empty: chat requests use the keyword router
     ASSISTANT_TIMEOUT_S: float = 20.0
     EMBEDDING_PROVIDER: str = "auto"  # auto | ollama | gemini — pin to keep vectors comparable

@@ -1,0 +1,17 @@
+Title: ByteBarn Computers receipt, 8 January 2026
+BYTEBARN COMPUTERS
+Example Business Park, Exampletown (synthetic example)
+
+Receipt number: BB-SYN-20091
+Date: 8 January 2026
+
+Item                                      Qty     Price
+Fernhill FL14 laptop                        1    899.00
+Laptop sleeve 14 inch                       1     19.00
+
+Total: EUR 918.00
+VAT at 23% included: EUR 171.66
+Paid by card (test card ending 0000)
+
+Returns: within 14 days if the packaging is unopened.
+Keep this receipt for your warranty claim.

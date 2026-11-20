@@ -1,0 +1,21 @@
+Title: Oakline home insurance schedule
+OAKLINE MUTUAL
+Home insurance schedule (synthetic example)
+
+Policy number: HOME-SYN-884213
+Policyholder: Aoife Brennan (invented name)
+Insured address: Unit 4, Fictional Court, Exampletown
+Policy period: 1 June 2026 to 31 May 2027
+Annual premium: EUR 142.60
+
+Cover
+Fixtures and fittings: up to EUR 25,000
+Liability to the landlord for damage to the property: up to EUR 100,000
+Personal liability: up to EUR 1,000,000
+
+Excess
+Excess: EUR 250 for each claim.
+Escape of water: EUR 500 for each claim.
+
+To make a claim call 0000 000 0008 (synthetic number) as soon as possible.
+Do not repair anything before you have reported the claim.

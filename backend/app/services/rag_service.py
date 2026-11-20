@@ -2,20 +2,39 @@
 
 Used by both the /api/v1/ai/ask endpoint and the conversations endpoint.
 """
-import bisect
+import time
 import uuid
+from dataclasses import dataclass
+from typing import Literal
 
+import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import embedding_service
+from app.logging_config import get_logger
+from app.services import embedding_service as embedding_service  # re-exported: tests patch it here
+from app.services.retrieval import Passage, retrieve
+from app.services.retrieval import ocr_lines_of as ocr_lines_of  # re-exported for existing imports
 
-# Cosine similarity a chunk must reach when a question is asked across all
-# documents. Provisional (D1 of the issue 24 plan): the retrieval benchmark
-# calibrates it on a frozen set. A question scoped to one document has no floor.
-SIMILARITY_FLOOR = 0.55
+logger = get_logger("rag")
+
+ANSWER_SYSTEM_PROMPT = (
+    "You are a helpful assistant that answers questions based on the user's stored documents. "
+    "Only answer using information from the provided context. "
+    "If the answer is not in the context, say 'I don't have information about that in your documents.' "
+    "Cite which document the answer comes from. "
+    "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
+    "and numbered lists for steps. Keep responses concise and well-structured."
+)
+# A document assistant should give the same answer to the same question (D6).
+ANSWER_TEMPERATURE = 0.0
+ANSWER_MAX_TOKENS = 500
+OLLAMA_NUM_CTX = 8192
+
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 NOT_FOUND_ANSWER = "I couldn't find this in your documents."
+LOCAL_MODEL_FAILED_HEADER = "The local model couldn't write an answer. These passages match your question:"
 NO_KEY_HEADER = (
     "No answer could be written because no language model is set up. "
     "These passages match your question:"
@@ -56,71 +75,6 @@ class RAGResult:
         self.sources = sources
 
 
-class _LineIndex:
-    """A document's text prepared once, so each passage is located without rescanning it.
-
-    `collapsed` is raw_text with every run of whitespace turned into one space,
-    `origin[i]` is the index in raw_text that collapsed[i] came from, and
-    `starts` are the offsets where `raw_text.splitlines()` begins each line, so a
-    character is numbered exactly as the bill review's "OCR line" numbers it.
-    """
-
-    def __init__(self, raw_text: str):
-        chars: list[str] = []
-        self.origin: list[int] = []
-        in_space = False
-        for index, char in enumerate(raw_text):
-            if char.isspace():
-                if not in_space and chars:
-                    chars.append(" ")
-                    self.origin.append(index)
-                in_space = True
-            else:
-                chars.append(char)
-                self.origin.append(index)
-                in_space = False
-        self.collapsed = "".join(chars)
-        self.starts = [0]
-        for piece in raw_text.splitlines(keepends=True):
-            self.starts.append(self.starts[-1] + len(piece))
-
-    def _line_of(self, collapsed_index: int) -> int:
-        return bisect.bisect_right(self.starts, self.origin[collapsed_index])
-
-    def lines_of(self, chunk_text: str) -> tuple[int, int] | None:
-        flat = " ".join(chunk_text.split())
-        if not flat or not self.collapsed:
-            return None
-
-        # A stored chunk is a contiguous run of the document's text once
-        # whitespace is collapsed, so it normally matches whole. If the same
-        # passage appears more than once word for word, the first copy is used:
-        # that is a known limit, since the text alone cannot tell the copies apart.
-        start = self.collapsed.find(flat)
-        if start != -1:
-            return self._line_of(start), self._line_of(start + len(flat) - 1)
-
-        # Fallback: the chunk's first and last 40 characters.
-        start = self.collapsed.find(flat[:40])
-        if start == -1:
-            return None
-        tail = flat[-40:]
-        end = self.collapsed.find(tail, start)
-        end_index = (end + len(tail) - 1) if end != -1 else start
-        return self._line_of(start), self._line_of(end_index)
-
-
-def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
-    """The 1-based first and last line of raw_text that a chunk covers.
-
-    The chunker joins lines with spaces, so a stored chunk has no line breaks;
-    see _LineIndex for how it is found and numbered.
-    """
-    if not raw_text:
-        return None
-    return _LineIndex(raw_text).lines_of(chunk_text)
-
-
 def _passage_label(title: str, line_start: int | None, line_end: int | None) -> str:
     if line_start is None or line_end is None:
         return f"{title}:"
@@ -133,6 +87,46 @@ class ChatTurn:
     def __init__(self, role: str, content: str):
         self.role = role
         self.content = content
+
+
+def _passage_dict(passage: Passage) -> dict:
+    return {
+        "chunk_id": passage.chunk_id,
+        "document_id": passage.document_id,
+        "document_title": passage.document_title,
+        "chunk_text": passage.chunk_text,
+        "similarity": passage.similarity,
+        "line_start": passage.line_start,
+        "line_end": passage.line_end,
+    }
+
+
+async def build_context(db: AsyncSession, top: list[dict]) -> str:
+    """The text the answer writer reads: each passage under its document, then any warranty dates."""
+    context = "\n\n---\n\n".join(
+        f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
+    )
+
+    # Append warranty info if relevant documents have warranties
+    doc_ids = list(set(str(e["document_id"]) for e in top))
+    if doc_ids:
+        warranty_result = await db.execute(
+            text("""
+                SELECT w.purchase_date, w.expiry_date, d.title as document_title
+                FROM warranties w
+                JOIN documents d ON d.id = w.document_id
+                WHERE w.document_id = ANY(cast(:doc_ids as uuid[]))
+            """),
+            {"doc_ids": doc_ids},
+        )
+        warranty_rows = warranty_result.fetchall()
+        if warranty_rows:
+            warranty_context = "\n\n---\n\n[Warranty Information]\n" + "\n".join(
+                f"• {wr.document_title}: purchased {wr.purchase_date or 'unknown'}, expires {wr.expiry_date or 'unknown'}"
+                for wr in warranty_rows
+            )
+            context += warranty_context
+    return context
 
 
 async def generate_rag_answer(
@@ -154,144 +148,21 @@ async def generate_rag_answer(
     Returns:
         RAGResult with the generated answer and source references.
     """
-    # 1. Embed the question
-    query_embedding = embedding_service.get_embedding(question)
-    embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
-
-    # 2. Hybrid retrieval: run vector similarity AND full-text keyword search,
-    #    then fuse the two ranked lists with Reciprocal Rank Fusion (RRF).
-    #    This catches both semantic matches ("drainage issue" ~ "blocked filter")
-    #    and exact keyword/model-number matches that pure vectors can miss.
-    doc_filter = ""
-    params: dict = {"embedding": embedding_str, "user_id": str(user_id)}
-    if document_id:
-        doc_filter = "AND dc.document_id = cast(:document_id as uuid)"
-        params["document_id"] = document_id
-
-    # 2a. Vector candidates (cosine similarity)
-    vec_result = await db.execute(
-        text(f"""
-            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
-                   d.raw_text,
-                   1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
-            FROM doc_chunks dc
-            JOIN documents d ON d.id = dc.document_id
-            WHERE d.user_id = cast(:user_id as uuid)
-            {doc_filter}
-            ORDER BY dc.embedding <=> cast(:embedding as vector)
-            LIMIT 10
-        """),
-        params,
-    )
-    vec_rows = vec_result.fetchall()
-
-    # 2b. Keyword candidates (PostgreSQL full-text over chunk text)
-    kw_params: dict = {"q": question, "user_id": str(user_id)}
-    if document_id:
-        kw_params["document_id"] = document_id
-    kw_result = await db.execute(
-        text(f"""
-            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
-                   d.raw_text,
-                   ts_rank(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', :q)) as rank
-            FROM doc_chunks dc
-            JOIN documents d ON d.id = dc.document_id
-            WHERE d.user_id = cast(:user_id as uuid)
-            {doc_filter}
-              AND to_tsvector('english', dc.chunk_text) @@ plainto_tsquery('english', :q)
-            ORDER BY rank DESC
-            LIMIT 10
-        """),
-        kw_params,
-    )
-    kw_rows = kw_result.fetchall()
-
-    if not vec_rows and not kw_rows:
+    # 1. Retrieve passages: hybrid search over this user's documents, with the relevance floor.
+    retrieval = await retrieve(db, user_id, question, mode="hybrid", document_id=document_id)
+    if retrieval.outcome == "no_documents":
         return RAGResult(answer="I don't have any documents to answer from.", sources=[])
+    if retrieval.outcome == "not_found":
+        return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
+    top = [_passage_dict(p) for p in retrieval.passages]
 
-    # 2c. Reciprocal Rank Fusion: score = sum(1 / (k + rank)) across both lists.
-    #     k=60 is the conventional constant. We keep the best vector similarity
-    #     per chunk so we can still apply a relevance floor and surface it.
-    RRF_K = 60
-    fused: dict = {}
+    # 2. Build context from retrieved chunks
+    context = await build_context(db, top)
 
-    def _add(rows, sim_getter):
-        for rank, row in enumerate(rows):
-            entry = fused.setdefault(row.chunk_id, {
-                "chunk_text": row.chunk_text,
-                "document_id": row.document_id,
-                "document_title": row.document_title,
-                "raw_text": row.raw_text,
-                "rrf": 0.0,
-                "similarity": 0.0,
-            })
-            entry["rrf"] += 1.0 / (RRF_K + rank + 1)
-            sim = sim_getter(row)
-            if sim is not None and sim > entry["similarity"]:
-                entry["similarity"] = sim
-
-    _add(vec_rows, lambda r: (r.similarity if r.similarity == r.similarity else 0.0))
-    _add(kw_rows, lambda r: None)  # keyword rows carry no cosine similarity
-
-    # 2d. Relevance floor: across all documents, keep chunks that clear a
-    #     semantic similarity threshold. This filters out near-irrelevant
-    #     chunks that would otherwise pad the context and invite
-    #     hallucination. Inside one document the owner already chose where to
-    #     look, so every fused chunk counts.
-    ranked = sorted(fused.values(), key=lambda e: e["rrf"], reverse=True)
-    if document_id:
-        relevant = ranked
-    else:
-        relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
-    if not relevant:
-        # No chunk cleared the semantic floor. If keyword search still produced
-        # matches (exact terms/model numbers), trust the top fused hits;
-        # otherwise report that we have nothing relevant.
-        if kw_rows:
-            relevant = ranked[:5]
-        else:
-            return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
-
-    top = relevant[:5]
-
-    # Prepared once per document, not once per passage.
-    _line_indexes: dict = {}
-    for e in top:
-        if e["raw_text"] and e["document_id"] not in _line_indexes:
-            _line_indexes[e["document_id"]] = _LineIndex(e["raw_text"])
-    for e in top:
-        lines = _line_indexes[e["document_id"]].lines_of(e["chunk_text"]) if e["raw_text"] else None
-        e["line_start"], e["line_end"] = lines if lines else (None, None)
-
-    # 3. Build context from retrieved chunks
-    context = "\n\n---\n\n".join(
-        f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
-    )
-
-    # 3b. Append warranty info if relevant documents have warranties
-    doc_ids = list(set(str(e["document_id"]) for e in top))
-    if doc_ids:
-        warranty_result = await db.execute(
-            text("""
-                SELECT w.purchase_date, w.expiry_date, d.title as document_title
-                FROM warranties w
-                JOIN documents d ON d.id = w.document_id
-                WHERE w.document_id = ANY(cast(:doc_ids as uuid[]))
-            """),
-            {"doc_ids": doc_ids},
-        )
-        warranty_rows = warranty_result.fetchall()
-        if warranty_rows:
-            warranty_context = "\n\n---\n\n[Warranty Information]\n" + "\n".join(
-                f"• {wr.document_title}: purchased {wr.purchase_date or 'unknown'}, expires {wr.expiry_date or 'unknown'}"
-                for wr in warranty_rows
-            )
-            context += warranty_context
-
-    # 4. Generate answer via LLM (with conversation history)
+    # 3. Generate answer via LLM (with conversation history)
     answer = _generate_answer(question, context, history, passages=top)
 
-    # 5. Build sources from the fused top chunks
+    # 4. Build sources from the fused top chunks
     sources = [
         Source(
             document_id=str(e["document_id"]),
@@ -307,10 +178,10 @@ async def generate_rag_answer(
     return RAGResult(answer=answer, sources=sources)
 
 
-def _no_key_answer(context: str, passages: list[dict] | None) -> str:
+def _no_key_answer(context: str, passages: list[dict] | None, header: str = NO_KEY_HEADER) -> str:
     if not passages:
-        return f"{NO_KEY_HEADER}\n\n{context[:500]}"
-    parts = [NO_KEY_HEADER]
+        return f"{header}\n\n{context[:500]}"
+    parts = [header]
     for passage in passages:
         label = _passage_label(passage["document_title"], passage.get("line_start"), passage.get("line_end"))
         parts.append(f"{label}\n{passage['chunk_text'][:200]}")
@@ -321,34 +192,140 @@ def _no_key_answer(context: str, passages: list[dict] | None) -> str:
     return answer
 
 
+@dataclass(frozen=True)
+class AnswerResult:
+    text: str
+    writer: str | None
+    model: str | None
+    latency_ms: int
+    prompt_tokens: int | None
+    invalid_reason: str | None
+
+
+def _default_writer() -> Literal["ollama", "groq", "gemini"] | None:
+    """D7: a local model if one is configured on purpose, then Groq, then Gemini."""
+    from app.config import settings
+
+    if settings.ANSWER_MODEL:
+        return "ollama"
+    if settings.GROQ_API_KEY:
+        return "groq"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    return None
+
+
+def _model_name(writer: str) -> str:
+    from app.config import settings
+
+    return {"ollama": settings.ANSWER_MODEL, "groq": GROQ_MODEL, "gemini": settings.GEMINI_MODEL}[writer]
+
+
+def generate_answer(
+    question: str,
+    context: str,
+    history: list[ChatTurn] | None = None,
+    passages: list[dict] | None = None,
+    writer: Literal["ollama", "groq", "gemini"] | None = None,
+) -> AnswerResult:
+    """Write an answer from the retrieved context.
+
+    With `writer=None` the product's choice applies (see _default_writer). A forced
+    writer is for the benchmark: its failures come back as `invalid_reason`
+    instead of falling back or raising.
+    """
+    from app.services.observability import trace_generation
+
+    forced = writer is not None
+    chosen = writer or _default_writer()
+    if chosen is None:
+        return AnswerResult(_no_key_answer(context, passages), None, None, 0, None, None)
+
+    model = _model_name(chosen)
+    started = time.perf_counter()
+    prompt_tokens: int | None = None
+    invalid_reason: str | None = None
+    try:
+        with trace_generation(
+            name="rag_answer",
+            model=model,
+            input_text=question,
+            metadata={"context_chars": len(context)},
+        ) as record_output:
+            if chosen == "ollama":
+                answer, prompt_tokens = _generate_answer_ollama(question, context, history)
+                if prompt_tokens is not None and prompt_tokens >= OLLAMA_NUM_CTX:
+                    invalid_reason = "context truncated"
+            elif chosen == "groq":
+                answer = _generate_answer_groq(question, context, history)
+            else:
+                answer = _generate_answer_gemini(question, context, history)
+            record_output(answer)
+    except Exception as error:  # noqa: BLE001 - only the local writer or a forced writer may fail quietly
+        if chosen != "ollama" and not forced:
+            raise
+        latency_ms = round((time.perf_counter() - started) * 1000)
+        if forced:
+            reason = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+            return AnswerResult("", chosen, model, latency_ms, None, f"error: {reason}")
+        logger.warning("answer_writer_failed writer=ollama error=%s", type(error).__name__)
+        return AnswerResult(
+            _no_key_answer(context, passages, LOCAL_MODEL_FAILED_HEADER), None, None, latency_ms, None, None
+        )
+
+    latency_ms = round((time.perf_counter() - started) * 1000)
+    return AnswerResult(answer, chosen, model, latency_ms, prompt_tokens, invalid_reason)
+
+
 def _generate_answer(
     question: str,
     context: str,
     history: list[ChatTurn] | None = None,
     passages: list[dict] | None = None,
 ) -> str:
+    return generate_answer(question, context, history, passages=passages).text
+
+
+def _generate_answer_ollama(
+    question: str, context: str, history: list[ChatTurn] | None = None
+) -> tuple[str, int | None]:
+    """Answer with the local model. Returns the text and Ollama's prompt token count."""
     from app.config import settings
-    from app.services.observability import trace_generation
 
-    if settings.GROQ_API_KEY:
-        model = "llama-3.3-70b-versatile"
-    elif settings.GEMINI_API_KEY:
-        model = "gemini-2.0-flash"
-    else:
-        return _no_key_answer(context, passages)
-
-    with trace_generation(
-        name="rag_answer",
-        model=model,
-        input_text=question,
-        metadata={"context_chars": len(context)},
-    ) as record_output:
-        if settings.GROQ_API_KEY:
-            answer = _generate_answer_groq(question, context, history)
-        else:
-            answer = _generate_answer_gemini(question, context, history)
-        record_output(answer)
-        return answer
+    if not settings.OLLAMA_URL:
+        raise RuntimeError("OLLAMA_URL is not set")
+    messages: list[dict] = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
+    if history:
+        for turn in history[-6:]:
+            if turn.role in ("user", "assistant"):
+                messages.append({"role": turn.role, "content": turn.content})
+    messages.append({
+        "role": "user",
+        "content": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}",
+    })
+    request = {
+        "model": settings.ANSWER_MODEL,
+        "messages": messages,
+        "stream": False,
+        "think": False,
+        "options": {
+            "temperature": ANSWER_TEMPERATURE,
+            "seed": 0,
+            "num_ctx": OLLAMA_NUM_CTX,
+            "num_predict": ANSWER_MAX_TOKENS,
+        },
+        "keep_alive": "30m",
+    }
+    url = f"{settings.OLLAMA_URL.rstrip('/')}/api/chat"
+    with httpx.Client(timeout=60) as client:
+        response = client.post(url, json=request)
+        if response.status_code == 400 and "think" in response.text:
+            # An older Ollama or a model without a thinking mode rejects the field.
+            request.pop("think")
+            response = client.post(url, json=request)
+        response.raise_for_status()
+        body = response.json()
+    return body["message"]["content"], body.get("prompt_eval_count")
 
 
 def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
@@ -359,19 +336,7 @@ def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] |
 
     client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
 
-    messages: list[dict] = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful assistant that answers questions based on the user's stored documents. "
-                "Only answer using information from the provided context. "
-                "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-                "Cite which document the answer comes from. "
-                "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
-                "and numbered lists for steps. Keep responses concise and well-structured."
-            ),
-        }
-    ]
+    messages: list[dict] = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
     if history:
         for turn in history[-6:]:
             if turn.role in ("user", "assistant"):
@@ -382,10 +347,10 @@ def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] |
     })
 
     response = with_retry(lambda: client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=GROQ_MODEL,
         messages=messages,
-        temperature=0.3,
-        max_tokens=500,
+        temperature=ANSWER_TEMPERATURE,
+        max_tokens=ANSWER_MAX_TOKENS,
     ), label="groq.chat")
 
     return response.choices[0].message.content
@@ -398,15 +363,6 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
     from app.services.retry import with_retry
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-
-    system_instruction = (
-        "You are a helpful assistant that answers questions based on the user's stored documents. "
-        "Only answer using information from the provided context. "
-        "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-        "Cite which document the answer comes from. "
-        "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
-        "and numbered lists for steps. Keep responses concise and well-structured."
-    )
 
     contents: list[dict] = []
     if history:
@@ -422,13 +378,17 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
     })
 
     response = with_retry(lambda: client.models.generate_content(
-        model="gemini-2.0-flash",
+        model=settings.GEMINI_MODEL,
         contents=contents,
         config={
-            "system_instruction": system_instruction,
-            "temperature": 0.3,
-            "max_output_tokens": 500,
+            "system_instruction": ANSWER_SYSTEM_PROMPT,
+            "temperature": ANSWER_TEMPERATURE,
+            "max_output_tokens": ANSWER_MAX_TOKENS,
+            # gemini-2.5 models think by default, and thinking tokens count against the output cap.
+            "thinking_config": {"thinking_budget": 0},
         },
     ), label="gemini.chat")
 
+    if not (response.text or "").strip():
+        raise RuntimeError("Gemini returned no text")
     return response.text

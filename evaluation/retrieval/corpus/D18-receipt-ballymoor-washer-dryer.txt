@@ -1,0 +1,18 @@
+Title: Ballymoor Electrical receipt, 12 March 2026
+BALLYMOOR ELECTRICAL
+Unit 7, Example Retail Park, Exampletown (synthetic example)
+
+Receipt number: BM-SYN-60412
+Date: 12 March 2026
+
+Item                                      Qty     Price
+Vantor WD8-1400 washer-dryer                1    649.00
+Delivery and installation                   1     30.00
+Old appliance removal                       1      0.00
+
+Total: EUR 679.00
+VAT at 23% included: EUR 126.97
+Paid by card (test card ending 0000)
+
+Returns: bring this receipt within 30 days. Faults are covered by the
+manufacturer's guarantee card supplied with the product.

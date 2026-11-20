@@ -1,0 +1,16 @@
+Title: Corner Home Store receipt, 20 June 2025
+CORNER HOME STORE
+12 Sample Street, Exampletown (synthetic example)
+
+Receipt number: CH-SYN-0431
+Date: 20 June 2025
+
+Item                                      Qty     Price
+Hearthstone Kettle K17                      1     44.99
+
+Total: EUR 44.99
+VAT at 23% included: EUR 8.41
+Paid by cash
+
+Keep this receipt for your guarantee claim.
+Thank you for shopping at Corner Home Store.
