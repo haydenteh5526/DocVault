@@ -37,3 +37,13 @@ describe('the theme colour is white (R-D, R-E)', () => {
     expect(manifest.icons[0].src).toBe('/favicon.svg')
   })
 })
+
+describe('typefaces', () => {
+  it('loads Geist Mono in the same Google Fonts link as Geist and Archivo, which the landing preview names', () => {
+    const html = readFileSync('index.html', 'utf8')
+    const links = html.match(/<link href="https:\/\/fonts\.googleapis\.com\/css2[^>]*>/g) ?? []
+    expect(links).toHaveLength(1)
+    for (const family of ['family=Archivo', 'family=Geist:', 'family=Geist+Mono']) expect(links[0]).toContain(family)
+    expect(readFileSync('src/pages/landing.css', 'utf8')).toContain("'Geist Mono'")
+  })
+})
