@@ -102,6 +102,8 @@ export default function AskAI() {
       const made = data.assistant_message.action
       if (made?.kind === 'reminder_proposal' && made.document_id) {
         void queryClient.invalidateQueries({ queryKey: ['document', made.document_id] })
+        // Documents shows "Reminder awaiting approval" from the same record, and keeps it for 30 s otherwise.
+        void queryClient.invalidateQueries({ queryKey: ['document-list-status'] })
       }
       setMessages(prev => [
         ...prev,

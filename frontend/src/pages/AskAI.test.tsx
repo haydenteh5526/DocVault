@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { getConversation, type ConversationDetail } from '@/lib/api'
+import { createConversation, getConversation, sendMessage, type ConversationDetail } from '@/lib/api'
 import AskAI from './AskAI'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getConversation: vi.fn() }
+  return { ...actual, getConversation: vi.fn(), createConversation: vi.fn(), sendMessage: vi.fn() }
 })
 
 // jsdom has no scrollIntoView, which the chat calls after every message.
@@ -86,5 +86,35 @@ describe('AskAI page header (plan 0R-4, R13)', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByRole('link', { name: 'Recent chats' })).toHaveAttribute('href', '/app/chats')
+  })
+})
+
+describe('a reminder proposal made on Ask (L-1)', () => {
+  it('refreshes the Documents status as well as the bill, so Documents is not stale for 30 s', async () => {
+    const user = userEvent.setup()
+    const client = new QueryClient()
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    vi.mocked(createConversation).mockResolvedValue({ id: 'c9', title: '', is_pinned: false, created_at: '2026-11-20T10:00:00', updated_at: '2026-11-20T10:00:00' })
+    vi.mocked(sendMessage).mockResolvedValue({
+      user_message: {},
+      assistant_message: {
+        id: 'm2', conversation_id: 'c9', role: 'assistant', content: 'I have proposed a reminder.', sources: null,
+        action: { kind: 'reminder_proposal', document_id: 'doc-1', document_title: 'October electricity bill', proposal: null },
+        created_at: '2026-11-20T10:00:01',
+      },
+    } as never)
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/app/ask']}>
+          <Routes>
+            <Route path="/app/ask" element={<AskAI />} />
+            <Route path="/app/ask/:conversationId" element={<AskAI />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await user.type(await screen.findByPlaceholderText(/Ask a question/), 'Remind me before the bill is due{Enter}')
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document', 'doc-1'] }))
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
   })
 })
