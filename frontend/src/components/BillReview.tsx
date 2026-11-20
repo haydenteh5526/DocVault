@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { SourceQuote, SourceTie } from './SourceTie'
 import { Input } from '@/components/ui/input'
 import { ApiError, type BillConfirmation, type BillField, type BillReview, type BillRevision } from '@/lib/api'
 import { ReloadFailedError } from '@/lib/billConfirm'
@@ -153,14 +154,14 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
     status = 'Not confirmed yet'
     body = (
       <>
-        <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-5">
           <BillReviewField label="Amount due" value={review.amount_due.value} sources={review.amount_due.sources}
             display={formatAmount} />
           <BillReviewField label="Due date" value={review.due_date.value} sources={review.due_date.sources}
             display={formatBillDate} />
           <BillReviewField label="Billing period" value={review.billing_period.value}
             sources={review.billing_period.sources} display={formatPeriod} />
-        </dl>
+        </div>
         <div>
           <Button size="sm" onClick={startSession}>Review and confirm</Button>
         </div>
@@ -171,9 +172,9 @@ export function BillReviewPanel({ review, confirmed, processing = false, onViewO
   }
 
   return (
-    <section aria-labelledby="bill-review-heading" className="rounded-xl border bg-card p-6 space-y-4">
+    <section aria-labelledby="bill-review-heading" className="min-w-0 rounded-lg border bg-card p-4 sm:p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="bill-review-heading" className="font-semibold">Bill review</h3>
+        <h3 id="bill-review-heading" className="text-xl font-semibold tracking-tight">Bill review</h3>
         <Button variant="outline" size="sm" onClick={onViewOriginal}>View original bill</Button>
       </div>
       {conflict && (
@@ -204,14 +205,14 @@ function ConfirmedView({ review, confirmed, processing, onEdit }: {
   const unchanged = review !== null && JSON.stringify(review) === JSON.stringify(evidence)
   return (
     <>
-      <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-5">
         <BillReviewField label="Amount due" value={confirmed.amount_due} sources={evidence.amount_due.sources}
           display={formatAmount} note={correctedFrom(confirmed.amount_due, evidence.amount_due, formatAmount)} />
         <BillReviewField label="Due date" value={confirmed.due_date} sources={evidence.due_date.sources}
           display={formatBillDate} note={correctedFrom(confirmed.due_date, evidence.due_date, formatBillDate)} />
         <BillReviewField label="Billing period" value={period} sources={evidence.billing_period.sources}
           display={formatPeriod} note={correctedFrom(period, evidence.billing_period, formatPeriod)} />
-      </dl>
+      </div>
       {review === null ? (
         <p className="text-sm text-muted-foreground">
           {processing
@@ -285,11 +286,11 @@ function CompareView({ review, draft, saving, error, onConfirm, onBack }: {
   return (
     <>
       <h4 className="font-medium">Confirm these values</h4>
-      <dl className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-5">
         <CompareField label="Amount due" value={draft.amount} candidate={review.amount_due.value} display={formatAmount} />
         <CompareField label="Due date" value={draft.dueDate} candidate={review.due_date.value} display={formatBillDate} />
         <CompareField label="Billing period" value={period} candidate={review.billing_period.value} display={formatPeriod} />
-      </dl>
+      </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button size="sm" onClick={onConfirm} disabled={saving}>Confirm and save</Button>
@@ -336,12 +337,7 @@ function Evidence({ sources }: { sources: BillField['sources'] }) {
   return (
     <div className="space-y-2 text-sm">
       {sources.length === 0 && <p>No labelled OCR line found.</p>}
-      {sources.map(source => (
-        <blockquote key={source.line} className="border-l-2 border-border pl-3">
-          <span className="text-xs text-muted-foreground">OCR line {source.line}</span>
-          <p>{source.text}</p>
-        </blockquote>
-      ))}
+      {sources.map(source => <SourceQuote key={source.line} source={source} />)}
     </div>
   )
 }
@@ -354,13 +350,12 @@ function BillReviewField({ label, value, sources, display, note }: {
   note?: string | null
 }) {
   return (
-    <div>
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-semibold">{value ? display(value) : 'Check the original bill'}</dd>
-      {note && <dd className="mt-1 text-sm text-muted-foreground">{note}</dd>}
-      <dd className="mt-2">
-        <Evidence sources={sources} />
-      </dd>
-    </div>
+    <SourceTie
+      label={label}
+      value={value ? display(value) : 'Check the original bill'}
+      corrected={note?.replace(/^Corrected from /, '')}
+      sources={sources}
+      emptyEvidence="No labelled OCR line found."
+    />
   )
 }

@@ -360,3 +360,36 @@ describe('BillReviewPanel', () => {
     await act(async () => finish())
   })
 })
+
+describe('BillReviewPanel source ties', () => {
+  it('shows each value beside its source line, as a source tie with one blockquote', () => {
+    const view = render(panel({ confirmed: null }))
+    const ties = view.container.querySelectorAll('.source-tie')
+    expect(ties).toHaveLength(3)
+    ties.forEach(tie => expect(within(tie as HTMLElement).getAllByRole('blockquote')).toHaveLength(1))
+    expect(view.container.querySelectorAll('blockquote')).toHaveLength(3)
+  })
+
+  it('keeps every competing reading inside the value’s own tie', () => {
+    const competing: BillReview = {
+      ...review,
+      amount_due: {
+        value: null,
+        sources: [{ line: 2, text: 'Total amount due: EUR 123.47' }, { line: 9, text: 'Total amount due: EUR 125.00' }],
+      },
+    }
+    const view = render(panel({ review: competing, confirmed: null }))
+    const ties = view.container.querySelectorAll('.source-tie')
+    expect(ties).toHaveLength(3)
+    expect(within(ties[0] as HTMLElement).getAllByRole('blockquote')).toHaveLength(2)
+    expect(ties[0]).toHaveTextContent('Check the original bill')
+  })
+
+  it('shows a correction on the confirmed value’s tie', () => {
+    const view = render(panel({ review, confirmed: confirmedRevision(1, '125.00') }))
+    const ties = view.container.querySelectorAll('.source-tie')
+    expect(ties).toHaveLength(3)
+    expect(ties[0]).toHaveTextContent('€125.00')
+    expect(ties[0]).toHaveTextContent('Corrected from €123.47')
+  })
+})

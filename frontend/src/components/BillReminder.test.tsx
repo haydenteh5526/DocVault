@@ -672,3 +672,12 @@ it.each([pending, saved])('shows stored attendance beside each amount in a $stat
   const rows = within(region().querySelector('dl') as HTMLElement).getAllByRole('listitem')
   expect(rows.map(row => row.textContent)).toEqual(['Aoife, 31 days at home€123.47', 'Ben, 0 days at home€0.00'])
 })
+
+describe('BillReminderPanel buttons', () => {
+  it('has "Approve and save" as the only primary button on the proposal it approves', () => {
+    setup({ proposals: [pending] })
+    const buttons = within(screen.getByRole('region', { name: 'Reminder' })).getAllByRole('button')
+    const primary = buttons.filter(item => item.classList.contains('bg-primary'))
+    expect(primary.map(item => item.textContent)).toEqual(['Approve and save'])
+  })
+})
