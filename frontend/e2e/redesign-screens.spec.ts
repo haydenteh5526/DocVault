@@ -21,7 +21,6 @@ const WIDTHS = [
 ];
 const THEMES = ['light', 'dark'] as const;
 
-test.skip(process.env.E2E_SCREENSHOTS !== '1', 'Set E2E_SCREENSHOTS=1 to record the redesign screens');
 test.describe.configure({ mode: 'serial' });
 
 async function drawDocument(page: Page, doc: SeedDocument): Promise<Buffer> {
@@ -77,6 +76,7 @@ async function shoot(page: Page, name: string, url: string, ready?: () => Promis
 }
 
 test('record the redesign screens', async ({ page }) => {
+  test.skip(process.env.E2E_SCREENSHOTS !== '1', 'Set E2E_SCREENSHOTS=1 to record the redesign screens');
   test.setTimeout(900_000);
   test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, 'A verified synthetic account is required');
   mkdirSync(OUT_DIR, { recursive: true });
@@ -176,4 +176,41 @@ test('record the redesign screens', async ({ page }) => {
       await page.screenshot({ path: path.join(OUT_DIR, `upload-mid-${size.name}-${theme}.png`) });
     }
   }
+});
+
+// Needs no account, so it runs with the normal browser suite.
+test.describe('landing preview is above the fold', () => {
+  const bottom = async (locator: ReturnType<Page['locator']>) => {
+    await expect(locator.first()).toBeVisible();
+    const box = await locator.first().boundingBox();
+    return box!.y + box!.height;
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`at 1366 x 768 the question, the answer and the source line are on the first screen (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await page.goto('/');
+      const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
+      for (const locator of [
+        preview.getByText('When is my electricity bill due?', { exact: true }),
+        preview.getByText('23 November 2026', { exact: true }).first(),
+        preview.getByText('October electricity bill · line 17', { exact: true }),
+        preview.getByText('OCR line 17', { exact: true }),
+        preview.getByText('Payment due date: 23 November 2026', { exact: true }),
+        page.getByRole('banner').getByRole('link', { name: 'Create an account' }),
+      ]) {
+        expect(await bottom(locator)).toBeLessThanOrEqual(768);
+      }
+    });
+  }
+
+  test('at 390 x 844 the answer is on the first screen and nothing scrolls sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
+    expect(await bottom(preview.getByText('23 November 2026', { exact: true }).first())).toBeLessThanOrEqual(844);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Create an account' })).toBeVisible();
+  });
 });

@@ -31,42 +31,98 @@ describe('Landing', () => {
       expect(text).not.toContain(phrase)
     }
     expect(text).toContain('runs on your own computer')
-    expect(text).toContain('warranty dates found for you')
   })
 
-  it('describes Ask as it works today and the warranty copy as the extractor reads it', () => {
+  it('describes Ask as it works today, without the claims the build cannot keep', () => {
     const text = pageText()
     for (const phrase of ['get real answers', 'instant, sourced answer', 'RAG (Retrieval-Augmented Generation) to answer']) {
       expect(text).not.toContain(phrase)
     }
     expect(text).toContain('Ask in your own words')
-    expect(text).toContain('Ask your documents')
-    expect(text).toContain('How does asking a question work?')
-    expect(text).toContain('2 year warranty')
-    expect(text).toContain('Expires 12 June 2028')
-  })
-
-  it('says what runs locally', () => {
-    const text = pageText()
-    expect(text).toContain(
-      'Text is read with Tesseract OCR and searched with the nomic-embed-text model on Ollama, all on your own computer. Answers written by a language model need a provider key, which this build does not set.',
-    )
-    expect(text).toContain('Ollama')
-    expect(text).toContain('Local embeddings')
   })
 })
 
-it('introduces the knowledge base with linked actions and inspectable source lines', () => {
+it('introduces the knowledge base with one lead, linked actions and no form controls', () => {
   pageText()
   expect(screen.getAllByRole('heading', {level:1})).toHaveLength(1)
   expect(screen.getByRole('heading', {name:'Everything you keep, ready to answer.'})).toBeVisible()
   expect(screen.getAllByRole('link',{name:'Create an account'})[0]).toHaveAttribute('href','/register')
   expect(screen.getAllByRole('link',{name:'Sign in'})[0]).toHaveAttribute('href','/login')
-  for (const line of ['When is the electricity bill due?', 'Total amount due: EUR 123.47', 'Payment due date: 23 November 2026', '23 Nov']) {
-    expect(screen.getByText(line,{exact:true})).toBeVisible()
-  }
-  expect(screen.getByRole('img',{name:'A search across three documents'})).toBeVisible()
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  const lead = 'Ask in your own words. Every answer comes with the line it came from, and nothing is saved until you approve it.'
+  expect(screen.getAllByText(lead)).toHaveLength(1)
+  expect(document.querySelector('input, textarea, select')).toBeNull()
+})
+
+describe('the product preview (plan 0R-4, R12)', () => {
+  it('is one picture whose name gives the question, the answer and the source line', () => {
+    pageText()
+    const figure = screen.getByRole('img', { name: /When is my electricity bill due\?/ })
+    const name = figure.getAttribute('aria-label') ?? ''
+    expect(name).toContain('23 November 2026')
+    expect(name).toContain('October electricity bill')
+    expect(name).toContain('line 17')
+    expect(figure.tagName).toBe('FIGURE')
+  })
+
+  it('shows the question, the answer, the source and the highlighted line', () => {
+    pageText()
+    expect(screen.getByText('When is my electricity bill due?', { exact: true })).toBeVisible()
+    expect(screen.getByText('October electricity bill · line 17', { exact: true })).toBeVisible()
+    expect(screen.getByText('Open bill', { exact: true })).toBeVisible()
+    expect(screen.getByText('Total amount due: EUR 123.47', { exact: true })).toBeVisible()
+    const tie = document.querySelector('.hero-preview .source-tie') as HTMLElement
+    expect(tie).toHaveTextContent('Due date')
+    expect(within(tie).getByRole('blockquote')).toHaveTextContent('Payment due date: 23 November 2026')
+    expect(within(tie).getByText('OCR line 17')).toBeVisible()
+  })
+
+  it('has a chip that cannot be focused, and no working controls', () => {
+    pageText()
+    const chip = screen.getByText('Open bill', { exact: true })
+    expect(chip.tagName).toBe('SPAN')
+    expect(chip).not.toHaveAttribute('tabindex')
+    expect(document.querySelector('.hero-preview button, .hero-preview a')).toBeNull()
+  })
+
+  it('sits under the lead inside the hero', () => {
+    pageText()
+    const hero = screen.getByRole('region', { name: 'Everything you keep, ready to answer.' })
+    expect(within(hero).getByRole('img', { name: /23 November 2026/ })).toBeInTheDocument()
+  })
+})
+
+describe('the sections after the hero (plan 0R-4, R12)', () => {
+  it('lists three steps in order', () => {
+    pageText()
+    expect(screen.getByRole('heading', { level: 2, name: 'Three steps, and you decide.' })).toBeVisible()
+    const steps = screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)
+    expect(steps).toEqual(['Upload', 'Ask', 'Check and approve'])
+    const list = screen.getByRole('list', { name: 'Three steps, and you decide.' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(3)
+    for (const line of [
+      'A bill, a lease, a manual or a receipt.',
+      'In your own words. Every answer shows the line it came from.',
+      'See the source line. Nothing is saved without you.',
+    ]) expect(within(list).getByText(line)).toBeVisible()
+  })
+
+  it('keeps the decision band and the closing call to action', () => {
+    pageText()
+    expect(screen.getByRole('heading', { level: 2, name: 'It proposes. You decide.' })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 2, name: 'Start with one document.' })).toBeVisible()
+  })
+
+  it('no longer shows the search sample or the privacy section', () => {
+    const text = pageText()
+    for (const gone of ['Find anything by what it says', 'Your documents stay on your computer', 'How does asking a question work?']) {
+      expect(text).not.toContain(gone)
+    }
+  })
+
+  it('moves the privacy point to one footer line', () => {
+    pageText()
+    expect(screen.getByText('DocVault runs on your own computer. Each account sees only its own documents.', { exact: true })).toBeVisible()
+  })
 })
 
 describe('account buttons and the page surfaces (plan 0R-2)', () => {
@@ -93,11 +149,9 @@ describe('account buttons and the page surfaces (plan 0R-2)', () => {
     expect(screen.getAllByRole('link', { name: 'Create an account' })).toHaveLength(2)
   })
 
-  it('shows the footer line and both margin tags', () => {
+  it('shows the project footer line', () => {
     pageText()
     expect(screen.getByText('A final-year project at TUS Athlone. It runs on your own computer, and the examples on this page are synthetic.')).toBeVisible()
-    expect(screen.getByText('€123.47', { selector: 'strong' })).toBeVisible()
-    expect(screen.getByText('23 Nov', { selector: 'strong' })).toBeVisible()
   })
 
   it('hides nothing inline when motion is off', () => {
