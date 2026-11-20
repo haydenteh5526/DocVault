@@ -101,6 +101,34 @@ def _passage_dict(passage: Passage) -> dict:
     }
 
 
+async def build_context(db: AsyncSession, top: list[dict]) -> str:
+    """The text the answer writer reads: each passage under its document, then any warranty dates."""
+    context = "\n\n---\n\n".join(
+        f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
+    )
+
+    # Append warranty info if relevant documents have warranties
+    doc_ids = list(set(str(e["document_id"]) for e in top))
+    if doc_ids:
+        warranty_result = await db.execute(
+            text("""
+                SELECT w.purchase_date, w.expiry_date, d.title as document_title
+                FROM warranties w
+                JOIN documents d ON d.id = w.document_id
+                WHERE w.document_id = ANY(cast(:doc_ids as uuid[]))
+            """),
+            {"doc_ids": doc_ids},
+        )
+        warranty_rows = warranty_result.fetchall()
+        if warranty_rows:
+            warranty_context = "\n\n---\n\n[Warranty Information]\n" + "\n".join(
+                f"• {wr.document_title}: purchased {wr.purchase_date or 'unknown'}, expires {wr.expiry_date or 'unknown'}"
+                for wr in warranty_rows
+            )
+            context += warranty_context
+    return context
+
+
 async def generate_rag_answer(
     question: str,
     user_id: uuid.UUID,
@@ -129,29 +157,7 @@ async def generate_rag_answer(
     top = [_passage_dict(p) for p in retrieval.passages]
 
     # 2. Build context from retrieved chunks
-    context = "\n\n---\n\n".join(
-        f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
-    )
-
-    # 2b. Append warranty info if relevant documents have warranties
-    doc_ids = list(set(str(e["document_id"]) for e in top))
-    if doc_ids:
-        warranty_result = await db.execute(
-            text("""
-                SELECT w.purchase_date, w.expiry_date, d.title as document_title
-                FROM warranties w
-                JOIN documents d ON d.id = w.document_id
-                WHERE w.document_id = ANY(cast(:doc_ids as uuid[]))
-            """),
-            {"doc_ids": doc_ids},
-        )
-        warranty_rows = warranty_result.fetchall()
-        if warranty_rows:
-            warranty_context = "\n\n---\n\n[Warranty Information]\n" + "\n".join(
-                f"• {wr.document_title}: purchased {wr.purchase_date or 'unknown'}, expires {wr.expiry_date or 'unknown'}"
-                for wr in warranty_rows
-            )
-            context += warranty_context
+    context = await build_context(db, top)
 
     # 3. Generate answer via LLM (with conversation history)
     answer = _generate_answer(question, context, history, passages=top)

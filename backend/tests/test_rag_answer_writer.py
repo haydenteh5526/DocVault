@@ -219,3 +219,23 @@ def test_a_forced_hosted_writer_is_traced_and_timed(monkeypatch):
 
     assert (result.text, result.writer, result.model) == ("forced groq", "groq", "llama-3.3-70b-versatile")
     assert result.invalid_reason is None and result.prompt_tokens is None
+
+
+async def test_build_context_labels_passages_and_appends_warranty_rows():
+    class Rows:
+        def fetchall(self):
+            return [SimpleNamespace(document_title="Kettle card", purchase_date="2025-06-20", expiry_date=None)]
+
+    class Database:
+        async def execute(self, statement, params):
+            return Rows()
+
+    passages = [{"document_id": "doc-1", "document_title": "Kettle card", "chunk_text": "Two year promise"}]
+
+    context = await rag_service.build_context(Database(), passages)
+
+    assert context == (
+        "[From: Kettle card]\nTwo year promise"
+        "\n\n---\n\n[Warranty Information]\n"
+        "\u2022 Kettle card: purchased 2025-06-20, expires unknown"
+    )
