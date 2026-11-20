@@ -2,18 +2,14 @@
 
 Used by both the /api/v1/ai/ask endpoint and the conversations endpoint.
 """
-import bisect
 import uuid
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import embedding_service
-
-# Cosine similarity a chunk must reach when a question is asked across all
-# documents. Provisional (D1 of the issue 24 plan): the retrieval benchmark
-# calibrates it on a frozen set. A question scoped to one document has no floor.
-SIMILARITY_FLOOR = 0.55
+from app.services import embedding_service as embedding_service  # re-exported: tests patch it here
+from app.services.retrieval import Passage, retrieve
+from app.services.retrieval import ocr_lines_of as ocr_lines_of  # re-exported for existing imports
 
 NOT_FOUND_ANSWER = "I couldn't find this in your documents."
 NO_KEY_HEADER = (
@@ -56,71 +52,6 @@ class RAGResult:
         self.sources = sources
 
 
-class _LineIndex:
-    """A document's text prepared once, so each passage is located without rescanning it.
-
-    `collapsed` is raw_text with every run of whitespace turned into one space,
-    `origin[i]` is the index in raw_text that collapsed[i] came from, and
-    `starts` are the offsets where `raw_text.splitlines()` begins each line, so a
-    character is numbered exactly as the bill review's "OCR line" numbers it.
-    """
-
-    def __init__(self, raw_text: str):
-        chars: list[str] = []
-        self.origin: list[int] = []
-        in_space = False
-        for index, char in enumerate(raw_text):
-            if char.isspace():
-                if not in_space and chars:
-                    chars.append(" ")
-                    self.origin.append(index)
-                in_space = True
-            else:
-                chars.append(char)
-                self.origin.append(index)
-                in_space = False
-        self.collapsed = "".join(chars)
-        self.starts = [0]
-        for piece in raw_text.splitlines(keepends=True):
-            self.starts.append(self.starts[-1] + len(piece))
-
-    def _line_of(self, collapsed_index: int) -> int:
-        return bisect.bisect_right(self.starts, self.origin[collapsed_index])
-
-    def lines_of(self, chunk_text: str) -> tuple[int, int] | None:
-        flat = " ".join(chunk_text.split())
-        if not flat or not self.collapsed:
-            return None
-
-        # A stored chunk is a contiguous run of the document's text once
-        # whitespace is collapsed, so it normally matches whole. If the same
-        # passage appears more than once word for word, the first copy is used:
-        # that is a known limit, since the text alone cannot tell the copies apart.
-        start = self.collapsed.find(flat)
-        if start != -1:
-            return self._line_of(start), self._line_of(start + len(flat) - 1)
-
-        # Fallback: the chunk's first and last 40 characters.
-        start = self.collapsed.find(flat[:40])
-        if start == -1:
-            return None
-        tail = flat[-40:]
-        end = self.collapsed.find(tail, start)
-        end_index = (end + len(tail) - 1) if end != -1 else start
-        return self._line_of(start), self._line_of(end_index)
-
-
-def ocr_lines_of(raw_text: str, chunk_text: str) -> tuple[int, int] | None:
-    """The 1-based first and last line of raw_text that a chunk covers.
-
-    The chunker joins lines with spaces, so a stored chunk has no line breaks;
-    see _LineIndex for how it is found and numbered.
-    """
-    if not raw_text:
-        return None
-    return _LineIndex(raw_text).lines_of(chunk_text)
-
-
 def _passage_label(title: str, line_start: int | None, line_end: int | None) -> str:
     if line_start is None or line_end is None:
         return f"{title}:"
@@ -133,6 +64,18 @@ class ChatTurn:
     def __init__(self, role: str, content: str):
         self.role = role
         self.content = content
+
+
+def _passage_dict(passage: Passage) -> dict:
+    return {
+        "chunk_id": passage.chunk_id,
+        "document_id": passage.document_id,
+        "document_title": passage.document_title,
+        "chunk_text": passage.chunk_text,
+        "similarity": passage.similarity,
+        "line_start": passage.line_start,
+        "line_end": passage.line_end,
+    }
 
 
 async def generate_rag_answer(
@@ -154,121 +97,20 @@ async def generate_rag_answer(
     Returns:
         RAGResult with the generated answer and source references.
     """
-    # 1. Embed the question
-    query_embedding = embedding_service.get_embedding(question)
-    embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
-
-    # 2. Hybrid retrieval: run vector similarity AND full-text keyword search,
-    #    then fuse the two ranked lists with Reciprocal Rank Fusion (RRF).
-    #    This catches both semantic matches ("drainage issue" ~ "blocked filter")
-    #    and exact keyword/model-number matches that pure vectors can miss.
-    doc_filter = ""
-    params: dict = {"embedding": embedding_str, "user_id": str(user_id)}
-    if document_id:
-        doc_filter = "AND dc.document_id = cast(:document_id as uuid)"
-        params["document_id"] = document_id
-
-    # 2a. Vector candidates (cosine similarity)
-    vec_result = await db.execute(
-        text(f"""
-            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
-                   d.raw_text,
-                   1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
-            FROM doc_chunks dc
-            JOIN documents d ON d.id = dc.document_id
-            WHERE d.user_id = cast(:user_id as uuid)
-            {doc_filter}
-            ORDER BY dc.embedding <=> cast(:embedding as vector)
-            LIMIT 10
-        """),
-        params,
-    )
-    vec_rows = vec_result.fetchall()
-
-    # 2b. Keyword candidates (PostgreSQL full-text over chunk text)
-    kw_params: dict = {"q": question, "user_id": str(user_id)}
-    if document_id:
-        kw_params["document_id"] = document_id
-    kw_result = await db.execute(
-        text(f"""
-            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
-                   d.raw_text,
-                   ts_rank(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', :q)) as rank
-            FROM doc_chunks dc
-            JOIN documents d ON d.id = dc.document_id
-            WHERE d.user_id = cast(:user_id as uuid)
-            {doc_filter}
-              AND to_tsvector('english', dc.chunk_text) @@ plainto_tsquery('english', :q)
-            ORDER BY rank DESC
-            LIMIT 10
-        """),
-        kw_params,
-    )
-    kw_rows = kw_result.fetchall()
-
-    if not vec_rows and not kw_rows:
+    # 1. Retrieve passages: hybrid search over this user's documents, with the relevance floor.
+    retrieval = await retrieve(db, user_id, question, mode="hybrid", document_id=document_id)
+    if retrieval.outcome == "no_documents":
         return RAGResult(answer="I don't have any documents to answer from.", sources=[])
+    if retrieval.outcome == "not_found":
+        return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
+    top = [_passage_dict(p) for p in retrieval.passages]
 
-    # 2c. Reciprocal Rank Fusion: score = sum(1 / (k + rank)) across both lists.
-    #     k=60 is the conventional constant. We keep the best vector similarity
-    #     per chunk so we can still apply a relevance floor and surface it.
-    RRF_K = 60
-    fused: dict = {}
-
-    def _add(rows, sim_getter):
-        for rank, row in enumerate(rows):
-            entry = fused.setdefault(row.chunk_id, {
-                "chunk_text": row.chunk_text,
-                "document_id": row.document_id,
-                "document_title": row.document_title,
-                "raw_text": row.raw_text,
-                "rrf": 0.0,
-                "similarity": 0.0,
-            })
-            entry["rrf"] += 1.0 / (RRF_K + rank + 1)
-            sim = sim_getter(row)
-            if sim is not None and sim > entry["similarity"]:
-                entry["similarity"] = sim
-
-    _add(vec_rows, lambda r: (r.similarity if r.similarity == r.similarity else 0.0))
-    _add(kw_rows, lambda r: None)  # keyword rows carry no cosine similarity
-
-    # 2d. Relevance floor: across all documents, keep chunks that clear a
-    #     semantic similarity threshold. This filters out near-irrelevant
-    #     chunks that would otherwise pad the context and invite
-    #     hallucination. Inside one document the owner already chose where to
-    #     look, so every fused chunk counts.
-    ranked = sorted(fused.values(), key=lambda e: e["rrf"], reverse=True)
-    if document_id:
-        relevant = ranked
-    else:
-        relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
-    if not relevant:
-        # No chunk cleared the semantic floor. If keyword search still produced
-        # matches (exact terms/model numbers), trust the top fused hits;
-        # otherwise report that we have nothing relevant.
-        if kw_rows:
-            relevant = ranked[:5]
-        else:
-            return RAGResult(answer=NOT_FOUND_ANSWER, sources=[])
-
-    top = relevant[:5]
-
-    # Prepared once per document, not once per passage.
-    _line_indexes: dict = {}
-    for e in top:
-        if e["raw_text"] and e["document_id"] not in _line_indexes:
-            _line_indexes[e["document_id"]] = _LineIndex(e["raw_text"])
-    for e in top:
-        lines = _line_indexes[e["document_id"]].lines_of(e["chunk_text"]) if e["raw_text"] else None
-        e["line_start"], e["line_end"] = lines if lines else (None, None)
-
-    # 3. Build context from retrieved chunks
+    # 2. Build context from retrieved chunks
     context = "\n\n---\n\n".join(
         f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
     )
 
-    # 3b. Append warranty info if relevant documents have warranties
+    # 2b. Append warranty info if relevant documents have warranties
     doc_ids = list(set(str(e["document_id"]) for e in top))
     if doc_ids:
         warranty_result = await db.execute(
@@ -288,10 +130,10 @@ async def generate_rag_answer(
             )
             context += warranty_context
 
-    # 4. Generate answer via LLM (with conversation history)
+    # 3. Generate answer via LLM (with conversation history)
     answer = _generate_answer(question, context, history, passages=top)
 
-    # 5. Build sources from the fused top chunks
+    # 4. Build sources from the fused top chunks
     sources = [
         Source(
             document_id=str(e["document_id"]),
