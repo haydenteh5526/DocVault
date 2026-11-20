@@ -57,11 +57,6 @@ test.describe('WCAG regression checks', () => {
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({
       timeout: 10_000,
     });
-    const tour = page.getByRole('dialog', { name: 'Welcome to DocVault!' });
-    await expect(tour).toBeVisible();
-    await expectNoWcagViolations(page, '[role="dialog"]');
-    await tour.getByRole('button', { name: 'Skip tour' }).last().click();
-    await expect(tour).toBeHidden();
     await expectNoWcagViolations(page);
 
     await page.getByRole('button', { name: 'Documents', exact: true }).click();

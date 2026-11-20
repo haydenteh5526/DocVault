@@ -18,6 +18,7 @@ import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSpl
 import { useAuth } from '@/lib/auth'
 import { isGeneratedSummary } from '@/lib/summary'
 import { useHousemates } from '@/lib/housemates'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 /**
  * Wraps occurrences of meaningful query words (≥4 chars) in <mark> so a document
@@ -69,6 +70,7 @@ export default function DocumentDetail() {
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>()
   const stablePreview = useRef<{ documentId: string; url: string } | null>(null)
   const { toast } = useToast()
+  const wide = useMediaQuery('(min-width: 1200px)')
 
   function setTab(newTab: 'preview' | 'info' | 'ask') {
     setTabState(newTab)
@@ -89,7 +91,7 @@ export default function DocumentDetail() {
         <FileText size={48} className="text-muted-foreground/20 mb-4" />
         <h3 className="text-lg font-semibold text-foreground/80">Document not found</h3>
         <p className="text-sm text-muted-foreground mt-1">This document may have been deleted or you don't have access.</p>
-        <button onClick={() => navigate(-1)} className="mt-6 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium shadow-md transition-all ">
+        <button onClick={() => navigate(-1)} className="mt-6 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-colors">
           Go back
         </button>
       </div>
@@ -108,6 +110,9 @@ export default function DocumentDetail() {
 
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
+  const isBill = !!(doc.bill_review || doc.confirmed_bill)
+  // At 1200 px and wider the original page sits beside the bill panels, so every value can be checked against it.
+  const originalBeside = wide && isBill && !!originalUrl
 
   async function confirmBill(body: BillConfirmation) {
     const documentId = doc!.id
@@ -152,11 +157,9 @@ export default function DocumentDetail() {
     <div className="flex flex-col h-full overflow-hidden bg-muted/10">
       {/* Hero Section */}
       <div className="relative border-b border-border/40 bg-background  overflow-hidden shrink-0 z-10">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.05] via-purple-500/[0.05] to-transparent pointer-events-none" />
-        
-        <div className="relative px-4 sm:px-8 pt-6 pb-4">
+                <div className="relative px-4 sm:px-8 pt-6 pb-4">
           <div className="flex items-start gap-5">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background hover:shadow-sm" aria-label="Go back">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-accent" aria-label="Go back">
               <ArrowLeft size={18} className="text-muted-foreground" />
             </Button>
             
@@ -170,7 +173,7 @@ export default function DocumentDetail() {
               </div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-semibold tracking-tight truncate text-foreground/90">{doc.title}</h2>
-                {doc.is_favourite && <Star className="h-5 w-5 text-amber-500 fill-amber-500 shrink-0 drop-shadow-sm" />}
+                {doc.is_favourite && <Star className="h-5 w-5 text-amber-500 fill-amber-500 shrink-0" />}
               </div>
               
               <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -189,7 +192,7 @@ export default function DocumentDetail() {
                 <Star size={16} className={doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'} />
               </Button>
               {originalUrl && (
-                <Button variant="outline" size="sm" className="h-9 rounded-full bg-background/50 hover:bg-background shadow-sm hover:shadow transition-all" asChild>
+                <Button variant="outline" size="sm" className="h-9 rounded-full" asChild>
                   <a href={originalUrl} download={doc.title} target="_blank" rel="noopener noreferrer">
                     <Download size={14} className="mr-1.5" /> Download
                   </a>
@@ -204,7 +207,7 @@ export default function DocumentDetail() {
 
           {/* Processing banner inline */}
           {isProcessing && (
-            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 flex items-center gap-4 shadow-inner">
+            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 flex items-center gap-4">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                 <Loader2 size={16} className="text-primary-foreground animate-spin" />
               </div>
@@ -253,20 +256,14 @@ export default function DocumentDetail() {
       )}
       {/* Stays mounted while hidden so an unsaved bill correction survives a tab switch. */}
       <div hidden={tab === 'ask'} className="flex-1 overflow-auto p-4 sm:p-8 relative">
-        <div className="max-w-5xl mx-auto space-y-6 pb-20">
+        <div className={`mx-auto space-y-6 pb-20 ${originalBeside ? 'max-w-[90rem]' : 'max-w-5xl'}`}>
 
       {tab === 'preview' && (
         <div className="">
-        <Card className="border-border/50 shadow-sm overflow-hidden">
+        <Card className="border-border overflow-hidden">
           <CardContent className="p-0 bg-background/50">
             {originalUrl ? (
-              isPdf ? (
-                <PdfViewer url={originalUrl} title={doc.title} />
-              ) : (
-                <div className="flex items-center justify-center p-8 bg-black/5">
-                  <img src={originalUrl} alt={doc.title} className="max-w-full max-h-[75vh] rounded-lg shadow-xl" />
-                </div>
-              )
+              <OriginalPage url={originalUrl} isPdf={!!isPdf} title={doc.title} />
             ) : (
               <div className="h-[60vh] flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
                 <FileText size={48} className="mb-4 opacity-20" />
@@ -280,8 +277,9 @@ export default function DocumentDetail() {
 
       
 
-      <div hidden={tab !== 'info'} className="">
-        <div className=" space-y-6">
+      <div hidden={tab !== 'info'}>
+        <div className={originalBeside ? 'grid items-start gap-6 grid-cols-[minmax(0,1fr)_minmax(0,28rem)]' : undefined}>
+        <div className="min-w-0 space-y-6">
           {(doc.bill_review || doc.confirmed_bill) && (
             <BillReviewPanel
               review={doc.bill_review ?? null}
@@ -348,7 +346,7 @@ export default function DocumentDetail() {
             />
           )}
           {isProcessing ? (
-            <Card className="border-border/50 shadow-sm">
+            <Card className="border-border">
               <CardContent className="p-8">
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Loader2 size={28} className="animate-spin text-primary mb-4" />
@@ -365,7 +363,7 @@ export default function DocumentDetail() {
               )}
 
               {/* Key Information */}
-              <Card className="border-border/50 shadow-sm">
+              <Card className="border-border">
                 <CardContent className="p-6">
                   <h3 className="text-sm font-semibold mb-4 text-foreground/80 flex items-center gap-2">
                     <Info size={15} className="text-primary" /> Key Information
@@ -402,7 +400,7 @@ export default function DocumentDetail() {
 
               {/* Extracted Text (expandable) */}
               {doc.raw_text && (
-                <Card className="border-border/50 shadow-sm">
+                <Card className="border-border">
                   <CardContent className="p-6">
                     <details open={!!highlightTerm}>
                       <summary className="text-sm font-semibold text-foreground/80 cursor-pointer flex items-center gap-2 select-none">
@@ -424,11 +422,26 @@ export default function DocumentDetail() {
             </>
           )}
         </div>
+        {originalBeside && originalUrl && (
+          <aside aria-label="Original bill" className="sticky top-0 max-h-[calc(100vh-12rem)] overflow-auto rounded-lg border bg-card">
+            <OriginalPage url={originalUrl} isPdf={!!isPdf} title={doc.title} />
+          </aside>
+        )}
+        </div>
       </div>
 
         </div>
       </div>
 
+    </div>
+  )
+}
+
+function OriginalPage({ url, isPdf, title }: { url: string; isPdf: boolean; title: string }) {
+  if (isPdf) return <PdfViewer url={url} title={title} />
+  return (
+    <div className="flex items-center justify-center p-4 bg-muted/30">
+      <img src={url} alt={title} className="max-w-full max-h-[75vh] rounded-md border" />
     </div>
   )
 }
@@ -681,7 +694,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
 
   if (!parsed) {
     return (
-      <Card className="border-border/50 shadow-sm">
+      <Card className="border-border">
         <CardContent className="p-6">
           <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
             <Sparkles size={15} className="text-primary" /> AI Summary
@@ -696,7 +709,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
     <div className="space-y-4">
       {/* Overview */}
       {parsed.overview && (
-        <Card className="border-border/50 shadow-sm">
+        <Card className="border-border">
           <CardContent className="p-6">
             <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
               <Sparkles size={15} className="text-primary" /> AI Summary
@@ -710,7 +723,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Key Topics */}
         {parsed.key_topics && parsed.key_topics.length > 0 && (
-          <Card className="border-border/50 shadow-sm">
+          <Card className="border-border">
             <CardContent className="p-5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <BookOpen size={13} className="text-primary/70" /> Key Topics
@@ -733,7 +746,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
 
         {/* Quick Facts */}
         {parsed.quick_facts && parsed.quick_facts.length > 0 && (
-          <Card className="border-border/50 shadow-sm">
+          <Card className="border-border">
             <CardContent className="p-5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
                 <Zap size={13} className="text-amber-500" /> Quick Facts
@@ -753,7 +766,7 @@ function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?
 
       {/* Specifications */}
       {parsed.specifications && parsed.specifications.length > 0 && (
-        <Card className="border-border/50 shadow-sm">
+        <Card className="border-border">
           <CardContent className="p-5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
               <Info size={13} className="text-blue-500" /> Specifications
@@ -890,7 +903,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
                 <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user' 
                     ? 'bg-primary text-primary-foreground rounded-br-md' 
-                    : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
+                    : 'bg-card border border-border text-foreground rounded-bl-md shadow-sm'
                 }`}>
                   {msg.role === 'assistant' ? (
                     <Markdown className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-headings:my-2 prose-strong:text-foreground">{msg.content}</Markdown>
@@ -911,7 +924,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                 <Bot size={14} className="text-primary-foreground" />
               </div>
-              <div className="bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
+              <div className="bg-card border border-border rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
                 <div className="flex gap-1.5 items-center">
                   <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:0.15s]" />
@@ -925,7 +938,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
         </div>
         
         {/* Input bar — always visible at bottom */}
-        <div className="shrink-0 border-t border-border/40 bg-background backdrop-blur-md p-4">
+        <div className="shrink-0 border-t border-border/40 bg-background p-4">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative group flex items-end gap-2 bg-card border border-border/60 rounded-xl p-1.5 shadow-sm focus-within:border-primary/30 transition-all duration-300">
             <Input 
               value={input} 

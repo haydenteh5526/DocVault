@@ -329,7 +329,7 @@ export function BillReminderPanel({
   }
 
   return (
-    <section aria-labelledby="bill-reminder-heading" className="rounded-xl border bg-card p-6 space-y-4">
+    <section aria-labelledby="bill-reminder-heading" className="min-w-0 rounded-lg border bg-card p-4 sm:p-5 space-y-4">
       <h3 id="bill-reminder-heading" ref={headingRef} tabIndex={-1} className="font-semibold">Reminder</h3>
       {message && (
         <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{message}</p>
@@ -404,7 +404,7 @@ function daysWording(details: ReminderDetails) {
 function Details({ proposal, title, today }: { proposal: ReminderProposal; title: string; today: string }) {
   const { details } = proposal
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_minmax(0,1fr)] [&>dd]:mb-2 [&>dd]:break-words [&>dd]:tabular-nums sm:[&>dd]:mb-0">
       <dt className="text-muted-foreground">Bill</dt>
       <dd>{title}</dd>
       <dt className="text-muted-foreground">Amount due</dt>
