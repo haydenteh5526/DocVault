@@ -1,6 +1,6 @@
 # DocBot Redesign, PR 2 of 2: The Vault Door on the Account Pages
 
-**Status:** approved by the owner on 21 November 2026 (decisions V4 and V5 in revision R3 of `specs/plans/2026-11-20-agent-experience.md`; the [redesign review](https://claude.ai/artifact/T92uXnst4xzik6TfqFSqJg) version 7, "Sign in like opening a vault", with its clickable preview). Nothing in it is implemented.
+**Status:** approved by the owner on 21 November 2026 (decisions V4 and V5 in revision R3 of `specs/plans/2026-11-20-agent-experience.md`; the [redesign review](https://claude.ai/artifact/T92uXnst4xzik6TfqFSqJg) version 7, "Sign in like opening a vault", with its clickable preview). Revision R1 (below) changes the layout; it is built on top of the first build on the branch.
 
 **Issue:** #35. The PR says `Part of #35`.
 
@@ -12,6 +12,38 @@
 - it unlocks and swings open into DocBot's home when you're in
 
 It must never slow signing in, never hint at whether a password is right before the server answers, and never move under reduced motion. Frontend only.
+
+## Revision R1 (21 November 2026): the whole page is the safe door
+
+After previewing the first build (`dvvault`: a small door above the card on the old 50/50 page), the owner reopened four decisions. R1 replaces the parts of the plan named below; everything else stands.
+
+1. **Layout (replaces "the door sits centred above the existing card" and Task 1's drawing).** `/login`, `/register` and `/forgot-password` drop the 50/50 split and the left bill preview. The full viewport is the front face of a matte-black electronic safe: `#121212` to `#1A1A1A` layers, a faint brushed grain, a 1 px machined seam, two hinges on the left edge, three locking bolts on the right edge, the Vault-Page Monogram top-left and the `Create account` / `Sign in` link top-right. The form is the recessed lock console in the middle: a status LED and label, the compact dial ring centred above the heading, then the unchanged heading, fields and buttons. New components: `SafeDoor` (stage, face, console) and `VaultDoor`, reduced to the dial ring.
+2. **New words (amends decision 4).** The console shows `LOCKED`, `VERIFYING`, `INVALID` and `UNLOCKED` beside the LED, always as text, with a × or ✓ inside the LED for the last two. Headings, field labels and button names are unchanged.
+3. **Timing (amends decision 2).** The open phase is 600 ms: the bolts retract for 150 ms, then the door swings for 450 ms (`rotateY(-88deg)` about the left hinge, `perspective` on the stage) in front of an amber glow. The bolts stay locked during `VERIFYING`. A refusal is a damped shake of the whole door for 0.4 s. Any key or click still skips, and `login()` is still called when the door finishes or is skipped. Under reduced motion there is no swing, spin or shake: the state changes at once and the interior fades in over 150 ms.
+4. **Register (amends the Register paragraph).** "Check your email" is shown in the interior behind the door, not on the swinging face, so it stays readable once the door has opened. The face is `inert` and `aria-hidden` once open, and the "Signed in" live region sits outside it.
+
+Deviation approved earlier and still in force: the session is stored when the door finishes or is skipped, because `App.tsx` redirects `/login` to `/app` as soon as a session exists.
+
+Accepted by the owner after the first `reviewer-deep` run (findings L3 and L4):
+- **Focus order on `/forgot-password` gains one stop.** The DocVault wordmark in the door's top bezel is now a link to `/`, so the order is DocVault, "Back to sign in", then the form. This amends "Focus order is unchanged" for that page only.
+- **After registering, the door face's links are out of reach.** Once the door has opened, the face (with its home link and "Sign in") is `inert` and then hidden, so "Go to sign in" in the interior is the only way on. Focus falls to the page body, as it did before this PR.
+
+## Revision R2 (21 November 2026): a heavy physical safe
+
+After previewing R1, the owner asked for physical depth. R2 amends R1 items 1 and 3; items 2 and 4 stand.
+
+1. **Frame and slab (amends R1 item 1).** A thick brushed-steel frame (jamb) runs round the viewport, 30 px wide (10 px below 640 px), with a dark recess and a deep shadow seam between it and the door slab. The slab has an overhead sheen, a bevelled recessed inner panel and four corner rivets. Two barrel hinges bridge the gap on the left and do not swing. Three cylindrical steel bolts run from housings on the slab into sockets in the right of the frame.
+2. **Lock faceplate (amends R1 item 1).** The console is a machined faceplate bolted to the slab: four screws, a recessed dark-glass LCD bar holding the LED and the label, then the dial and a latch handle side by side above the heading. Inputs are recessed monospace entry slots with an amber focus backlight; the submit button is a raised metal key. Labels, headings and button text are unchanged.
+3. **Timing (amends R1 item 3).** The open phase is 700 ms: the handle turns a quarter (0–150 ms), the bolts pull out of their sockets (100–250 ms), then the slab swings to `rotateY(-85deg)` (250–700 ms), fading over its last 120 ms. Reduced motion is unchanged: no movement, no wait. *(Superseded by R3 item 2.)*
+
+## Revision R3 (21 November 2026): stepping inside the vault
+
+After previewing R2, the owner asked for finer hardware and a transition that feels like walking into `/app`. R3 amends R2 items 2 and 3 and adds one change outside the account pages.
+
+1. **Hardware (amends R2 item 2).** The dial and handle sit in a recessed hardware bay at the top of the faceplate, with a 1 px machined divider below it. The submit button is a brushed-platinum key (top bevel, crisp shadow, 1 px press). The slab gets a chamfered recess with a raised inner plate, so the areas either side of the faceplate read as thick plate.
+2. **Choreography (replaces R2 item 3).** The open phase stays 700 ms. Beat 1 (0–180 ms): the LCD reads `UNLOCKED`, the handle turns 45°, the bolts pull out of the frame. Beat 2 (180–700 ms): the slab swings to `rotateY(-85deg)` while a world layer holding frame, chamber and slab scales from 1 to 1.06. The stage clips the world, so the scale never scrolls the page. Behind the slab is a dark chamber, softly lit from a ceiling lamp, ending in the app's own surface (`#0A0A0B`), in place of the bright glow.
+3. **The app's entrance (new; touches `App.tsx`).** Sign-in navigates with `navigate('/app', { state: { fromVault: true } })`. `login()` stays deferred, and the two run in one `startTransition`: React Router applies navigation in a transition, so a plain `login()` rendered first and App's `/login` guard redirected without the state. A new hook, `useVaultEntrance` (`lib/vaultEntrance.ts`), gives the app shell the class `vault-entrance`, a 250 ms rise (`scale(.97)` to 1, opacity 0 to 1, backwards fill so no transform stays on the shell), and then clears the flag from history so a reload does not replay it. Under reduced motion there is no entrance. Skipping with a key or click still works.
+4. **Session storage (new; touches `lib/auth.tsx`).** Because the transition holds the render until the app's code has loaded, while the URL already reads `/app`, `login()` now writes the token to `localStorage` at once (as it already did for the refresh token) instead of only in the effect after the next render. Found by the kept e2e scenario "documents list at 390 px", which read the token as soon as the URL changed.
 
 ## Decisions (approved; do not reopen)
 

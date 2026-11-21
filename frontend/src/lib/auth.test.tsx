@@ -27,6 +27,33 @@ describe('accountIdFromToken', () => {
 })
 
 describe('AuthProvider', () => {
+  it('stores the session the moment login() is called, before any render', () => {
+    let auth!: ReturnType<typeof useAuth>
+    function Probe() { auth = useAuth(); return null }
+    render(<QueryClientProvider client={queryClient}><AuthProvider><Probe /></AuthProvider></QueryClientProvider>)
+    // Called outside act(), so no render or effect has run when the storage is read.
+    auth.login(token('s1'), 'refresh-s1')
+    expect(localStorage.getItem('token')).toBe(token('s1'))
+    expect(localStorage.getItem('refresh_token')).toBe('refresh-s1')
+  })
+
+  // Review finding L1: the early storage write must also update what the tab compares storage events against.
+  it('a sign-out in another tab right after login() is followed, not overwritten', async () => {
+    let auth!: ReturnType<typeof useAuth>
+    function Probe() { auth = useAuth(); return null }
+    render(<QueryClientProvider client={queryClient}><AuthProvider><Probe /></AuthProvider></QueryClientProvider>)
+    auth.login(token('s1'))
+    // Before this tab has rendered the new session, another tab signs out: it clears the shared
+    // storage, then this tab receives the event.
+    localStorage.removeItem('token')
+    window.dispatchEvent(new StorageEvent('storage', { key: 'token', newValue: null }))
+    // login() ran outside act, so React scheduled its render on its own scheduler: let that run too.
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    expect(auth.isAuthenticated).toBe(false)
+    // This tab's render must not write the old session back.
+    expect(localStorage.getItem('token')).toBeNull()
+  })
+
   it('signing in and signing out drop every cached query', () => {
     let auth!: ReturnType<typeof useAuth>
     function Probe() {

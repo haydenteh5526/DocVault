@@ -132,3 +132,7 @@
 .docbot-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }
 .docbot-bob { animation: docbotBob 1.6s ease-in-out infinite; }
 @keyframes docbotBob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(2px) } }
+
+/* Arriving in the app through the vault door: a 250 ms rise out of the chamber. backwards fill only, so no transform is left on the shell afterwards (it would trap fixed-position children). Reduced motion never gets the class. */
+.vault-entrance { animation: vaultEntrance 250ms cubic-bezier(.2, 0, 0, 1) backwards; }
+@keyframes vaultEntrance { from { opacity: 0; transform: scale(.97); } }

@@ -1,0 +1,15 @@
+/* The dial ring in the lock console. */
+.vault-door { width: 76px; height: 76px; margin: 0 auto 1rem; }
+.vault-door svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.vault-dial { transform-box: view-box; transform-origin: 85px 85px; transition: transform .12s linear; }
+.vault-unlocking .vault-dial, .vault-open .vault-dial { transition-duration: .45s; transition-timing-function: ease-in-out; }
+
+.vault-second-ring { transform-box: view-box; transform-origin: 85px 85px; transition: transform .45s ease-in-out; }
+.vault-unlocking .vault-second-ring, .vault-open .vault-second-ring { transform: rotate(360deg); }
+
+/* Reduced motion: every state appears at once. */
+@media (prefers-reduced-motion: reduce) {
+  .vault-door, .vault-door * { transition: none !important; animation: none !important; }
+}
+.vault-still, .vault-still * { transition: none !important; animation: none !important; }

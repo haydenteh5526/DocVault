@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { useFocusTrap } from './lib/useFocusTrap'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
+import { useVaultEntrance } from './lib/vaultEntrance'
 // Route pages are code-split so the initial bundle (landing + auth) stays small;
 // each page loads on demand behind the <Suspense> boundary below.
 const Landing = lazy(() => import('./pages/Landing'))
@@ -82,6 +83,7 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const settingsTrapRef = useFocusTrap<HTMLDivElement>(settingsOpen)
+  const entrance = useVaultEntrance()
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setPaletteOpen(o => !o) }
@@ -91,7 +93,7 @@ function AppShell() {
     return () => document.removeEventListener('keydown', key)
   }, [])
   return (
-    <div className="flex h-dvh min-w-0 flex-col bg-background lg:flex-row">
+    <div className={`flex h-dvh min-w-0 flex-col bg-background lg:flex-row ${entrance}`}>
       <a className="skip-link" href="#content">Skip to content</a>
       <AppNav openSettings={() => setSettingsOpen(true)} openSearch={() => setPaletteOpen(true)} />
       <main id="content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col pb-14 lg:pb-0">
