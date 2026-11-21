@@ -211,6 +211,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
               <form onSubmit={async (e) => {
                 e.preventDefault()
                 cancelDoorWait()
+                // Back to VERIFYING at once, so a quick second code is never checked under a stale INVALID.
+                setDoor('unlocking')
                 setError('')
                 setLoading(true)
                 let opening = false

@@ -380,6 +380,34 @@ describe('the vault door on the sign-in page', () => {
     expect(loginMock).not.toHaveBeenCalled()
   })
 
+  // Review finding L-new-1: a quick second code must not be checked under a stale INVALID.
+  it('a second two-factor code sent within 400 ms of a wrong one shows VERIFYING, then shakes again if wrong', async () => {
+    const user = setup()
+    await reachPassword(user)
+    vi.mocked(loginUser).mockResolvedValueOnce({ requires_2fa: true } as never)
+    await user.type(password(), 'Password123!')
+    await submit('Sign in')
+    let rejectSecond!: (e: Error) => void
+    vi.mocked(verify2FA)
+      .mockRejectedValueOnce(new Error('Invalid code'))
+      .mockReturnValueOnce(new Promise((_, reject) => { rejectSecond = reject }) as never)
+    vi.useRealTimers()
+    await user.click(screen.getAllByRole('textbox')[0])
+    await user.keyboard('123456')
+    await submit('Verify')
+    expect(door()).toHaveClass('vault-error')
+    await settle(100)
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+    await settle()
+    expect(door()).toHaveClass('vault-unlocking')
+    expect(screen.getByText('VERIFYING')).toBeVisible()
+    rejectSecond(new Error('Invalid code'))
+    await settle()
+    expect(door()).toHaveClass('vault-error')
+    await settle(400)
+    expect(door()).toHaveClass('vault-unlocking')
+  })
+
   it('leaving the page while the door is open cancels the wait and its skip listeners', async () => {
     const user = setup()
     const view = await reachPassword(user)
