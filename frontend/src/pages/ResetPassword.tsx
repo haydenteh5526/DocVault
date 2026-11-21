@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordRules, PASSWORD_RULES_MESSAGE, meetsPasswordRules } from '@/components/PasswordRules'
-import { RecessedBadge } from '@/components/RecessedBadge'
 import { SafeDoor } from '@/components/SafeDoor'
 import type { VaultState } from '@/components/VaultDoor'
 import { AuthError, resetPassword } from '@/lib/api'
@@ -84,23 +83,21 @@ export default function ResetPassword() {
     >
       {phase === 'link-invalid' ? (
         <div>
-          <RecessedBadge tone="danger"><AlertCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">This reset link no longer works</h1>
           <p className="text-sm text-muted-foreground mt-2">
             It may have expired, been used already or been replaced by a newer link. Reset links work once, for 30 minutes.
           </p>
-          <Button variant="outline" className="w-full h-10 mt-8" asChild>
+          <Button className="safe-primary w-full h-11 mt-8" asChild>
             <Link to="/forgot-password">Request a new reset link</Link>
           </Button>
         </div>
       ) : phase === 'done' ? (
         <div>
-          <RecessedBadge tone="success"><CheckCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Password updated</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Your new password is set, and every other session has been signed out.
           </p>
-          <Button variant="outline" className="w-full h-10 mt-8" asChild>
+          <Button className="safe-primary w-full h-11 mt-8" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
         </div>

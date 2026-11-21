@@ -1,8 +1,7 @@
 import { SafeDoor } from '@/components/SafeDoor'
-import { RecessedBadge } from '@/components/RecessedBadge'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { forgotPassword } from '@/lib/api'
@@ -54,7 +53,6 @@ export default function ForgotPassword() {
     >
         {sent ? (
           <div>
-            <RecessedBadge tone="success"><CheckCircle /></RecessedBadge>
             <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
             <p className="text-sm text-muted-foreground mt-2">
               If an account exists for <span className="font-medium text-foreground">{email}</span>, we've sent a link to reset your password. The link expires in 30 minutes.

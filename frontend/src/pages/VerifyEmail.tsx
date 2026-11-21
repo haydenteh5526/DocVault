@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RecessedBadge } from '@/components/RecessedBadge'
 import { ResendVerification } from '@/components/ResendVerification'
 import { SafeDoor } from '@/components/SafeDoor'
 import { verifyEmail } from '@/lib/api'
@@ -53,33 +51,29 @@ export default function VerifyEmail() {
       )}
       {outcome.kind === 'verified' && (
         <div>
-          <RecessedBadge tone="success"><CheckCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Email verified</h1>
           <p className="text-sm text-muted-foreground mt-2">Your account is active. You can sign in now.</p>
-          <Button className="w-full h-11 mt-8 bg-primary border-0 text-primary-foreground" asChild>
+          <Button className="safe-primary w-full h-11 mt-8" asChild>
             <Link to="/login">Sign in</Link>
           </Button>
         </div>
       )}
       {outcome.kind === 'link' && (
         <div>
-          <RecessedBadge tone="danger"><XCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">This link no longer works</h1>
-          <p className="text-sm text-muted-foreground mt-2">{outcome.message}</p>
-          <p className="text-sm text-muted-foreground mt-2">Enter the email you signed up with and we'll send a new link. Only the newest link works.</p>
-          <div className="mt-6 space-y-3">
+          <p className="text-sm text-muted-foreground mt-2">{outcome.message} Enter the email you signed up with and we'll send a new link; only the newest one works.</p>
+          <div className="mt-5 space-y-3">
             <label htmlFor="verify-email" className="block text-sm font-medium">Email address</label>
             <Input id="verify-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="h-11" />
             <ResendVerification email={email.trim()} label="Send a new link" primary />
           </div>
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-4 text-center text-xs text-muted-foreground">
             Already verified? <Link to="/login" className="link-draw text-primary">Go to sign in</Link>
           </p>
         </div>
       )}
       {outcome.kind === 'failed' && (
         <div>
-          <RecessedBadge tone="danger"><AlertCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Verification failed</h1>
           <p className="text-sm text-muted-foreground mt-2">{outcome.message}</p>
           <p className="text-sm text-muted-foreground mt-2">Your link was not used. Try opening it again in a moment.</p>

@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, startTransition } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Mail, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import './landing.css'
 import { PasswordStrength } from '@/components/PasswordStrength'
 import { PasswordRules } from '@/components/PasswordRules'
 import { PinInput } from '@/components/PinInput'
-import { RecessedBadge } from '@/components/RecessedBadge'
 import { ResendVerification } from '@/components/ResendVerification'
 import { SafeDoor } from '@/components/SafeDoor'
 import type { VaultState } from '@/components/VaultDoor'
@@ -200,13 +199,12 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
       topRight={<Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Sign in' : 'Create account'}</Link>}
       interior={confirmed ? (
         <div className="text-center">
-          <RecessedBadge tone="success" className="mx-auto"><CheckCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
             We sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
           </p>
           <div className="mt-8 space-y-3">
-            <Button variant="outline" className="w-full h-10" asChild>
+            <Button className="safe-primary w-full h-11" asChild>
               <Link to="/login">Go to sign in</Link>
             </Button>
             <p className="text-xs text-muted-foreground">

@@ -46,8 +46,9 @@ it('after sending, the status reads CHECK EMAIL and the copy never says whether 
   expect(screen.getByText('CHECK EMAIL')).toBeVisible()
   expect(screen.queryByText('LOCKED')).not.toBeInTheDocument()
   expect(screen.getByText(/If an account exists for/)).toBeVisible()
-  expect(document.querySelector('.safe-badge-success')).not.toBeNull()
-  expect(document.querySelector('.bg-green-50')).toBeNull()
+  expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
+  // "Back to sign in" keeps the dark outline: it goes back, not forward.
+  for (const back of screen.getAllByRole('link', { name: /Back to sign in/ })) expect(back).not.toHaveClass('safe-primary')
 })
 
 it('lets the owner resend only after the 60-second countdown', async () => {

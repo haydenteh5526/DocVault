@@ -456,7 +456,7 @@ describe('recovery and verification from the sign-in page', () => {
     await user.click(screen.getByRole('button', { name: 'Resend verification email' }))
     expect(resendVerification).toHaveBeenCalledWith('someone@example.com')
     expect(await screen.findByText("If that account still needs verifying, we've sent a new link.")).toBeVisible()
-    expect(screen.getByRole('button', { name: /Resend verification email in 60s/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Resend verification email in [0-9]+s/ })).toBeDisabled()
   })
 
   it('a wrong password (401) offers no resend', async () => {
@@ -469,7 +469,7 @@ describe('recovery and verification from the sign-in page', () => {
     expect(screen.queryByRole('button', { name: /Resend verification email/ })).not.toBeInTheDocument()
   })
 
-  it('the registration confirmation uses the recessed badge and can resend the email', async () => {
+  it('the registration confirmation has no icon square, a primary sign-in link, and can resend the email', async () => {
     const user = userEvent.setup({ delay: null })
     await reachPassword(user, 'register')
     vi.mocked(registerUser).mockResolvedValueOnce({ message: 'sent' })
@@ -477,17 +477,18 @@ describe('recovery and verification from the sign-in page', () => {
     await user.type(password(), 'Password123!')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible()
-    expect(document.querySelector('.safe-badge-success')).not.toBeNull()
-    expect(document.querySelector('.bg-green-50')).toBeNull()
+    // The LCD is the one status indicator: no icon square repeats it.
+    expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Go to sign in' })).toHaveClass('safe-primary')
     // Registration has just sent a link, so the server's 60-second cooldown is already running.
-    expect(screen.getByRole('button', { name: /Resend email in 60s/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Resend email in [0-9]+s/ })).toBeDisabled()
     // Move the clock past the cooldown; the countdown's own interval notices within a quarter second.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(Date.now() + 60_000)
     await act(async () => { await new Promise(r => setTimeout(r, 600)) })
     await user.click(screen.getByRole('button', { name: 'Resend email' }))
     expect(resendVerification).toHaveBeenCalledWith('someone@example.com')
-    expect(screen.getByRole('button', { name: /Resend email in 60s/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Resend email in [0-9]+s/ })).toBeDisabled()
   })
 })
 

@@ -12,6 +12,14 @@
 - `/reset-password`, `/verify` and `OAuthCallback` still use the old plain pages; the reset page's label overlaps the field's focus border and its eye icon sits too high
 - confirmation states use bright `bg-green-50` squares, and the forgot-password door still says LOCKED after a link is sent
 
+## Owner polish pass (21 November 2026, after reviewing the Phase 2 screens)
+
+- Remove the recessed icon squares: the SafeDoor LCD is the single status indicator. `RecessedBadge` is deleted.
+- Every forward action uses the brushed-metal primary style (`.safe-primary`); only Back to sign in keeps the dark outline.
+- Unmet password rules show a muted hollow ring.
+- The Google callback's failure label is FAILED.
+- Every door page fits 1366 x 768 without a page scroll (the register password step excepted, as on `main`).
+
 ## Decisions (approved 21 November 2026)
 
 - **D1, revocation:** every request checks the token's `ver` claim against `users.token_version`. Every token-issuing path passes `user.token_version` explicitly: login, 2FA login, Google callback, refresh and the forgot-password reset token.

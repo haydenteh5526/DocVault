@@ -30,6 +30,17 @@ async function toPasswordStep(page: Page, email: string) {
   await expect(page.getByPlaceholder('Password')).toBeVisible();
 }
 
+test.describe('the vault door at 1366 x 768', () => {
+  test.use({ viewport: { width: 1366, height: 768 } });
+
+  test('a dead verification link, the longest door page, fits without a vertical scroll', async ({ page }) => {
+    await page.goto('/verify?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
 test.describe('the vault door at 390 px', () => {
   test.use({ viewport: MOBILE });
 

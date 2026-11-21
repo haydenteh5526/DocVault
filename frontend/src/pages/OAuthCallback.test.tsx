@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react'
 import { it, expect, afterEach, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 import { render, screen, cleanup } from '@testing-library/react'
@@ -37,8 +38,16 @@ it('shows a failed Google sign-in inside the safe door with a way back', () => {
   open('#error=oauth_denied')
   expect(screen.getByRole('heading', { name: 'Sign-in failed' })).toBeVisible()
   expect(screen.getByText('Google sign-in was cancelled.')).toBeVisible()
-  expect(screen.getByText('INVALID')).toBeVisible()
-  expect(document.querySelector('.safe-badge-danger')).not.toBeNull()
+  expect(screen.getByText('FAILED')).toBeVisible()
+  expect(screen.queryByText('INVALID')).not.toBeInTheDocument()
+  expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
   expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute('href', '/login')
   expect(loginMock).not.toHaveBeenCalled()
+})
+
+it('reads the fragment once, so a second StrictMode effect run cannot replace the real error', () => {
+  window.history.replaceState(null, '', '/auth/callback#error=oauth_denied')
+  render(<StrictMode><MemoryRouter><OAuthCallback /></MemoryRouter></StrictMode>)
+  expect(screen.getByText('Google sign-in was cancelled.')).toBeVisible()
+  expect(screen.queryByText('Something went wrong during sign-in.')).not.toBeInTheDocument()
 })

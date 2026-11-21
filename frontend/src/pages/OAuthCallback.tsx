@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { RecessedBadge } from '@/components/RecessedBadge'
 import { SafeDoor } from '@/components/SafeDoor'
 import { useAuth } from '@/lib/auth'
 
@@ -22,34 +20,31 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default function OAuthCallback() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [error, setError] = useState<string | null>(null)
+  // Read the fragment once, when the page is first created: it is cleared straight after, so a second
+  // effect run (React StrictMode in development) would otherwise find nothing and replace the real error.
+  // Fragment looks like: #access_token=...&refresh_token=...  OR  #error=...
+  const [fragment] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    return { accessToken: params.get('access_token'), refreshToken: params.get('refresh_token'), error: params.get('error') }
+  })
+  const error = fragment.accessToken ? null : fragment.error || 'unknown'
 
   useEffect(() => {
-    // Fragment looks like: #access_token=...&refresh_token=...  OR  #error=...
-    const params = new URLSearchParams(window.location.hash.slice(1))
-    const accessToken = params.get('access_token')
-    const refreshToken = params.get('refresh_token')
-    const err = params.get('error')
-
     // Clear the fragment so tokens don't linger in the address bar / history
     window.history.replaceState(null, '', window.location.pathname)
-
-    if (accessToken) {
-      login(accessToken, refreshToken)
+    if (fragment.accessToken) {
+      login(fragment.accessToken, fragment.refreshToken)
       navigate('/app', { replace: true })
-    } else {
-      setError(err || 'unknown')
     }
-  }, [login, navigate])
+  }, [fragment, login, navigate])
 
   return (
     <SafeDoor
       state={error ? 'error' : 'unlocking'}
-      status={error ? undefined : { label: 'SIGNING IN', led: 'verifying' }}
+      status={error ? { label: 'FAILED', led: 'invalid' } : { label: 'SIGNING IN', led: 'verifying' }}
     >
       {error ? (
         <div>
-          <RecessedBadge tone="danger"><AlertCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Sign-in failed</h1>
           <p className="text-sm text-muted-foreground mt-2">
             {ERROR_MESSAGES[error] || 'Something went wrong during sign-in.'}

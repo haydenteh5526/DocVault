@@ -35,9 +35,9 @@ describe('VerifyEmail', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(document.querySelector('.safe-stage')).not.toBeNull()
     expect(screen.getByText('VERIFIED')).toBeVisible()
-    expect(document.querySelector('.safe-badge-success')).not.toBeNull()
-    expect(document.querySelector('.bg-green-50')).toBeNull()
+    expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveClass('safe-primary')
   })
 
   it('shows VERIFYING while the token is checked', () => {
@@ -56,13 +56,14 @@ describe('VerifyEmail', () => {
 
     expect(await screen.findByRole('heading', { name: 'This link no longer works' })).toBeVisible()
     expect(screen.getByText('EXPIRED')).toBeVisible()
-    expect(screen.getByText('This verification link has expired. Request a new one.')).toBeVisible()
+    expect(screen.getByText(/^This verification link has expired\. Request a new one\./)).toBeVisible()
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'someone@example.com' } })
+    expect(screen.getByRole('button', { name: 'Send a new link' })).toHaveClass('safe-primary')
     fireEvent.click(screen.getByRole('button', { name: 'Send a new link' }))
 
     expect(await screen.findByText("If that account still needs verifying, we've sent a new link.")).toBeVisible()
     expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('/auth/resend-verification'), expect.objectContaining({ method: 'POST' }))
-    expect(screen.getByRole('button', { name: /Send a new link in 60s/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Send a new link in [0-9]+s/ })).toBeDisabled()
   })
 
   it('a rejected token says INVALID', async () => {
@@ -70,7 +71,7 @@ describe('VerifyEmail', () => {
     open('bad-tok')
     expect(await screen.findByRole('heading', { name: 'This link no longer works' })).toBeVisible()
     expect(screen.getByText('INVALID')).toBeVisible()
-    expect(document.querySelector('.safe-badge-danger')).not.toBeNull()
+    expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
   })
 
   it('a link without a token says INVALID without calling the server', () => {

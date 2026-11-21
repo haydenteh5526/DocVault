@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { resendVerification } from '@/lib/api'
 import { RESEND_COOLDOWN_S, useCooldown } from '@/lib/useCooldown'
@@ -15,9 +15,7 @@ export function ResendVerification({ email, label = 'Resend verification email',
   /** A link went out a moment ago (registration), so the server's cooldown is already running. */
   justSent?: boolean
 }) {
-  const [remaining, startCooldown] = useCooldown(RESEND_COOLDOWN_S)
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
-  useEffect(() => { if (justSent) startCooldown() }, [])
+  const [remaining, startCooldown] = useCooldown(RESEND_COOLDOWN_S, justSent)
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -38,7 +36,7 @@ export function ResendVerification({ email, label = 'Resend verification email',
   return (
     <div className="space-y-1.5 text-center">
       {primary ? (
-        <Button type="button" variant="outline" className="w-full h-10" onClick={resend} disabled={sending || remaining > 0 || !email}>
+        <Button type="button" className="safe-primary w-full h-11" onClick={resend} disabled={sending || remaining > 0 || !email}>
           {remaining > 0 ? `${label} in ${remaining}s` : label}
         </Button>
       ) : (

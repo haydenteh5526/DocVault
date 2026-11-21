@@ -61,6 +61,11 @@ it('turns the dial as the password is typed and lists the server rules', () => {
   for (const rule of ['8 to 128 characters', 'One uppercase letter', 'One lowercase letter', 'One number', 'One special character']) {
     expect(screen.getByText(rule)).toBeVisible()
   }
+  // Every rule has a marker in the same column: a tick when met, a hollow circle when not.
+  const marker = (rule: string) => screen.getByText(rule).closest('li')!.querySelector('[data-part="rule-marker"]')!
+  expect(marker('One lowercase letter')).toHaveAttribute('data-met', 'true')
+  expect(marker('One uppercase letter')).toHaveAttribute('data-met', 'false')
+  expect(marker('One uppercase letter')).toHaveClass('rule-unmet')
 })
 
 it('refuses a password that breaks the rules without calling the server', async () => {
@@ -83,7 +88,8 @@ it('shows UPDATING while waiting, then UPDATED with a Sign in button and no auto
   expect(screen.getByText('UPDATED')).toBeVisible()
   expect(document.querySelector('[data-part="status-led"]')).toHaveAttribute('data-led', 'unlocked')
   expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
-  expect(document.querySelector('.safe-badge-success')).not.toBeNull()
+  expect(screen.getByRole('link', { name: 'Sign in' })).toHaveClass('safe-primary')
+  expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
   await settle(5_000)
   expect(screen.getByRole('heading', { name: 'Password updated' })).toBeVisible()
 })
@@ -105,8 +111,9 @@ it('a used, expired or replaced link shows its own panel with a link to request 
   await submit('NewPass789!')
   expect(screen.getByRole('heading', { name: 'This reset link no longer works' })).toBeVisible()
   expect(screen.getByRole('link', { name: 'Request a new reset link' })).toHaveAttribute('href', '/forgot-password')
+  expect(screen.getByRole('link', { name: 'Request a new reset link' })).toHaveClass('safe-primary')
   expect(screen.queryByLabelText('New password')).not.toBeInTheDocument()
-  expect(document.querySelector('.safe-badge-danger')).not.toBeNull()
+  expect(document.querySelector('[data-part="recessed-badge"], .bg-green-50')).toBeNull()
 })
 
 it('a link without a token shows the same panel at once', () => {

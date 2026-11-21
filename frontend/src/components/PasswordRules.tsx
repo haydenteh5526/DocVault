@@ -27,7 +27,7 @@ export function PasswordRules({ password }: { password: string }) {
 function PasswordReq({ met, children }: { met: boolean; children: React.ReactNode }) {
   return (
     <li className={`flex items-center gap-1.5 transition-all duration-300 ${met ? 'text-success' : 'text-muted-foreground'}`}>
-      <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full transition-all duration-300 ${met ? 'bg-success scale-100' : 'bg-transparent scale-90 border border-border'}`}>
+      <span data-part="rule-marker" data-met={met} className={`inline-flex shrink-0 items-center justify-center w-3.5 h-3.5 rounded-full transition-colors duration-300 ${met ? 'bg-success' : 'rule-unmet'}`}>
         {met && <svg width="8" height="8" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
       </span>
       {children}
