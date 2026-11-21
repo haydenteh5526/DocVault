@@ -4,7 +4,7 @@ export type ThemePreference = 'system' | 'light' | 'dark'
 
 function preference(): ThemePreference {
   const value = localStorage.getItem('theme')
-  return value === 'dark' || value === 'light' ? value : 'system'
+  return value === 'system' || value === 'light' ? value : 'dark'
 }
 function resolved() {
   const mode = preference()
@@ -18,7 +18,7 @@ function subscribe(update: () => void) {
   return () => {media.removeEventListener('change',update);window.removeEventListener('storage',update);window.removeEventListener('theme-change',update)}
 }
 
-/** The signed-in app: /app and anything under it. Every other page is public and always light. */
+/** The signed-in app: /app and anything under it. The public landing page has its own dark surface. */
 export function isAppPath(pathname: string): boolean {
   // React Router matches paths without regard to case, so /APP/documents is the app too.
   const path = pathname.toLowerCase()
@@ -33,8 +33,7 @@ export function initialiseTheme() {
   return () => { window.removeEventListener('route-change', apply); unsubscribe() }
 }
 function setPreference(value: ThemePreference) {
-  if (value === 'system') localStorage.removeItem('theme')
-  else localStorage.setItem('theme',value)
+  localStorage.setItem('theme',value)
   window.dispatchEvent(new Event('theme-change'))
 }
 export function useTheme() {
