@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,8 +8,15 @@ import { Wordmark } from '@/components/Wordmark'
 import './landing.css'
 import { PasswordStrength } from '@/components/PasswordStrength'
 import { PinInput } from '@/components/PinInput'
+import { VaultDoor, type VaultState } from '@/components/VaultDoor'
 import { useAuth } from '@/lib/auth'
+import { useReducedMotion } from '@/lib/useReducedMotion'
 import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
+
+/** How long the open door shows before the page changes. Any key or click skips it. */
+const DOOR_OPEN_MS = 450
+/** How long the shake shows before the door settles again. */
+const DOOR_ERROR_MS = 400
 
 export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' }) {
   const isRegister = mode === 'register'
@@ -25,8 +32,62 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   // Google sign-in is offered only when the server is configured for it.
   // While loading, or if the call fails, no Google button is drawn.
   const [googleEnabled, setGoogleEnabled] = useState(false)
+  const [door, setDoor] = useState<VaultState>('closed')
+  const [announcement, setAnnouncement] = useState('')
   const { login } = useAuth()
   const navigate = useNavigate()
+  const reducedMotion = useReducedMotion()
+  const cancelWait = useRef<(() => void) | null>(null)
+
+  // Leaving the page cancels any door timer or skip listener.
+  useEffect(() => () => cancelWait.current?.(), [])
+
+  // Run the action once the door has been open for DOOR_OPEN_MS, at once on a key or click,
+  // and at once under reduced motion.
+  function afterDoorOpens(action: () => void) {
+    if (reducedMotion) { action(); return }
+    let done = false
+    const run = () => {
+      if (done) return
+      cancelWait.current?.()
+      action()
+    }
+    const timer = window.setTimeout(run, DOOR_OPEN_MS)
+    window.addEventListener('keydown', run)
+    window.addEventListener('pointerdown', run)
+    cancelWait.current = () => {
+      done = true
+      window.clearTimeout(timer)
+      window.removeEventListener('keydown', run)
+      window.removeEventListener('pointerdown', run)
+      cancelWait.current = null
+    }
+  }
+
+  // Shake after the server says no, then settle on `rest`.
+  function shake(rest: VaultState) {
+    setDoor('error')
+    if (reducedMotion) { setDoor(rest); return }
+    const timer = window.setTimeout(() => { cancelWait.current = null; setDoor(rest) }, DOOR_ERROR_MS)
+    cancelWait.current = () => { window.clearTimeout(timer); cancelWait.current = null }
+  }
+
+  // The server accepted the sign-in: open the door, then store the session and go to the app.
+  // The session is stored when the door finishes or is skipped, because App redirects /login
+  // to /app as soon as a session exists.
+  function enterApp(accessToken: string, refreshToken?: string | null) {
+    setDoor('open')
+    setAnnouncement('Signed in')
+    afterDoorOpens(() => {
+      login(accessToken, refreshToken)
+      navigate('/app')
+    })
+  }
+
+  function changePassword(value: string) {
+    setPassword(value)
+    if (door === 'closed' || door === 'entering') setDoor(value ? 'entering' : 'closed')
+  }
 
   useEffect(() => {
     let active = true
@@ -42,6 +103,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     setError('')
     setPassword('')
     setName('')
+    setDoor('closed')
   }, [mode])
 
   async function handleEmailContinue(e: React.FormEvent) {
@@ -55,23 +117,30 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     e.preventDefault()
     setError('')
     setLoading(true)
+    // The request starts now; the door only starts turning and learns nothing until the server answers.
+    setDoor('unlocking')
+    // While the door is opening the button stays disabled, so a second click cannot send a second request.
+    let opening = false
     try {
       if (isRegister) {
         await registerUser(email, password, name || undefined)
-        setStep('verify-sent')
+        opening = true
+        setDoor('open')
+        afterDoorOpens(() => setStep('verify-sent'))
       } else {
         const data = await loginUser(email, password, rememberMe)
         if (data.requires_2fa) {
           setStep('2fa')
         } else if (data.access_token) {
-          login(data.access_token, data.refresh_token)
-          navigate('/app')
+          opening = true
+          enterApp(data.access_token, data.refresh_token)
         }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
+      shake('closed')
     } finally {
-      setLoading(false)
+      if (!opening) setLoading(false)
     }
   }
 
@@ -92,6 +161,10 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         </Link>
 
         <div className="w-full max-w-sm mx-auto">
+          <p role="status" className="sr-only">{announcement}</p>
+          {step !== 'verify-sent' && (
+            <VaultDoor state={door} progress={password.length} badge={step === '2fa' ? 'second-ring' : undefined} />
+          )}
 
           {/* Verification sent screen */}
           {step === 'verify-sent' ? (
@@ -123,13 +196,15 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                 e.preventDefault()
                 setError('')
                 setLoading(true)
+                let opening = false
                 try {
                   const data = await verify2FA(email, password, totpCode, rememberMe)
-                  login(data.access_token, data.refresh_token)
-                  navigate('/app')
+                  opening = true
+                  enterApp(data.access_token, data.refresh_token)
                 } catch (err) {
                   setError(err instanceof Error ? err.message : 'Invalid code')
-                } finally { setLoading(false) }
+                  shake('unlocking')
+                } finally { if (!opening) setLoading(false) }
               }} className="mt-6 space-y-4">
                 <PinInput value={totpCode} onChange={setTotpCode} autoFocus />
                 {error && <p className="text-sm text-destructive">{error}</p>}
@@ -187,7 +262,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   <div>
                     <label htmlFor="auth-password" className="mb-1 block text-sm font-medium">Password</label>
                     <div className="relative">
-                      <Input id="auth-password" autoComplete={isRegister ? "new-password" : "current-password"} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
+                      <Input id="auth-password" autoComplete={isRegister ? "new-password" : "current-password"} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => changePassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>

@@ -1,4 +1,5 @@
 import { Wordmark } from '@/components/Wordmark'
+import { VaultDoor } from '@/components/VaultDoor'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react'
@@ -34,6 +35,7 @@ export default function ForgotPassword() {
       </Link>
 
       <div className="w-full max-w-sm mx-auto">
+        <VaultDoor state="closed" badge="key" />
         <div className="flex items-center gap-2 mb-8">
           <Wordmark />
         </div>
