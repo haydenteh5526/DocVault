@@ -120,3 +120,23 @@ describe('a reminder proposal made on Ask (L-1)', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
   })
 })
+
+describe('the Ask composer focus border', () => {
+  it('draws focus once, on the composer border, not as an outline plus a ring', async () => {
+    vi.mocked(getConversation).mockImplementation(async id => conversation(id))
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/app/ask']}>
+          <Routes>
+            <Route path="/app/ask" element={<AskAI />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const box = await screen.findByPlaceholderText(/Ask a question/)
+    expect(box).toHaveAttribute('data-focus-ring', 'container')
+    const wrapper = box.parentElement as HTMLElement
+    expect(wrapper).toHaveClass('focus-within:border-muted-foreground')
+    expect(wrapper.className).not.toContain('ring-2')
+  })
+})

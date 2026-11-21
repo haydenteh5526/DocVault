@@ -287,7 +287,7 @@ export default function AskAI() {
       <div className="shrink-0 px-4 sm:px-8 py-4">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
           <div className="relative group">
-            <div className="relative flex items-end gap-2 bg-card border border-border rounded-lg p-2 group-focus-within:ring-2 group-focus-within:ring-ring transition-shadow duration-150">
+            <div className="relative flex items-end gap-2 bg-card border border-border rounded-lg p-2 focus-within:border-muted-foreground transition-colors duration-150">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -296,6 +296,7 @@ export default function AskAI() {
                 placeholder="Ask a question... (Shift+Enter for new line)"
                 disabled={loading}
                 rows={1}
+                data-focus-ring="container"
                 className="flex-1 resize-none bg-transparent px-3 py-2 text-sm focus:outline-none max-h-40 leading-relaxed placeholder:text-muted-foreground/40"
               />
               <div className="relative group/btn shrink-0">

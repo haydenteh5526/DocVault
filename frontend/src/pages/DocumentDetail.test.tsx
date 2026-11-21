@@ -335,3 +335,11 @@ describe('DocumentDetail original beside the bill', () => {
     expect(original()).toBeNull()
   })
 })
+
+describe('DocumentDetail page head', () => {
+  it('names the icon-only delete button for a screen reader', async () => {
+    vi.mocked(getDocument).mockResolvedValue(bill('x', '123.47') as Document)
+    renderPage('/app/documents/x')
+    expect(await screen.findByRole('button', { name: 'Delete document' })).toBeInTheDocument()
+  })
+})

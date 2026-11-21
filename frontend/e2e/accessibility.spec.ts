@@ -98,3 +98,50 @@ test.describe('with a dark system theme', () => {
     expect(await isDark()).toBe(true);
   });
 });
+
+for (const scheme of ['light', 'dark'] as const) {
+  test.describe(`with a ${scheme} system theme`, () => {
+    test.use({ colorScheme: scheme });
+
+    test('the Ask composer shows one soft focus border', async ({ page }) => {
+      const email = process.env.E2E_EMAIL;
+      const password = process.env.E2E_PASSWORD;
+      test.skip(!email || !password, 'CI seed credentials are required for this integration test');
+      await page.addInitScript(() => localStorage.setItem('docvault-onboarding-done', '1'));
+
+      await page.goto('/login');
+      await page.getByPlaceholder('name@example.com').fill(email!);
+      await page.getByRole('button', { name: /Continue with Email/i }).click();
+      await page.getByPlaceholder('Password').fill(password!);
+      await submitSignIn(page);
+      await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10_000 });
+      await page.goto('/app/ask');
+
+      const box = page.getByPlaceholder(/Ask a question/);
+      const wrapper = box.locator('xpath=..');
+      await expect(box).toBeVisible();
+      await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
+      const unfocusedBorder = await wrapper.evaluate(element => getComputedStyle(element).borderTopColor);
+
+      await box.focus();
+      await expect(box).toBeFocused();
+      expect(await box.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('none');
+      const focused = await wrapper.evaluate(element => {
+        const style = getComputedStyle(element);
+        return { border: style.borderTopColor, shadow: style.boxShadow };
+      });
+      expect(focused.border).not.toBe(unfocusedBorder);
+      expect(focused.shadow).toBe('none');
+
+      await page.keyboard.type('hello');
+      await page.keyboard.press('Tab');
+      const send = page.getByRole('button', { name: 'Send message' });
+      await expect(send).toBeFocused();
+      const outline = await send.evaluate(element => {
+        const style = getComputedStyle(element);
+        return { style: style.outlineStyle, width: style.outlineWidth };
+      });
+      expect(outline).toEqual({ style: 'solid', width: '2px' });
+    });
+  });
+}

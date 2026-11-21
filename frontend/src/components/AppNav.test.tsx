@@ -67,7 +67,7 @@ afterEach(() => {
 })
 
 describe('AppShell navigation', () => {
-  it('the sidebar links to search, warranties and settings', async () => {
+  it('the sidebar links to search and warranties, and Settings opens from the account menu', async () => {
     const user = userEvent.setup()
     renderShell()
     await screen.findByText('Documents page')
@@ -79,6 +79,20 @@ describe('AppShell navigation', () => {
     await user.click(screen.getByRole('button', { name: 'Warranties' }))
     expect(await screen.findByText('Warranties page')).toBeInTheDocument()
     expect(window.location.pathname).toBe('/app/warranties')
+
+    await user.click(screen.getByRole('button', { name: /Account/ }))
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+  })
+
+  it('on desktop, lists Settings in the account menu and opens the dialog from it', async () => {
+    const user = userEvent.setup()
+    renderShell()
+    await screen.findByText('Documents page')
+    expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Account/ }))
+    for (const name of ['Profile', 'Settings', 'Theme', 'Log out']) expect(screen.getByRole('button', { name })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
     expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
@@ -218,11 +232,12 @@ describe('a rail without chats (plan 0R-4, R13)', () => {
     expect(screen.queryByRole('button', { name: 'Search chats' })).not.toBeInTheDocument()
   })
 
-  it('keeps Search, Warranties and Settings in a plain group on the desktop rail', async () => {
+  it('keeps Search and Warranties in a plain group on the desktop rail', async () => {
     const { container } = renderShell()
     await screen.findByText('Documents page')
     expect(container.querySelector('aside details')).toBeNull()
-    for (const name of ['Search', 'Warranties', 'Settings']) expect(screen.getByRole('button', { name })).toBeVisible()
+    for (const name of ['Search', 'Warranties']) expect(screen.getByRole('button', { name })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
   })
 
   it('offers Search and Warranties, but not Search chats, from the phone account menu', async () => {
