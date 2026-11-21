@@ -5,7 +5,7 @@ import { useReducedMotion } from '@/lib/useReducedMotion'
 
 /**
  * Three mirrored pairs, laid out as on t3.codes: x from the hero's centre, y from its top, s the tile size. The lower
- * pair sits at 350 px (t3: 440 px) so it stays beside the buttons of this shorter hero.
+ * pair sits at 370 px (t3: 440 px) so it stays beside the buttons of this shorter hero.
  * depth scales how far a tile follows the cursor; fx/fy is where it flies in from; d its entrance delay.
  */
 type Tile = { name: string; icon?: LucideIcon; color?: string; x: string; y: string; s: number; rot: number; depth: number; d: number; fx: number; fy: number }
@@ -14,8 +14,8 @@ const tiles: Tile[] = [
   { name: 'shopping', icon: ShoppingBag, color: '#F472B6', x: 'min(300px, 19vw)', y: '20px', s: 64, rot: -5, depth: 0.6, d: 0.58, fx: 40, fy: -80 },
   { name: 'receipt', icon: Receipt, color: '#8FD19B', x: 'max(-560px, -38vw)', y: '128px', s: 96, rot: -8, depth: 1.2, d: 0.38, fx: -160, fy: -40 },
   { name: 'manual', icon: BookOpen, color: '#F0A55B', x: 'min(560px, 38vw)', y: '128px', s: 96, rot: 7, depth: 1.2, d: 0.46, fx: 160, fy: -40 },
-  { name: 'file', icon: FileText, color: '#7AA7FF', x: 'max(-440px, -30vw)', y: '350px', s: 80, rot: 4, depth: 0.9, d: 0.54, fx: -120, fy: 80 },
-  { name: 'warranty', icon: ShieldCheck, color: '#5EEAD4', x: 'min(440px, 30vw)', y: '350px', s: 80, rot: -5, depth: 0.9, d: 0.7, fx: 120, fy: 80 },
+  { name: 'file', icon: FileText, color: '#7AA7FF', x: 'max(-440px, -30vw)', y: '370px', s: 80, rot: 4, depth: 0.9, d: 0.54, fx: -120, fy: 80 },
+  { name: 'warranty', icon: ShieldCheck, color: '#5EEAD4', x: 'min(440px, 30vw)', y: '370px', s: 80, rot: -5, depth: 0.9, d: 0.7, fx: 120, fy: 80 },
 ]
 
 /** Furthest the tiles shift, in pixels, when the cursor reaches an edge of the hero. */

@@ -96,8 +96,8 @@ it('spreads the tiles in three mirrored pairs, as on t3.codes', () => {
     ['min(300px, 19vw)', '20px', '64px'],
     ['max(-560px, -38vw)', '128px', '96px'],
     ['min(560px, 38vw)', '128px', '96px'],
-    ['max(-440px, -30vw)', '350px', '80px'],
-    ['min(440px, 30vw)', '350px', '80px'],
+    ['max(-440px, -30vw)', '370px', '80px'],
+    ['min(440px, 30vw)', '370px', '80px'],
   ])
 })
 

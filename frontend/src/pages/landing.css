@@ -108,11 +108,11 @@
 }
 .landing-hero h1 {
   font-weight: 600;
-  font-size: clamp(2.6rem, 6.5vw, 5rem);
+  font-size: clamp(2.6rem, 6.5vw, 4.75rem);
   letter-spacing: -0.03em;
   line-height: 1.04;
   max-width: 15ch;
-  margin: 0 auto 20px;
+  margin: 0 auto 22px;
   text-wrap: balance;
 }
 .hero-lead {
@@ -409,6 +409,10 @@
 /* Sections */
 .docbot-site main > section {
   padding-block: clamp(48px, 7vw, 96px);
+}
+/* The headline starts 120 px below the header on desktop, as on t3.codes (72 px padding + 48 px margin). */
+.docbot-site main > .landing-hero {
+  padding-top: clamp(56px, 8.8vw, 120px);
 }
 .docbot-site h2 {
   font-weight: 600;
