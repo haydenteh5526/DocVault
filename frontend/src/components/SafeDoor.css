@@ -142,7 +142,7 @@
 .safe-screw-tl { top: 10px; left: 10px; } .safe-screw-tr { top: 10px; right: 10px; }
 .safe-screw-bl { bottom: 10px; left: 10px; } .safe-screw-br { bottom: 10px; right: 10px; }
 
-/* LCD status bar: recessed dark glass. */
+/* LCD status bar: a recessed dark display window. */
 .safe-lcd {
   position: relative; display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 8px 18px; padding: 9px 14px; border-radius: 6px; overflow: hidden;
   background: linear-gradient(180deg, #0C1110, #060908); border: 1px solid #000;
