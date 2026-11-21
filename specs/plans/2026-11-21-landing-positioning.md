@@ -1,6 +1,6 @@
 # Landing Page Positioning: Introduce DocVault as a Personal AI Document Assistant
 
-**Status:** proposed by the Architect on 21 November 2026. Waiting for the owner's approval. Nothing in it is implemented.
+**Status:** proposed by the Architect on 21 November 2026. Approved by the owner the same day with D1–D5 as recommended. Implemented on `feature/landing-positioning`, which is stacked on `feature/landing-hover-parallax` (t3 header hover, tile layout and load-in, Inter at 600).
 
 **Issue:** #35. The PR says `Part of #35`.
 
