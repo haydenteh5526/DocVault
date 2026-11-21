@@ -10,7 +10,7 @@ import { submitSignIn } from './signInSubmit';
 //
 //   E2E_SCREENSHOTS=1 npx playwright test vault-door
 //
-// into evaluation/docbot-redesign/vault/. A recording run stretches the 400 ms and 600 ms waits so the
+// into evaluation/docbot-redesign/vault/. A recording run stretches the 400 ms and 700 ms waits so the
 // error and open states stay on screen long enough to photograph; nothing else about the page changes.
 
 const OUT_DIR = path.resolve(process.cwd(), '..', 'evaluation', 'docbot-redesign', 'vault');
@@ -127,7 +127,7 @@ test.describe('recording the vault door', () => {
       await page.addInitScript(() => {
         const original = window.setTimeout.bind(window);
         window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) =>
-          original(fn, ms === 600 || ms === 400 ? 30_000 : ms, ...args)) as typeof window.setTimeout;
+          original(fn, ms === 700 || ms === 400 ? 30_000 : ms, ...args)) as typeof window.setTimeout;
       });
       const shot = (state: string) => page.screenshot({ path: path.join(OUT_DIR, `vault-${state}-${size.name}.png`), animations: 'disabled' });
 
@@ -152,7 +152,7 @@ test.describe('recording the vault door', () => {
       await submitSignIn(page);
       await expect(page.locator('.vault-door')).toHaveClass(/vault-open/);
       // About 300 ms in: the bolts are in and the door is part-way round its left hinge.
-      await page.waitForTimeout(280);
+      await page.waitForTimeout(430);
       await page.screenshot({ path: path.join(OUT_DIR, `vault-swing-${size.name}.png`), animations: 'allow' });
       await page.waitForTimeout(500);
       await shot('open');

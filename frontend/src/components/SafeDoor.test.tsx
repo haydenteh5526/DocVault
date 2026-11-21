@@ -63,6 +63,32 @@ describe('SafeDoor', () => {
     expect(container.querySelectorAll('[data-part="bolt"]')).toHaveLength(3)
   })
 
+  it('stands the door in a steel frame: three sockets in the frame, rivets on the slab, hinges outside the slab', () => {
+    mockMotion(false)
+    const { container } = renderDoor()
+    const frame = container.querySelector('.safe-frame') as HTMLElement
+    const door = container.querySelector('.safe-door') as HTMLElement
+    expect(frame).toHaveAttribute('aria-hidden', 'true')
+    expect(frame.querySelectorAll('[data-part="socket"]')).toHaveLength(3)
+    expect(door.querySelectorAll('[data-part="rivet"]')).toHaveLength(4)
+    expect(door.querySelectorAll('[data-part="bolt"]')).toHaveLength(3)
+    // The hinges bridge the gap between frame and slab, so they do not swing with the slab.
+    container.querySelectorAll('[data-part="hinge"]').forEach(hinge => expect(door).not.toContainElement(hinge as HTMLElement))
+  })
+
+  it('bolts the lock faceplate on with four screws, an LCD status bar, the dial and a handle', () => {
+    mockMotion(false)
+    const { container } = renderDoor({ state: 'unlocking' })
+    const plate = container.querySelector('.safe-console') as HTMLElement
+    expect(plate.querySelectorAll('[data-part="screw"]')).toHaveLength(4)
+    const lcd = plate.querySelector('[data-part="lcd"]') as HTMLElement
+    expect(lcd).toHaveTextContent('VERIFYING')
+    expect(lcd.querySelector('[data-part="status-led"]')).not.toBeNull()
+    const handle = plate.querySelector('[data-part="handle"]') as HTMLElement
+    expect(handle).toHaveAttribute('aria-hidden', 'true')
+    expect(plate.querySelector('.vault-door')).not.toBeNull()
+  })
+
   it('renders the form inside the console, with the dial ring above it', () => {
     mockMotion(false)
     const { container } = renderDoor({ progress: 3, badge: 'key' })

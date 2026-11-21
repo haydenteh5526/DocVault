@@ -1,102 +1,229 @@
-/* The safe door. Timing: bolts retract for the first 150 ms of the open phase, then the door swings for 450 ms. */
+/*
+ * A heavy safe: a steel frame (the jamb) with the door slab set inside it.
+ * Unlock sequence (the 700 ms open phase): the handle turns 0–150 ms, the bolts pull out of the frame
+ * 100–250 ms, the slab swings round its hinges 250–700 ms and fades out over its last 120 ms.
+ */
 .safe-stage {
-  position: relative; min-height: 100vh; min-height: 100dvh; overflow-x: hidden;
-  perspective: 1400px; perspective-origin: 0% 50%; background: #0A0A0B;
+  --f: 30px;             /* frame thickness */
+  --bolt-h: 24px;
+  position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden;
+  perspective: 1600px; perspective-origin: 0% 50%; background: #050506;
 }
 
-/* Behind the door: a warm amber light and, when there is one, the interior content. */
+/* ---------- The frame (jamb): thick brushed steel, lit from above, with a bevelled inner lip. ---------- */
+.safe-frame {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, .25)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .02) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #26262A, #18181B);
+  box-shadow: inset 0 0 0 1px #3A3A40, inset 0 1px 0 1px rgba(255, 255, 255, .06);
+}
+/* The opening in the frame: a dark, deep recess the slab sits in. */
+.safe-frame::after {
+  content: ''; position: absolute; inset: calc(var(--f) - 4px); border-radius: 5px; background: #050506;
+  box-shadow: 0 0 0 1px #000, 0 0 0 2px #34343A, inset 0 6px 18px rgba(0, 0, 0, .95);
+}
+/* Bolt sockets: dark holes in the right of the frame, where the bolts seat. */
+.safe-socket {
+  position: absolute; z-index: 1; right: 8px; width: calc(var(--f) - 6px); height: calc(var(--bolt-h) + 6px);
+  border-radius: 4px; background: radial-gradient(ellipse at 30% 50%, #000 40%, #0E0E10);
+  box-shadow: inset 0 2px 5px #000, 0 1px 0 rgba(255, 255, 255, .07);
+}
+.safe-socket-1 { top: calc(var(--f) + (100% - 2 * var(--f)) * .24 - 3px); }
+.safe-socket-2 { top: calc(50% - var(--bolt-h) / 2 - 3px); }
+.safe-socket-3 { bottom: calc(var(--f) + (100% - 2 * var(--f)) * .24 - 3px); }
+
+/* ---------- Behind the slab: the lit vault interior. ---------- */
 .safe-glow {
-  position: absolute; inset: 0; opacity: 0; pointer-events: none;
-  background: radial-gradient(ellipse 70% 60% at 45% 50%, #FFE98A 0%, #FFC23D 28%, rgba(255, 194, 61, .25) 55%, transparent 80%);
-  transition: opacity .45s ease-out .15s;
+  position: absolute; inset: var(--f); z-index: 0; opacity: 0; pointer-events: none; border-radius: 4px;
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 45%, #FFE98A 0%, #FFC23D 30%, rgba(255, 194, 61, .28) 58%, transparent 82%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .25) 0 2px, transparent 2px 120px),
+    #120D04;
+  transition: opacity .45s ease-out .25s;
 }
-.safe-open .safe-glow { opacity: .9; }
+.safe-open .safe-glow { opacity: .95; }
 .safe-interior {
-  position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
-  visibility: hidden; opacity: 0; color: #0A0A0B; transition: opacity .45s ease-out .15s, visibility 0s linear .6s;
+  position: absolute; inset: var(--f); z-index: 1; display: grid; place-items: center; padding: 24px;
+  visibility: hidden; opacity: 0; transition: opacity .45s ease-out .25s, visibility 0s linear .7s;
 }
-.safe-open .safe-interior { visibility: visible; opacity: 1; transition-delay: .15s, 0s; }
-.safe-interior > * { max-width: 24rem; width: 100%; background: #0B0B0C; color: #F4F4F5; border: 1px solid #3A3A40; border-radius: 12px; padding: 32px 24px; }
+.safe-open .safe-interior { visibility: visible; opacity: 1; transition-delay: .25s, 0s; }
+.safe-interior > * {
+  max-width: 24rem; width: 100%; padding: 32px 24px; border-radius: 12px;
+  background: linear-gradient(180deg, #232327, #18181B); color: #F4F4F5; border: 1px solid #4A4A50;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 18px 40px rgba(0, 0, 0, .6);
+}
 
-/* The door face: layered matte metal with a faint brushed grain. */
+/* ---------- Barrel hinges: they bridge the gap between frame and slab, so they stay put. ---------- */
+.safe-hinge {
+  position: absolute; z-index: 3; left: calc(var(--f) - 13px); width: 26px; height: 104px; border-radius: 7px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 33px, rgba(0, 0, 0, .75) 33px 35px),
+    linear-gradient(90deg, #141416 0%, #4A4A50 22%, #C4C4CC 42%, #6A6A72 60%, #1E1E21 100%);
+  box-shadow: 0 0 0 1px #000, 3px 4px 10px rgba(0, 0, 0, .8);
+}
+.safe-hinge::before, .safe-hinge::after {
+  content: ''; position: absolute; left: 50%; width: 10px; height: 6px; margin-left: -5px; border-radius: 3px; background: #3A3A40;
+}
+.safe-hinge::before { top: -5px; }
+.safe-hinge::after { bottom: -5px; }
+.safe-hinge-top { top: 15%; }
+.safe-hinge-bottom { bottom: 15%; }
+
+/* ---------- The door slab. ---------- */
 .safe-door {
-  position: relative; display: flex; flex-direction: column; min-height: inherit;
+  position: relative; z-index: 2; display: flex; flex-direction: column;
+  margin: var(--f); min-height: calc(100vh - 2 * var(--f)); min-height: calc(100dvh - 2 * var(--f)); border-radius: 4px;
   transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 3px),
-    linear-gradient(165deg, #1A1A1A 0%, #151515 55%, #121212 100%);
-  transition: transform .45s cubic-bezier(.6, 0, .4, 1) .15s, opacity .12s linear .48s;
+    radial-gradient(ellipse 85% 40% at 50% -6%, rgba(255, 255, 255, .11), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .022) 0 1px, transparent 1px 3px),
+    linear-gradient(175deg, #1F1F22 0%, #17171A 50%, #101012 100%);
+  /* The deep seam between slab and frame, then the shadow the slab casts into the recess. */
+  box-shadow: 0 0 0 3px #000, 0 0 0 4px #2A2A2F, 0 0 36px 6px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .08);
+  transition: transform .45s cubic-bezier(.55, 0, .35, 1) .25s, opacity .12s linear .58s;
 }
-/* The machined seam: a 1 px line with a lighter edge above it. */
+/* The bevelled inner panel, recessed into the slab. */
 .safe-door::before {
-  content: ''; position: absolute; inset: 12px; border: 1px solid #2A2A2E; border-radius: 6px; pointer-events: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 0 rgba(255, 255, 255, .05);
+  content: ''; position: absolute; inset: 34px; border-radius: 6px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .05));
+  box-shadow: inset 0 3px 4px rgba(0, 0, 0, .75), inset 0 -1px 0 rgba(255, 255, 255, .05), 0 1px 0 rgba(255, 255, 255, .07), 0 -1px 0 rgba(0, 0, 0, .7);
 }
-.safe-open .safe-door { transform: rotateY(-88deg); opacity: 0; }
+.safe-open .safe-door { transform: rotateY(-85deg); opacity: 0; }
 .safe-settled .safe-door { visibility: hidden; transition: none; }
 
-.safe-hinge {
-  position: absolute; left: 0; width: 18px; height: 72px; border-radius: 0 4px 4px 0;
-  background: linear-gradient(90deg, #26262A, #4A4A50 50%, #2A2A2E); box-shadow: inset -1px 0 0 rgba(255, 255, 255, .12), 2px 0 6px rgba(0, 0, 0, .6);
+/* Machined rivets at the slab's corners. */
+.safe-rivet {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #D4D4DA, #6A6A72 45%, #1A1A1D 78%); box-shadow: 0 1px 1px #000;
 }
-.safe-hinge-top { top: 18%; }
-.safe-hinge-bottom { bottom: 18%; }
+.safe-rivet-tl { top: 14px; left: 14px; } .safe-rivet-tr { top: 14px; right: 14px; }
+.safe-rivet-bl { bottom: 14px; left: 14px; } .safe-rivet-br { bottom: 14px; right: 14px; }
 
+/* Bolts: thick brushed-steel rods that run from a housing on the slab into the frame's sockets. */
+.safe-bolt-housing {
+  position: absolute; right: 4px; width: 46px; height: calc(var(--bolt-h) + 14px); border-radius: 5px;
+  background: linear-gradient(180deg, #2A2A2E, #141416); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 0 0 1px #000, 0 3px 6px rgba(0, 0, 0, .6);
+}
 .safe-bolt {
-  position: absolute; right: -2px; width: 34px; height: 20px; border-radius: 4px 0 0 4px;
-  background: linear-gradient(180deg, #5A5A62, #3A3A40 50%, #4A4A50); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), -2px 0 6px rgba(0, 0, 0, .6);
-  transition: transform .15s ease-in;
+  position: absolute; right: calc(-1 * var(--f) + 10px); width: calc(var(--f) + 34px); height: var(--bolt-h); border-radius: calc(var(--bolt-h) / 2);
+  background: linear-gradient(180deg, #4A4A50 0%, #D9D9DF 30%, #8C8C93 55%, #3A3A40 85%, #2A2A2E 100%);
+  box-shadow: 0 0 0 1px #000, 0 3px 6px rgba(0, 0, 0, .7);
+  transition: transform .15s cubic-bezier(.5, 0, .7, 1) .1s;
 }
-.safe-bolt-1 { top: 24%; }
-.safe-bolt-2 { top: calc(50% - 10px); }
-.safe-bolt-3 { bottom: 24%; }
-.safe-open .safe-bolt { transform: translateX(-16px); }
+.safe-bolt-housing-1 { top: calc(24% - 7px); } .safe-bolt-1 { top: 24%; }
+.safe-bolt-housing-2 { top: calc(50% - var(--bolt-h) / 2 - 7px); } .safe-bolt-2 { top: calc(50% - var(--bolt-h) / 2); }
+.safe-bolt-housing-3 { bottom: calc(24% - 7px); } .safe-bolt-3 { bottom: 24%; }
+.safe-open .safe-bolt { transform: translateX(calc(-1 * var(--f) - 12px)); }
 
-.safe-bezel { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 28px 44px 0; }
-.safe-brand { display: inline-flex; border-radius: 6px; }
-.safe-bezel-link a { font-size: .875rem; letter-spacing: .04em; color: #C9C9CF; text-decoration: none; display: inline-flex; align-items: center; gap: .375rem; }
+/* ---------- Bezel: the brand and the page link, engraved into the top of the slab. ---------- */
+.safe-bezel { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 52px 64px 0; }
+.safe-brand { display: inline-flex; border-radius: 6px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .9)); }
+.safe-bezel-link a { font-size: .875rem; letter-spacing: .06em; color: #D4D4DA; text-decoration: none; display: inline-flex; align-items: center; gap: .375rem; text-shadow: 0 1px 0 #000; }
 .safe-bezel-link a:hover { color: #FFFFFF; text-decoration: underline; text-underline-offset: 4px; }
+.safe-main { position: relative; flex: 1; display: grid; place-items: center; padding: 28px 96px 64px; outline: none; }
 
-.safe-main { position: relative; flex: 1; display: grid; place-items: center; padding: 24px 56px 48px; outline: none; }
-
-/* The lock console: one recessed panel, flush with the door. */
+/* ---------- The lock faceplate: machined metal, bolted to the slab. ---------- */
 .safe-console {
-  width: 100%; max-width: 25rem; padding: 24px 28px 28px; border-radius: 14px;
-  background: #0C0C0D; border: 1px solid #2E2E33;
-  box-shadow: inset 0 3px 12px rgba(0, 0, 0, .85), inset 0 0 0 1px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .08);
+  position: relative; width: 100%; max-width: 26rem; padding: 26px 30px 30px; border-radius: 16px;
+  background:
+    radial-gradient(ellipse 90% 35% at 50% 0%, rgba(255, 255, 255, .09), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .02) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #2A2A2E, #1B1B1E);
+  border: 1px solid #4A4A50;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .5), 0 0 0 4px #121214, 0 0 0 5px #000, 0 18px 40px rgba(0, 0, 0, .75);
 }
-.safe-status { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-bottom: 1rem; }
-.safe-status-label { font-size: .75rem; font-weight: 700; letter-spacing: .22em; color: #E4E4E7; }
+.safe-screw {
+  position: absolute; width: 11px; height: 11px; border-radius: 50%;
+  background: linear-gradient(45deg, transparent 44%, #1A1A1D 44% 56%, transparent 56%), radial-gradient(circle at 35% 30%, #C9C9CF, #5A5A62 55%, #26262A);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 1px rgba(0, 0, 0, .5);
+}
+.safe-screw-tl { top: 10px; left: 10px; } .safe-screw-tr { top: 10px; right: 10px; }
+.safe-screw-bl { bottom: 10px; left: 10px; } .safe-screw-br { bottom: 10px; right: 10px; }
 
+/* LCD status bar: recessed dark glass. */
+.safe-lcd {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 8px 18px; padding: 9px 14px; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(180deg, #0C1110, #060908); border: 1px solid #000;
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, .95), 0 1px 0 rgba(255, 255, 255, .1);
+}
+.safe-lcd::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 255, 255, .07), transparent 55%); pointer-events: none; }
+.safe-status-label { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8125rem; font-weight: 700; letter-spacing: .32em; color: #D4D4DA; }
+.safe-unlocking .safe-status-label { color: #FFC23D; }
+.safe-error .safe-status-label { color: #FF9A9A; }
+.safe-open .safe-status-label { color: #7EEDB0; }
 .safe-led-body { fill: #121214; stroke: #8C8C93; stroke-width: 1.5; }
 .safe-led-mark { fill: none; stroke: #0A0A0B; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .safe-led-verifying .safe-led-body { fill: #FFC23D; stroke: #FFC23D; animation: safePulse 1.1s ease-in-out infinite; }
-.safe-led-invalid .safe-led-body { fill: #FF8A8A; stroke: #FF8A8A; }
-.safe-led-unlocked .safe-led-body { fill: #6EE7A0; stroke: #6EE7A0; }
+.safe-led-invalid .safe-led-body { fill: #FF9A9A; stroke: #FF9A9A; }
+.safe-led-unlocked .safe-led-body { fill: #7EEDB0; stroke: #7EEDB0; }
 @keyframes safePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* Wrong credentials: a heavy, damped shake of the whole door, four swings. */
+/* The dial and the handle side by side, above the heading. */
+.safe-hardware { display: flex; align-items: center; justify-content: center; gap: 28px; margin-bottom: 18px; }
+.safe-hardware .vault-door { margin: 0; width: 84px; height: 84px; }
+.safe-handle { width: 84px; height: 84px; overflow: visible; }
+.safe-handle-lever { transform-box: view-box; transform-origin: 60px 60px; transition: transform .15s cubic-bezier(.4, 0, .6, 1); }
+.safe-open .safe-handle-lever { transform: rotate(90deg); }
+
+/* Entry slots: recessed, technical, backlit amber on focus. */
+.safe-console input:not([type="checkbox"]) {
+  background: #060708; color: #F4F4F5; border: 1px solid #6A6A72; border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, .95), inset 0 0 0 1px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .08);
+}
+.safe-console input:not([type="checkbox"])::placeholder { color: #8C8C93; }
+.safe-console input:not([type="checkbox"]):focus,
+.safe-console input:not([type="checkbox"]):focus-visible {
+  border-color: #FFC23D; outline: none;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, .95), 0 0 0 1px #FFC23D, 0 0 16px rgba(255, 194, 61, .35);
+}
+
+/* The submit button: a tactile hardware key. Its text and accessible name are unchanged. */
+.safe-console button[type="submit"] {
+  background: linear-gradient(180deg, #F4F4F5, #C4C4CC); color: #0A0A0B; border: 1px solid #FFFFFF; border-radius: 9px;
+  font-weight: 650; letter-spacing: .05em;
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 3px 0 #5A5A62, 0 4px 0 #000, 0 8px 14px rgba(0, 0, 0, .6);
+  transition: transform .06s ease-out, box-shadow .06s ease-out;
+}
+.safe-console button[type="submit"]:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 1px 0 #FFFFFF, 0 0 0 #5A5A62, 0 1px 0 #000, 0 3px 6px rgba(0, 0, 0, .6); }
+.safe-console button[type="submit"]:disabled { opacity: .75; }
+
+/* Wrong credentials: a heavy, damped shake of the slab inside its frame. */
 .safe-error .safe-door { animation: safeShake .4s ease-out; }
 @keyframes safeShake {
   0% { transform: translateX(0); } 15% { transform: translateX(-12px); } 35% { transform: translateX(9px); }
   55% { transform: translateX(-6px); } 75% { transform: translateX(3px); } 100% { transform: translateX(0); }
 }
 
+/* ---------- Phones: a thinner frame and a full-width faceplate. ---------- */
 @media (max-width: 639px) {
-  .safe-hinge { width: 10px; height: 52px; }
-  .safe-bolt { width: 22px; height: 16px; }
-  .safe-open .safe-bolt { transform: translateX(-12px); }
-  .safe-bezel { padding: 22px 22px 0; }
-  .safe-main { padding: 20px 20px 36px; }
-  .safe-console { padding: 20px 18px 22px; }
+  .safe-stage { --f: 10px; --bolt-h: 14px; }
+  .safe-hinge { left: calc(var(--f) - 7px); width: 14px; height: 64px; border-radius: 5px; background: repeating-linear-gradient(180deg, transparent 0 20px, rgba(0, 0, 0, .75) 20px 22px), linear-gradient(90deg, #141416 0%, #4A4A50 22%, #C4C4CC 42%, #6A6A72 60%, #1E1E21 100%); }
+  .safe-hinge::before, .safe-hinge::after { width: 6px; margin-left: -3px; height: 4px; }
+  .safe-socket { right: 3px; width: calc(var(--f) - 4px); }
+  .safe-bolt { right: calc(-1 * var(--f) + 3px); width: calc(var(--f) + 18px); }
+  .safe-bolt-housing { width: 24px; right: 2px; height: calc(var(--bolt-h) + 8px); }
+  .safe-bolt-housing-1 { top: calc(24% - 4px); } .safe-bolt-housing-2 { top: calc(50% - var(--bolt-h) / 2 - 4px); } .safe-bolt-housing-3 { bottom: calc(24% - 4px); }
+  .safe-open .safe-bolt { transform: translateX(calc(-1 * var(--f) - 6px)); }
+  .safe-door::before { inset: 12px; }
+  .safe-rivet { width: 8px; height: 8px; }
+  .safe-rivet-tl, .safe-rivet-tr { top: 6px; } .safe-rivet-bl, .safe-rivet-br { bottom: 6px; }
+  .safe-rivet-tl, .safe-rivet-bl { left: 6px; } .safe-rivet-tr, .safe-rivet-br { right: 6px; }
+  .safe-bezel { padding: 24px 22px 0; }
+  .safe-main { padding: 18px 14px 30px 14px; }
+  .safe-console { max-width: none; padding: 22px 16px 22px; }
+  .safe-hardware { gap: 20px; }
+  .safe-hardware .vault-door, .safe-handle { width: 68px; height: 68px; }
 }
 
-/* Reduced motion: no swing, spin or shake. The state changes at once; the interior fades in briefly. */
-.safe-still .safe-door, .safe-still .safe-bolt, .safe-still .safe-glow, .safe-still .safe-led-body { transition: none !important; animation: none !important; }
+/* ---------- Reduced motion: no swing, turn, spin or shake. The state changes at once; the interior fades in briefly. ---------- */
+.safe-still .safe-door, .safe-still .safe-bolt, .safe-still .safe-glow, .safe-still .safe-led-body, .safe-still .safe-handle-lever { transition: none !important; animation: none !important; }
 .safe-still .safe-interior { transition: opacity .15s linear !important; animation: none !important; }
 .safe-still.safe-open .safe-door { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .safe-door, .safe-bolt, .safe-glow, .safe-led-body { transition: none !important; animation: none !important; }
+  .safe-door, .safe-bolt, .safe-glow, .safe-led-body, .safe-handle-lever, .safe-console button[type="submit"] { transition: none !important; animation: none !important; }
   .safe-interior { transition: opacity .15s linear !important; animation: none !important; }
   .safe-open .safe-door { transform: none; }
 }

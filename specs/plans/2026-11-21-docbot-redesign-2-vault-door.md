@@ -24,6 +24,14 @@ After previewing the first build (`dvvault`: a small door above the card on the 
 
 Deviation approved earlier and still in force: the session is stored when the door finishes or is skipped, because `App.tsx` redirects `/login` to `/app` as soon as a session exists.
 
+## Revision R2 (21 November 2026): a heavy physical safe
+
+After previewing R1, the owner asked for physical depth. R2 amends R1 items 1 and 3; items 2 and 4 stand.
+
+1. **Frame and slab (amends R1 item 1).** A thick brushed-steel frame (jamb) runs round the viewport, 30 px wide (10 px below 640 px), with a dark recess and a deep shadow seam between it and the door slab. The slab has an overhead sheen, a bevelled recessed inner panel and four corner rivets. Two barrel hinges bridge the gap on the left and do not swing. Three cylindrical steel bolts run from housings on the slab into sockets in the right of the frame.
+2. **Lock faceplate (amends R1 item 1).** The console is a machined faceplate bolted to the slab: four screws, a recessed dark-glass LCD bar holding the LED and the label, then the dial and a latch handle side by side above the heading. Inputs are recessed monospace entry slots with an amber focus backlight; the submit button is a raised metal key. Labels, headings and button text are unchanged.
+3. **Timing (amends R1 item 3).** The open phase is 700 ms: the handle turns a quarter (0–150 ms), the bolts pull out of their sockets (100–250 ms), then the slab swings to `rotateY(-85deg)` (250–700 ms), fading over its last 120 ms. Reduced motion is unchanged: no movement, no wait.
+
 ## Decisions (approved; do not reopen)
 
 1. **Pages:** sign-in, register, two-factor and forgot password get the door. Reset password and verify email don't.

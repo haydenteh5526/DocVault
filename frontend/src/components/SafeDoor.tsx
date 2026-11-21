@@ -13,6 +13,9 @@ const STATUS: Record<VaultState, { label: string; led: string }> = {
   open: { label: 'UNLOCKED', led: 'unlocked' },
 }
 
+const BOLTS = [1, 2, 3] as const
+const CORNERS = ['tl', 'tr', 'bl', 'br'] as const
+
 /** Status light. The text label always sits next to it, and invalid and unlocked carry a shape (× and ✓), so colour is never the only cue. */
 function StatusLed({ led }: { led: string }) {
   return (
@@ -24,11 +27,30 @@ function StatusLed({ led }: { led: string }) {
   )
 }
 
+/** The latch handle beside the dial. It turns a quarter-turn as the door unlocks. */
+function Handle() {
+  return (
+    <svg data-part="handle" className="safe-handle" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+      <circle cx="60" cy="60" r="34" fill="#141416" stroke="#4A4A50" strokeWidth="3" />
+      <circle cx="60" cy="60" r="27" fill="none" stroke="#000" strokeWidth="2" opacity=".6" />
+      <g className="safe-handle-lever">
+        <rect x="56" y="51" width="58" height="18" rx="9" fill="#9A9AA2" stroke="#2A2A2E" strokeWidth="2" />
+        <rect x="60" y="53" width="50" height="5" rx="2.5" fill="#D4D4DA" opacity=".7" />
+        <circle cx="60" cy="60" r="17" fill="#8C8C93" stroke="#2A2A2E" strokeWidth="2" />
+        <circle cx="60" cy="60" r="7" fill="#3A3A40" />
+      </g>
+    </svg>
+  )
+}
+
 /**
- * The front face of a matte-black electronic safe. The page is the door: hinges on the left, locking bolts on
- * the right, the brand and a link in the top bezel, and the children in a recessed lock console in the middle.
- * `interior` is shown behind the door once it is open, and `settled` takes the door away entirely.
- * The door is decorative; opening it never changes what the form says or does, only how it looks.
+ * A heavy safe. The page is a steel frame with the door slab set inside it: barrel hinges bridge the gap on
+ * the left, three bolts sit in sockets in the right of the frame, and the children live on a lock faceplate
+ * bolted to the slab (screws, an LCD status bar, the dial and a handle).
+ *
+ * On `open` the handle turns, the bolts pull out of their sockets and the slab swings round its hinges,
+ * showing the lit interior and anything passed as `interior`. `settled` takes the slab away.
+ * All of it is decorative: the form inside never changes because of the door.
  */
 export function SafeDoor({
   state,
@@ -46,7 +68,7 @@ export function SafeDoor({
   topRight?: ReactNode
   interior?: ReactNode
   settled?: boolean
-  /** Read out politely. It lives outside the door face, which is hidden from assistive technology once open. */
+  /** Read out politely. It lives outside the door slab, which is hidden from assistive technology once open. */
   announcement?: string
   children: ReactNode
 }) {
@@ -56,25 +78,32 @@ export function SafeDoor({
   return (
     <div className={`safe-stage safe-${state}${still ? ' safe-still' : ''}${settled ? ' safe-settled' : ''}`}>
       <p role="status" className="sr-only">{announcement}</p>
+      <div className="safe-frame" aria-hidden="true">
+        {BOLTS.map(n => <span key={n} data-part="socket" className={`safe-socket safe-socket-${n}`} />)}
+      </div>
       <div className="safe-glow" aria-hidden="true" />
       {interior && <div className="safe-interior">{interior}</div>}
+      <span data-part="hinge" className="safe-hinge safe-hinge-top" aria-hidden="true" />
+      <span data-part="hinge" className="safe-hinge safe-hinge-bottom" aria-hidden="true" />
       <div className="safe-door" aria-hidden={open ? true : undefined} inert={open ? true : undefined}>
-        <span data-part="hinge" className="safe-hinge safe-hinge-top" aria-hidden="true" />
-        <span data-part="hinge" className="safe-hinge safe-hinge-bottom" aria-hidden="true" />
-        <span data-part="bolt" className="safe-bolt safe-bolt-1" aria-hidden="true" />
-        <span data-part="bolt" className="safe-bolt safe-bolt-2" aria-hidden="true" />
-        <span data-part="bolt" className="safe-bolt safe-bolt-3" aria-hidden="true" />
+        {CORNERS.map(c => <span key={c} data-part="rivet" className={`safe-rivet safe-rivet-${c}`} aria-hidden="true" />)}
+        {BOLTS.map(n => <span key={n} className={`safe-bolt-housing safe-bolt-housing-${n}`} aria-hidden="true" />)}
+        {BOLTS.map(n => <span key={n} data-part="bolt" className={`safe-bolt safe-bolt-${n}`} aria-hidden="true" />)}
         <header className="safe-bezel">
           <Link to="/" className="safe-brand"><Wordmark /></Link>
           {topRight && <div className="safe-bezel-link">{topRight}</div>}
         </header>
         <main id="account-form" tabIndex={-1} className="safe-main">
           <div className="safe-console">
-            <div className="safe-status">
+            {CORNERS.map(c => <span key={c} data-part="screw" className={`safe-screw safe-screw-${c}`} aria-hidden="true" />)}
+            <div data-part="lcd" className="safe-lcd">
               <StatusLed led={led} />
               <span data-part="status-label" className="safe-status-label">{label}</span>
             </div>
-            <VaultDoor state={state} progress={progress} badge={badge} />
+            <div className="safe-hardware">
+              <VaultDoor state={state} progress={progress} badge={badge} />
+              <Handle />
+            </div>
             {children}
           </div>
         </main>

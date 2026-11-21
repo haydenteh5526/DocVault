@@ -12,8 +12,8 @@ import { useAuth } from '@/lib/auth'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
 
-/** The open phase: the bolts retract for 150 ms, then the door swings for 450 ms. Any key or click skips it. */
-const DOOR_OPEN_MS = 600
+/** The open phase: the handle turns (0-150 ms), the bolts pull out of the frame (100-250 ms), the door swings (250-700 ms). Any key or click skips it. */
+const DOOR_OPEN_MS = 700
 /** How long the shake shows before the door settles again. */
 const DOOR_ERROR_MS = 400
 
