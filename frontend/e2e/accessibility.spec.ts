@@ -68,7 +68,7 @@ test.describe('WCAG regression checks', () => {
 test.describe('with a dark system theme', () => {
   test.use({ colorScheme: 'dark' });
 
-  test('the landing and signed-in pages are dark and account entry is light', async ({ page }) => {
+  test('the landing, account entry and signed-in pages are dark', async ({ page }) => {
     const email = process.env.E2E_EMAIL;
     const password = process.env.E2E_PASSWORD;
     test.skip(!email || !password, 'CI seed credentials are required for this integration test');
@@ -77,13 +77,13 @@ test.describe('with a dark system theme', () => {
 
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    expect(await isDark()).toBe(false);
-    expect(await page.locator('.docbot-site').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(10, 10, 11)');
+    expect(await isDark()).toBe(true);
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(10, 10, 11)');
     await expectNoWcagViolations(page);
 
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
-    expect(await isDark()).toBe(false);
+    expect(await isDark()).toBe(true);
     await expectNoWcagViolations(page);
 
     await page.getByPlaceholder('name@example.com').fill(email!);

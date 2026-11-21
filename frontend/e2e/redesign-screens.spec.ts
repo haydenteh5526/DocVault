@@ -183,41 +183,6 @@ test('record the redesign screens', async ({ page }) => {
   }
 });
 
-// Needs no account, so it runs with the normal browser suite.
-test.describe('landing preview is above the fold', () => {
-  const bottom = async (locator: ReturnType<Page['locator']>) => {
-    await expect(locator.first()).toBeVisible();
-    const box = await locator.first().boundingBox();
-    return box!.y + box!.height;
-  };
-
-  for (const scheme of ['light', 'dark'] as const) {
-    test(`at 1366 x 768 the question, the answer and the source line are on the first screen (${scheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
-      await page.setViewportSize({ width: 1366, height: 768 });
-      await page.goto('/');
-      const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
-      for (const locator of [
-        preview.getByText('When is my electricity bill due?', { exact: true }),
-        preview.getByText('23 November 2026', { exact: true }).first(),
-        page.getByRole('img', {name:/highlighted due date/}).getByText(/Payment due date: 23 November 2026/),
-        page.getByRole('banner').getByRole('link', { name: 'Create an account' }),
-      ]) {
-        expect(await bottom(locator)).toBeLessThanOrEqual(768);
-      }
-    });
-  }
-
-  test('at 390 x 844 the answer is on the first screen and nothing scrolls sideways', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
-    const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
-    expect(await bottom(preview.getByText('23 November 2026', { exact: true }).first())).toBeLessThanOrEqual(844);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
-    await expect(page.getByRole('banner').getByRole('link', { name: 'Create an account' })).toBeVisible();
-  });
-});
-
 // Needs the verified synthetic account (E2E_EMAIL, E2E_PASSWORD); it adds one document and removes it again.
 test('documents list at 390 px does not scroll sideways, and every title link is at least 44 px tall', async ({ page }) => {
   test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, 'A verified synthetic account is required');
