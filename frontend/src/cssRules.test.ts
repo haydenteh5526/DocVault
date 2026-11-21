@@ -57,6 +57,11 @@ describe('the landing header links and tiles', () => {
     expect(landing).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.float-mark \{\s*translate: none;\s*transition: none;/)
   })
 
+  it('keeps only the large tiles up to 1100 px and none below 900 px', () => {
+    expect(landing).toMatch(/@media \(max-width: 1100px\) \{\s*\.float-mark-docbot,\s*\.float-mark-shopping,\s*\.float-mark-file,\s*\.float-mark-warranty \{\s*display: none;/)
+    expect(landing).toMatch(/@media \(max-width: 899px\) \{\s*\.floating-tiles \{\s*display: none;/)
+  })
+
   it('plays the t3-style load-in only under html.motion-ok, with staggered delays', () => {
     for (const [selector, delay] of [['.h1-line', 'var(--d, 0ms)'], ['.hero-lead', '300ms'], ['.hero-links', '400ms'], ['.product-picture', '520ms']])
       expect(landing).toContain(`html.motion-ok .poster ${selector} { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) ${delay} both; }`)

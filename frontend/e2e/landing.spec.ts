@@ -86,11 +86,23 @@ test.describe('the landing page', () => {
     expect(await signIn.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
   });
 
+  test('thins the tiles out up to 1100 px and hides them below 900 px', async ({ page }) => {
+    for (const [width, visible] of [[1000, ['receipt', 'manual']], [850, []]] as const) {
+      await page.setViewportSize({ width, height: 768 });
+      await page.goto('/');
+      for (const name of ['docbot', 'shopping', 'receipt', 'manual', 'file', 'warranty'])
+        if ((visible as readonly string[]).includes(name)) await expect(page.locator(`.float-mark-${name}`)).toBeVisible();
+        else await expect(page.locator(`.float-mark-${name}`)).toBeHidden();
+    }
+  });
+
   test('lists the eight questions once, and nothing moves with reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await expect(page.locator('.sr-only li')).toHaveCount(8);
     await expect(page.locator('.marquee-track')).toHaveCount(0);
-    await expect(page.locator('.docbot-drift')).toHaveCount(0);
+    await expect(page.locator('.float-tile').first()).toHaveCSS('animation-name', 'none');
+    await expect(page.locator('.h1-line').first()).toHaveCSS('opacity', '1');
+    await expect(page.locator('.float-mark').first()).toHaveCSS('translate', 'none');
   });
 });

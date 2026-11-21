@@ -42,7 +42,8 @@ function useCursorParallax(reduced: boolean) {
       field.style.setProperty('--py', '0px')
     }
     const move = (event: PointerEvent) => {
-      if (!fine?.matches) return
+      // Only a mouse moves the tiles: touch and pen are ignored even on a device with a fine pointer.
+      if (!fine?.matches || (event.pointerType && event.pointerType !== 'mouse')) return
       point = { x: event.clientX, y: event.clientY }
       frame ??= requestAnimationFrame(() => {
         frame = undefined
@@ -64,7 +65,7 @@ function useCursorParallax(reduced: boolean) {
   return ref
 }
 
-/** Six tilted, coloured tiles around the hero that fly in on load and follow the cursor. Decoration only: hidden from assistive technology and below 640 px. */
+/** Six tilted, coloured tiles around the hero that fly in on load and follow the cursor. Decoration only: hidden from assistive technology, thinned out up to 1100 px and hidden below 900 px. */
 export function FloatingTiles() {
   const reduced = useReducedMotion()
   const ref = useCursorParallax(reduced)

@@ -144,11 +144,21 @@ it('moves the tiles with a fine pointer and settles them when it leaves', () => 
   expect(field.style.getPropertyValue('--py')).toBe('0px')
 })
 
+it('ignores touch and pen input even with a fine pointer', () => {
+  for (const pointerType of ['touch', 'pen']) {
+    const { hero, field } = hover(true, false)
+    fireEvent.pointerMove(hero, { clientX: 1000, clientY: 0, pointerType })
+    expect(field.style.getPropertyValue('--px')).toBe('')
+    cleanup()
+  }
+})
+
 it('keeps the tiles still for touch and under reduced motion', () => {
   for (const [fine, reduce] of [[false, false], [true, true]] as const) {
     const { hero, field } = hover(fine, reduce)
     fireEvent.pointerMove(hero, { clientX: 1000, clientY: 0 })
-    expect(field.style.getPropertyValue('--px')).not.toBe('18.0px')
+    expect(field.style.getPropertyValue('--px')).toBe('')
+    expect(field.style.getPropertyValue('--py')).toBe('')
     cleanup()
   }
 })

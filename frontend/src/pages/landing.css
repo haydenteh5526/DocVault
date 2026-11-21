@@ -201,7 +201,17 @@
   width: 50%;
   height: 50%;
 }
-@media (max-width: 639px) {
+/* t3's exact spread needs a wide hero. Up to 1100 px the small pair would touch the headline and the
+   lower pair would fall behind the picture, so only the large outer pair stays; below 900 px none do. */
+@media (max-width: 1100px) {
+  .float-mark-docbot,
+  .float-mark-shopping,
+  .float-mark-file,
+  .float-mark-warranty {
+    display: none;
+  }
+}
+@media (max-width: 899px) {
   .floating-tiles {
     display: none;
   }
