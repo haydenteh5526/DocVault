@@ -29,8 +29,8 @@ function ApprovalCard() {
   )
 }
 
-/** A question and DocBot's cited answer, as a picture. */
-function CitedAnswer({ question, answer, source, size = 20 }: { question: string; answer: string; source: string; size?: number }) {
+/** A question and DocBot's answer, as a picture. A miss has no source, as in the product. */
+function CitedAnswer({ question, answer, source, size = 20 }: { question: string; answer: string; source?: string; size?: number }) {
   return (
     <>
       <span className="sample-bubble">{question}</span>
@@ -38,7 +38,7 @@ function CitedAnswer({ question, answer, source, size = 20 }: { question: string
         <DocBotMark size={size} />
         <span>
           <b>{answer}</b>
-          <small>{source}</small>
+          {source && <small>{source}</small>}
         </span>
       </div>
     </>
@@ -156,7 +156,6 @@ export default function Landing() {
             <CitedAnswer
               question="When does the car insurance renew?"
               answer="I couldn't find this in your documents."
-              source="No matching source line"
               size={28}
             />
           </figure>

@@ -273,6 +273,9 @@ it('shows the approval card once, beside its highlighted source line', () => {
   expect(meet).not.toHaveTextContent('Waiting for your approval')
   expect(meet).toHaveTextContent('Dishwasher manual · line 22')
   expect(meet).toHaveTextContent("I couldn't find this in your documents.")
+  expect(meet).not.toHaveTextContent('No matching source line')
+  const miss = within(meet as HTMLElement).getByText("I couldn't find this in your documents.").parentElement!
+  expect(miss.querySelector('small')).toBeNull()
   expect(meet).toHaveTextContent("Ask about anything you've uploaded. DocBot answers from your own files, shows where the answer is, and tells you when it isn't there.")
   expect(within(meet as HTMLElement).getByRole('img')).toHaveAccessibleName(
     "DocBot answers that E21 on the dishwasher means the water temperature is too low, from line 22 of the dishwasher manual, then says it couldn't find when the car insurance renews in your documents.",
