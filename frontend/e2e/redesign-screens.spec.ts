@@ -120,7 +120,7 @@ test('record the redesign screens', async ({ page }) => {
     await expect(page.getByRole('link', { name: /\.png$/ }).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('Checking status')).toHaveCount(0, { timeout: 60_000 });
   };
-  await shoot(page, 'home', '/app', async () => { await expect(page.getByRole('heading', {name:'Pip', exact:true})).toBeVisible(); });
+  await shoot(page, 'home', '/app', async () => { await expect(page.getByRole('heading', {name:'DocBot', exact:true})).toBeVisible(); });
   await shoot(page, 'documents', '/app/documents', listSettled);
   await shoot(page, 'documents-search', '/app/documents?q=october', listSettled);
   await shoot(page, 'documents-no-match', '/app/documents?q=octber');

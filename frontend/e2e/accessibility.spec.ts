@@ -54,7 +54,7 @@ test.describe('WCAG regression checks', () => {
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
     await submitSignIn(page);
-    await expect(page.getByRole('heading', { name: 'Pip', exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({
       timeout: 10_000,
     });
     await expectNoWcagViolations(page);
@@ -78,7 +78,7 @@ test.describe('with a dark system theme', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(await isDark()).toBe(false);
-    expect(await page.locator('.pip-site').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(10, 10, 11)');
+    expect(await page.locator('.docbot-site').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(10, 10, 11)');
     await expectNoWcagViolations(page);
 
     await page.goto('/login');
@@ -90,7 +90,7 @@ test.describe('with a dark system theme', () => {
     await page.getByRole('button', { name: /Continue with Email/i }).click();
     await page.getByPlaceholder('Password').fill(password!);
     await submitSignIn(page);
-    await expect(page.getByRole('heading', { name: 'Pip', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/app$/);
     expect(await isDark()).toBe(true);
     await page.goto('/app/documents');

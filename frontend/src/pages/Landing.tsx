@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, Clock3, FileText } from 'lucide-react'
 import Navbar from '@/components/Navbar'
-import { PipMark } from '@/components/PipMark'
-import { ASSISTANT_NAME as pip } from '@/lib/assistant'
+import { DocBotMark } from '@/components/DocBotMark'
+import { ASSISTANT_NAME as docbot } from '@/lib/assistant'
 import './landing.css'
 
 const setup = 'https://github.com/haydenteh5526/DocVault#quick-start'
@@ -61,7 +61,7 @@ const panels = [
       <>
         <span className="sample-bubble">When is my electricity bill due?</span>
         <div className="sample-answer">
-          <PipMark size={22} />
+          <DocBotMark size={22} />
           <span>
             <span>23 November 2026</span> · line 17
           </span>
@@ -84,8 +84,8 @@ const panels = [
     ),
   },
   {
-    title: pip,
-    alt: 'Pip proposes a reminder for 21 November for €123.47. It requires approval.',
+    title: docbot,
+    alt: `${docbot} proposes a reminder for 21 November for €123.47. It requires approval.`,
     visual: <ReminderPreview />,
   },
   {
@@ -103,11 +103,11 @@ const panels = [
 
 export default function Landing() {
   return (
-    <div className="pip-site poster dark">
+    <div className="docbot-site poster dark">
       <Navbar />
       <main id="content" tabIndex={-1}>
-        <section className="pip-hero" aria-labelledby="hero-title">
-          <span className="news-pill">Preview · {pip} checks your bills each morning</span>
+        <section className="docbot-hero" aria-labelledby="hero-title">
+          <span className="news-pill">Preview · {docbot} checks your bills each morning</span>
           <h1 id="hero-title" aria-label="Everything you keep, ready to answer.">
             Everything you keep,
             <br />
@@ -136,22 +136,22 @@ export default function Landing() {
             </article>
           ))}
         </section>
-        <section id="meet-pip" className="meet-pip">
+        <section id="meet-docbot" className="meet-docbot">
           <h2>
-            Meet <PipMark size={60} /> {pip}, who keeps your paperwork moving.
+            Meet <DocBotMark size={60} /> {docbot}, who keeps your paperwork moving.
           </h2>
           <figure
             role="img"
-            aria-label="Pip proposes a reminder two days before the bill is due. The reminder requires your approval."
+            aria-label={`${docbot} proposes a reminder two days before the bill is due. The reminder requires your approval.`}
           >
             <span className="sample-bubble">Remind me two days before it’s due.</span>
             <div className="sample-answer">
-              <PipMark size={28} /> Here’s the reminder for you to review.
+              <DocBotMark size={28} /> Here’s the reminder for you to review.
             </div>
             <ReminderPreview />
           </figure>
         </section>
-        <dl id="trust" className="pip-stats">
+        <dl id="trust" className="docbot-stats">
           {[
             ['0', 'actions saved without your approval'],
             ['Line 17', 'every answer points to its source line'],
@@ -174,7 +174,7 @@ export default function Landing() {
       </main>
       <footer>
         {[
-          ['Product', 'Meet ' + pip, '#meet-pip'],
+          ['Product', 'Meet ' + docbot, '#meet-docbot'],
           ['Trust', 'Source evidence', '#trust'],
           ['Project', 'Setup guide', setup],
           ['Account', 'Sign in', '/login'],

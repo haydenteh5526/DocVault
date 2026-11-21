@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
-import type { usePipActivity } from '@/lib/usePipActivity'
+import type { useDocBotActivity } from '@/lib/useDocBotActivity'
 import { formatBillDate } from '@/components/BillReview'
 
-export function PipActivity({ activity }: { activity: ReturnType<typeof usePipActivity> }) {
+export function DocBotActivity({ activity }: { activity: ReturnType<typeof useDocBotActivity> }) {
   const { pending, upcoming, warranties, people, householdBill } = activity
   return (
-    <div className="pip-activity">
+    <div className="docbot-activity">
       {pending.length > 0 && (
         <section>
           <h2>Requires approval</h2>

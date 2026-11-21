@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { PipMark } from './PipMark'
+import { DocBotMark } from './DocBotMark'
 
 afterEach(() => {
   cleanup()
@@ -15,7 +15,7 @@ it.each(['idle', 'working', 'needs-you', 'done'] as const)(
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }))
-    const { container } = render(<PipMark state={state} />)
+    const { container } = render(<DocBotMark state={state} />)
     expect(container.querySelector('svg')?.getAttribute('data-state')).toBe(state)
     expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
   },
@@ -26,6 +26,6 @@ it('omits the blink class under reduced motion', () => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   }))
-  const { container } = render(<PipMark />)
-  expect(container.querySelector('.pip-blink')).toBeNull()
+  const { container } = render(<DocBotMark />)
+  expect(container.querySelector('.docbot-blink')).toBeNull()
 })

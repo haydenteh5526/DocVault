@@ -116,7 +116,7 @@ describe('a reminder proposal made on Ask (L-1)', () => {
         </MemoryRouter></AuthProvider>
       </QueryClientProvider>,
     )
-    await user.type(await screen.findByPlaceholderText('Message Pip'), 'Remind me before the bill is due{Enter}')
+    await user.type(await screen.findByPlaceholderText('Message DocBot'), 'Remind me before the bill is due{Enter}')
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document', 'doc-1'] }))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
   })
@@ -127,11 +127,13 @@ describe('the Ask composer focus border', () => {
     vi.mocked(getConversation).mockImplementation(async id => conversation(id))
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/app/ask']}>
-          <Routes>
-            <Route path="/app/ask" element={<AskAI />} />
-          </Routes>
-        </MemoryRouter>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/app/ask']}>
+            <Routes>
+              <Route path="/app/ask" element={<AskAI />} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
       </QueryClientProvider>,
     )
     const box = await screen.findByPlaceholderText(/Message DocBot/)
@@ -146,7 +148,7 @@ it('keeps the home thread after a temporary failure and waits for history before
   const user = userEvent.setup()
   const token = 'h.' + btoa(JSON.stringify({sub:'owner-a'})) + '.s'
   localStorage.setItem('token',token)
-  sessionStorage.setItem('pip-thread:owner-a','saved-thread')
+  sessionStorage.setItem('docbot-thread:owner-a','saved-thread')
   let finish!: (data: ConversationDetail) => void
   vi.mocked(getConversation)
     .mockRejectedValueOnce(new Error('Temporary outage'))
@@ -156,16 +158,16 @@ it('keeps the home thread after a temporary failure and waits for history before
       <AuthProvider><MemoryRouter initialEntries={['/app']}><AskAI home/></MemoryRouter></AuthProvider>
     </QueryClientProvider>)
     await screen.findByRole('alert')
-    expect(sessionStorage.getItem('pip-thread:owner-a')).toBe('saved-thread')
-    expect(screen.getByPlaceholderText('Message Pip')).toBeDisabled()
+    expect(sessionStorage.getItem('docbot-thread:owner-a')).toBe('saved-thread')
+    expect(screen.getByPlaceholderText('Message DocBot')).toBeDisabled()
     await user.click(screen.getByRole('button',{name:'Try again'}))
-    expect(screen.getByPlaceholderText('Message Pip')).toBeDisabled()
+    expect(screen.getByPlaceholderText('Message DocBot')).toBeDisabled()
     expect(sendMessage).not.toHaveBeenCalled()
     finish(conversation('saved-thread'))
     await screen.findByLabelText('Draft to edit')
-    expect(screen.getByPlaceholderText('Message Pip')).toBeEnabled()
+    expect(screen.getByPlaceholderText('Message DocBot')).toBeEnabled()
   } finally {
     localStorage.removeItem('token')
-    sessionStorage.removeItem('pip-thread:owner-a')
+    sessionStorage.removeItem('docbot-thread:owner-a')
   }
 })

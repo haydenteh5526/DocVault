@@ -6,7 +6,7 @@ function subscribe(update: () => void) {
   media?.addEventListener('change', update)
   return () => media?.removeEventListener('change', update)
 }
-export function PipMark({
+export function DocBotMark({
   state = 'idle',
   size = 38,
 }: {
@@ -26,7 +26,7 @@ export function PipMark({
     >
       <path fill="#FFD83D" d="M10 4h19l11 11v24c0 3-2 5-5 5H11c-3 0-5-2-5-5V9c0-3 1-5 4-5Z" />
       <path fill="#D9AE00" d="M29 4v8c0 2 1 3 3 3h8Z" />
-      <g fill="#14171F" className={reduced ? undefined : 'pip-blink'}>
+      <g fill="#14171F" className={reduced ? undefined : 'docbot-blink'}>
         {state === 'done' ? (
           <path
             d="M13 26q3-7 6 0m6 0q3-7 6 0"

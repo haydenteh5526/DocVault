@@ -46,7 +46,7 @@ it('gives four static previews accessible descriptions and separate registration
   expect(panels.map((p) => within(p).getByRole('heading').textContent)).toEqual([
     'Ask',
     'Check',
-    'Pip',
+    'DocBot',
     'Daily check',
   ])
   for (const panel of panels) {
@@ -74,7 +74,7 @@ it('uses synthetic evidence, marks scheduling as a preview and links to local se
     expect(container).not.toHaveTextContent(name)
   expect(container).toHaveTextContent('EUR 123.47')
   expect(container).toHaveTextContent('runs on your own computer')
-  expect(screen.getByText(/Preview · Pip checks/)).toBeVisible()
+  expect(screen.getByText(/Preview · DocBot checks/)).toBeVisible()
   expect(screen.getByRole('link', { name: 'Run it yourself' })).toHaveAttribute(
     'href',
     expect.stringContaining('#quick-start'),

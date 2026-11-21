@@ -3,7 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --pip-yellow: #FFD83D;
+  --docbot-yellow: #FFD83D;
   --background: #FFFFFF;
   --foreground: #0A0A0A;
   --card: #FFFFFF;
@@ -119,12 +119,12 @@
   outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }
-.pip-blink { transform-origin: center; animation: pipBlink 7s infinite; }
-@keyframes pipBlink { 0%, 95%, 98%, 100% {transform:scaleY(1)} 96.5% {transform:scaleY(.1)} }
-.pip-composer:focus-within { border-color: var(--muted-foreground); }
-.pip-composer textarea:focus-visible { outline: none; }
-.pip-activity section + section { margin-top: 2rem }
-.pip-activity h2 { font-size: .95rem; font-weight: 650; margin-bottom: .75rem }
-.pip-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
-.pip-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
-.pip-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }
+.docbot-blink { transform-origin: center; animation: docbotBlink 7s infinite; }
+@keyframes docbotBlink { 0%, 95%, 98%, 100% {transform:scaleY(1)} 96.5% {transform:scaleY(.1)} }
+.docbot-composer:focus-within { border-color: var(--muted-foreground); }
+.docbot-composer textarea:focus-visible { outline: none; }
+.docbot-activity section + section { margin-top: 2rem }
+.docbot-activity h2 { font-size: .95rem; font-weight: 650; margin-bottom: .75rem }
+.docbot-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
+.docbot-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
+.docbot-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }

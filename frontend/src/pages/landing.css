@@ -1,13 +1,13 @@
-.pip-site {
+.docbot-site {
   background: var(--background);
   color: var(--foreground);
   font-family: Geist, system-ui, sans-serif;
 }
-.pip-site :is(main, footer, .poster-nav) {
+.docbot-site :is(main, footer, .poster-nav) {
   width: min(100% - 64px, 1376px);
   margin-inline: auto;
 }
-.pip-site .poster-nav {
+.docbot-site .poster-nav {
   height: 72px;
   display: flex;
   align-items: center;
@@ -17,7 +17,7 @@
 .hero-links a {
   border-radius: 999px;
 }
-.pip-hero {
+.docbot-hero {
   text-align: center;
   padding: clamp(44px, 4.8vw, 80px) 0 48px;
 }
@@ -31,18 +31,18 @@
   padding: 6px 13px;
   color: var(--muted-foreground);
 }
-.pip-hero h1,
-.meet-pip h2,
-.pip-stats dt {
+.docbot-hero h1,
+.meet-docbot h2,
+.docbot-stats dt {
   font-weight: 300;
   letter-spacing: -0.065em;
   line-height: 1.04;
 }
-.pip-hero h1 {
+.docbot-hero h1 {
   font-size: clamp(44px, 6.6vw, 104px);
   margin: 24px 0 18px;
 }
-.pip-hero p {
+.docbot-hero p {
   color: var(--muted-foreground);
   max-width: 94ch;
   margin: auto;
@@ -66,18 +66,18 @@
   color: var(--background);
 }
 .product-row,
-.pip-stats,
+.docbot-stats,
 .start-cards,
-.pip-site footer {
+.docbot-site footer {
   display: grid;
   gap: 12px;
 }
 .product-row,
-.pip-site footer {
+.docbot-site footer {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .product-row article,
-.meet-pip figure,
+.meet-docbot figure,
 .start-cards a {
   border: 1px solid var(--border);
   background: var(--card);
@@ -90,7 +90,7 @@
   justify-content: space-between;
 }
 .product-row figure,
-.meet-pip figure {
+.meet-docbot figure {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -118,8 +118,8 @@
 .product-row a,
 .sample-clock span,
 .sample-reminder small,
-.pip-site footer a,
-.pip-stats dd {
+.docbot-site footer a,
+.docbot-stats dd {
   color: var(--muted-foreground);
 }
 .product-row a {
@@ -158,7 +158,7 @@
   font-family: Geist, sans-serif;
 }
 .sample-paper mark {
-  background: var(--pip-yellow);
+  background: var(--docbot-yellow);
   color: #14171f;
   border-radius: 2px;
 }
@@ -173,40 +173,40 @@
 .sample-reminder {
   background: var(--background);
 }
-.meet-pip {
+.meet-docbot {
   padding: clamp(65px, 10vw, 150px) 4%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8%;
   align-items: center;
 }
-.meet-pip h2 {
+.meet-docbot h2 {
   font-size: clamp(37px, 4.8vw, 78px);
 }
-.meet-pip svg {
+.meet-docbot svg {
   display: inline-block;
   vertical-align: middle;
 }
-.meet-pip figure {
+.meet-docbot figure {
   padding: clamp(20px, 4vw, 64px);
   font-size: 14px;
 }
-.pip-stats {
+.docbot-stats {
   grid-template-columns: repeat(3, 1fr);
   border-block: 1px solid var(--border);
   padding-block: 40px;
 }
-.pip-stats > div {
+.docbot-stats > div {
   padding-inline: 8%;
   border-left: 1px solid var(--border);
 }
-.pip-stats > div:first-child {
+.docbot-stats > div:first-child {
   border: 0;
 }
-.pip-stats dt {
+.docbot-stats dt {
   font-size: clamp(36px, 5vw, 70px);
 }
-.pip-stats dd {
+.docbot-stats dd {
   margin-top: 10px;
 }
 .start-cards {
@@ -217,11 +217,11 @@
   font-size: clamp(20px, 2.5vw, 36px);
   padding: 32px;
 }
-.pip-site footer {
+.docbot-site footer {
   border-top: 1px solid var(--border);
   padding: 36px 0 50px;
 }
-.pip-site footer div {
+.docbot-site footer div {
   display: grid;
   gap: 8px;
   font-size: 14px;
@@ -232,16 +232,16 @@
   }
 }
 @media (max-width: 600px) {
-  .pip-site :is(main, footer, .poster-nav) {
+  .docbot-site :is(main, footer, .poster-nav) {
     width: calc(100% - 32px);
   }
-  .pip-site .poster-nav {
+  .docbot-site .poster-nav {
     height: 60px;
   }
-  .pip-hero {
+  .docbot-hero {
     padding: 43px 0 38px;
   }
-  .pip-hero p {
+  .docbot-hero p {
     max-width: 340px;
   }
   .product-row {
@@ -251,20 +251,20 @@
     min-height: 145px;
     padding-inline: 28px;
   }
-  .meet-pip,
+  .meet-docbot,
   .start-cards {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  .pip-stats {
+  .docbot-stats {
     grid-template-columns: 1fr;
     gap: 18px;
   }
-  .pip-stats > div {
+  .docbot-stats > div {
     border: 0;
     padding: 0;
   }
-  .pip-site footer {
+  .docbot-site footer {
     grid-template-columns: 1fr 1fr;
     row-gap: 28px;
   }
@@ -284,7 +284,7 @@
     }
   }
 }
-.pip-site .footer-notes {
+.docbot-site .footer-notes {
   grid-column: 1/-1;
   color: var(--muted-foreground);
   font-size: 12px;

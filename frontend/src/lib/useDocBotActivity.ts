@@ -5,7 +5,7 @@ import { useBillRecords } from './useBillRecords'
 import { useHousemates } from './housemates'
 import { daysUntil } from './format'
 
-export function usePipActivity(fetchActivity = true) {
+export function useDocBotActivity(fetchActivity = true) {
   const { accountId } = useAuth()
   const enabled = Boolean(accountId) && fetchActivity
   const documents = useQuery({
@@ -15,7 +15,7 @@ export function usePipActivity(fetchActivity = true) {
   })
   const details = useBillRecords(documents.data ?? [], enabled)
   const warranties = useQuery({
-    queryKey: ['pip-warranties', accountId],
+    queryKey: ['docbot-warranties', accountId],
     queryFn: () => getExpiringWarranties(30),
     enabled,
   })
@@ -35,7 +35,7 @@ export function usePipActivity(fetchActivity = true) {
     : documents.isError || details.isError
       ? 'Bill status unavailable'
       : !fetchActivity && (!documents.data || (documents.data.some(d => d.processing_status === 'complete') && !details.data))
-        ? 'Open Pip for activity'
+        ? 'Open DocBot for activity'
       : documents.isPending || details.isFetching
         ? 'Checking bills'
         : 'All caught up'
