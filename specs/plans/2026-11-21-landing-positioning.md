@@ -1,6 +1,12 @@
 # Landing Page Positioning: Introduce DocVault as a Personal AI Document Assistant
 
-**Status:** proposed by the Architect on 21 November 2026. Approved by the owner the same day with D1–D5 as recommended. Implemented on `feature/landing-positioning`, which is stacked on `feature/landing-hover-parallax` (t3 header hover, tile layout and load-in, Inter at 600). **Owner change after review (21 Nov):** the eyebrow is removed (D2 withdrawn) and the lead is shortened to two lines at 1366 px, as on t3.codes: "Your personal AI document assistant. Upload photos or PDFs, ask in your own words, and get answers that cite their source line." The category now lives in the lead; approval, the honest miss and running locally are shown further down the page. The hero's top padding returns to `clamp(40px, 5vw, 72px)`. After review, the miss in Meet DocBot shows no caption ("No matching source line" was dropped), because the product shows no source on a miss.
+**Status:** proposed by the Architect on 21 November 2026. Approved by the owner the same day with D1–D5 as recommended. Implemented on `feature/landing-positioning`, which is stacked on `feature/landing-hover-parallax` (t3 header hover, tile layout and load-in, Inter at 600). **Owner changes after review (21 Nov), which override the tasks below where they differ:**
+- The eyebrow is removed (D2 withdrawn). The category now lives in the lead.
+- The lead is shortened to two lines at 1366 px, as on t3.codes, with `max-width: 680px` instead of `60ch`: "Your personal AI document assistant. Upload photos or PDFs, ask in your own words, and get answers that cite their source line." Approval, the honest miss and running locally are shown further down the page.
+- The hero is placed as on t3.codes: `.docbot-site main > .landing-hero { padding-top: clamp(56px, 8.8vw, 120px) }` (the headline starts 120 px below the header on desktop), the `h1` maximum is 4.75rem (76 px) with `max-width: 16ch` and a 22 px gap to the lead. The owner overrode Task 1's "do not shrink the `h1`".
+- The lower pair of hero tiles moves from y 440 px to 370 px so it stays beside the buttons of this shorter hero.
+- The miss in Meet DocBot shows no caption ("No matching source line" was dropped), because the product shows no source on a miss.
+- Tests follow these changes: no eyebrow, the new lead, and the e2e first-screen scenario asserts the lead and the `h1` are each two lines at 1366 px.
 
 **Issue:** #35. The PR says `Part of #35`.
 
@@ -37,6 +43,8 @@ Not allowed: "anything you ask is answered", accuracy figures, cloud or mobile-s
 
 ## Task 1: Hero, eyebrow and picture alt text
 
+> Superseded in part by the owner changes in the status note: no eyebrow, the shorter lead, the t3 placement and the `h1` size.
+
 - **Eyebrow** (new), first child of `.landing-hero` after `FloatingTiles`, before the `h1`:
   `<p className="hero-eyebrow">DocVault · personal AI document assistant</p>`
   - CSS: inline-flex pill, Geist Mono 13 px, weight 500, `color: var(--muted-foreground)`, 1 px `var(--border)` border, `border-radius: 999px`, padding 4 px 12 px, `margin: 0 auto 18px`. No icon, no motion.
@@ -51,9 +59,11 @@ Not allowed: "anything you ask is answered", accuracy figures, cloud or mobile-s
 
 ## Task 2: Section order, headings and examples
 
+> Item 4's miss has no source caption, per the status note.
+
 Final order of `main` (headings exact):
 
-1. Hero (eyebrow, `h1`, lead, buttons). Section name stays from `aria-labelledby="hero-title"`, so it becomes "Ask your documents anything."
+1. Hero (`h1`, lead, buttons; the eyebrow was removed, see the status note). Section name stays from `aria-labelledby="hero-title"`, so it becomes "Ask your documents anything."
 2. Product picture (unchanged markup).
 3. `QuestionMarquee`: same eight questions, new order so a bill is not first:
    1. "What does E21 mean on the dishwasher?"
@@ -79,6 +89,8 @@ Final order of `main` (headings exact):
 
 ## Task 3: Tests (write first, see them fail, then change the page)
 
+> The eyebrow tests and the eyebrow in the e2e first-screen check were replaced by the owner changes in the status note.
+
 **`Landing.test.tsx`:**
 - `has one headline, the lead, and no form fields`: `h1` text "Ask your documents anything."; the new lead exact; the eyebrow text "DocVault · personal AI document assistant" is visible, is a `p`, and comes before the `h1` in document order.
 - `puts the wordmark, Sign in and GitHub in the banner…`: the hero region name becomes "Ask your documents anything."; the rest unchanged.
@@ -103,14 +115,14 @@ Grep `frontend/e2e` and `frontend/src` for "Your documents, answered", "Bring yo
 - [ ] Update `specs/Repo_Current_State.md` with one evidence row (what was run, what was not), and the redesign plan's Task 5 with a one-line note that this plan supersedes its `h1`, lead and section copy.
 - [ ] Gates: `npm ci`, `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`, `npx playwright test e2e/landing.spec.ts` against the Vite dev server. Backend untouched.
 - [ ] Call `reviewer` with this plan and issue #35; show the owner the full report; merge under the `AGENTS.md` merge rule.
-- Commits: `Introduce DocVault as a personal AI document assistant on the landing page`, then `Record the landing positioning evidence`.
+- Commits: `Introduce DocVault as a personal AI document assistant on the landing page`, then `Record the landing positioning evidence`. The owner changes and review fixes added further commits on the branch.
 
 ## Owner decisions
 
 | # | Decision | Architect's recommendation |
 | --- | --- | --- |
 | D1 | Change the browser title and manifest name from "DocVault — personal document assistant" to "DocVault — personal AI document assistant" | **Yes.** It matches the eyebrow, and the tab title is what a visitor sees first in search and bookmarks. Two one-line edits; no test reads the title today |
-| D2 | Eyebrow wording: "DocVault · personal AI document assistant" or "Personal AI document assistant" | **Keep the brand name in it.** The wordmark sits in the header, but the eyebrow is what screenshots and the 390 px view show with the `h1` |
+| D2 (withdrawn by the owner; no eyebrow) | Eyebrow wording: "DocVault · personal AI document assistant" or "Personal AI document assistant" | **Keep the brand name in it.** The wordmark sits in the header, but the eyebrow is what screenshots and the 390 px view show with the `h1` |
 | D3 | `h1`: "Ask your documents anything." or "Ask your documents. Get answers with sources." | **"Ask your documents anything."** Short, one idea, and the lead immediately qualifies it (line citations, says when it can't find). The alternative is safer but reads as a feature list |
 | D4 | Meet DocBot shows an honest miss ("I couldn't find this in your documents.") | **Yes.** It is the product's real reply, it supports the reliability point the lecturer asked for |
 | D5 | Keep the closing line "Your paperwork deserves better than a drawer." | **Keep.** It is not about bills and was approved in Task 5 |
@@ -119,7 +131,7 @@ Grep `frontend/e2e` and `frontend/src` for "Your documents, answered", "Bring yo
 
 | # | Check | Verified by |
 | --- | --- | --- |
-| 1 | The first screen names the category (eyebrow), asks the core question (`h1`) and explains upload, ask, cited lines, approval and local running (lead) | `Landing.test.tsx`; e2e first-screen scenario |
+| 1 | The first screen names the category and explains upload, ask and cited lines (lead, after the owner changes), and asks the core question (`h1`); approval and local running are shown further down | `Landing.test.tsx`; e2e first-screen scenario |
 | 2 | The hero names no document type; bills are no longer first in the marquee, the cards or Meet DocBot | New hero test; question, card and Meet DocBot tests |
 | 3 | The approval card appears once; citations are OCR lines; every claim is in the claims table | `Landing.test.tsx`; Reviewer |
 | 4 | Kept structure, header, theme, button, banned claims and accessibility unchanged; axe passes at 1366 and 390 px | Unchanged tests; `landing.spec.ts` |

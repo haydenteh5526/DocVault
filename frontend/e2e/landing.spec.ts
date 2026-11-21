@@ -9,7 +9,7 @@ const bottom = async (locator: Locator) => {
 };
 
 test.describe('the landing page', () => {
-  test('at 1366 x 768 the headline, a two-line lead, the button and the top of the picture are on the first screen', async ({ page }) => {
+  test('at 1366 x 768 a two-line headline and lead, the button and the top of the picture are on the first screen', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/');
     // The lead fits on two lines at this width, as on t3.codes.
@@ -17,6 +17,11 @@ test.describe('the landing page', () => {
     const leadBox = (await lead.boundingBox())!;
     const lineHeight = parseFloat(await lead.evaluate(el => getComputedStyle(el).lineHeight));
     expect(Math.round(leadBox.height / lineHeight)).toBe(2);
+    // So is the headline, even with SF Pro's slightly wider letters on Apple devices.
+    const h1 = page.getByRole('heading', { level: 1 });
+    const h1Height = (await h1.boundingBox())!.height;
+    const h1Line = parseFloat(await h1.evaluate(el => getComputedStyle(el).lineHeight));
+    expect(Math.round(h1Height / h1Line)).toBe(2);
     const headline = page.getByRole('heading', { level: 1, name: 'Ask your documents anything.' });
     expect(await bottom(headline)).toBeLessThanOrEqual(768);
     const button = page.getByRole('region', { name: 'Ask your documents anything.' }).getByRole('link', { name: 'Get started' });
