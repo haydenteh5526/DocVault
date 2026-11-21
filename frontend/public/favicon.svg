@@ -1,13 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <title>DocVault</title>
-  <g fill="none" stroke="#171717" stroke-linejoin="round">
-    <rect x="5" y="5" width="54" height="54" rx="14" stroke-width="6"/>
-    <path d="M20.5 15h19l9 9v21.5a4.5 4.5 0 0 1-4.5 4.5h-23.5a4.5 4.5 0 0 1-4.5-4.5v-26a4.5 4.5 0 0 1 4.5-4.5z" stroke-width="3.6"/>
-    <path d="M21.5 21.5v22" stroke-width="2.6" stroke-linecap="round"/>
-  </g>
-  <g fill="#171717" stroke="#171717" stroke-linejoin="round">
-    <path d="M39.5 15v6.5a2.5 2.5 0 0 0 2.5 2.5h6.5z" stroke-width="1.5"/>
-    <circle cx="32.5" cy="30.5" r="3.6" stroke="none"/>
-    <path d="M30.8 32.5h3.4l1.1 7h-5.6z" stroke="none"/>
-  </g>
+  <defs>
+    <linearGradient id="dv-tile" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#141417"/>
+      <stop offset="1" stop-color="#09090B"/>
+    </linearGradient>
+    <linearGradient id="dv-rim" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="0.18" stop-color="#52525B" stop-opacity="0.9"/>
+      <stop offset="0.6" stop-color="#2A2A2E"/>
+      <stop offset="1" stop-color="#1C1C1F"/>
+    </linearGradient>
+    <linearGradient id="dv-page" x1="0" y1="9" x2="0" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#D4D4D8"/>
+      <stop offset="1" stop-color="#A1A1AA"/>
+    </linearGradient>
+    <linearGradient id="dv-flap" x1="37" y1="20" x2="48" y2="9" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A1A1AA"/>
+      <stop offset="1" stop-color="#F4F4F5"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="url(#dv-tile)" stroke="url(#dv-rim)" stroke-width="1"/>
+  <path d="M18.5 9H35V18.5A3.5 3.5 0 0 0 38.5 22H50V50.5A4.5 4.5 0 0 1 45.5 55H18.5A4.5 4.5 0 0 1 14 50.5V13.5A4.5 4.5 0 0 1 18.5 9Z" fill="url(#dv-page)"/>
+  <path d="M37 9L48 20H40.5A3.5 3.5 0 0 1 37 16.5Z" fill="url(#dv-flap)"/>
+  <path d="M14.9 50.5V13.5A3.6 3.6 0 0 1 18.5 9.9H34.1" fill="none" stroke="#FFFFFF" stroke-width="0.9" stroke-linecap="round"/>
+  <path d="M49.1 22.9V50.5A3.6 3.6 0 0 1 45.5 54.1H18.5" fill="none" stroke="#71717A" stroke-opacity="0.7" stroke-width="0.9" stroke-linecap="round"/>
+  <circle cx="32" cy="28.5" r="5.5" fill="#09090B"/>
+  <path d="M29.3 31.5H34.7L36.4 43H27.6Z" fill="#09090B"/>
 </svg>
