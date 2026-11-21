@@ -18,7 +18,7 @@ function subscribe(update: () => void) {
   return () => {media.removeEventListener('change',update);window.removeEventListener('storage',update);window.removeEventListener('theme-change',update)}
 }
 
-/** The signed-in app: /app and anything under it. The public landing page has its own dark surface. */
+/** The signed-in app: /app and anything under it. Every other page is public and always dark. */
 export function isAppPath(pathname: string): boolean {
   // React Router matches paths without regard to case, so /APP/documents is the app too.
   const path = pathname.toLowerCase()
@@ -26,7 +26,7 @@ export function isAppPath(pathname: string): boolean {
 }
 
 export function initialiseTheme() {
-  const apply = () => document.documentElement.classList.toggle('dark', resolved() === 'dark' && isAppPath(window.location.pathname))
+  const apply = () => document.documentElement.classList.toggle('dark', !isAppPath(window.location.pathname) || resolved() === 'dark')
   apply()
   window.addEventListener('route-change', apply)
   const unsubscribe = subscribe(apply)

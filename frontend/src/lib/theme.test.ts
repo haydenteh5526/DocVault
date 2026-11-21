@@ -53,43 +53,65 @@ describe('isAppPath is not case-sensitive (N1)', () => {
   })
 })
 
-describe('public pages are always light (R-D)', () => {
-  it.each(['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify', '/auth/callback'])(
-    'has no dark class on %s, even with a dark system theme',
-    path => {
-      startAt(path)
-      expect(isDark()).toBe(false)
-    },
-  )
+describe('public pages are always dark', () => {
+  const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify', '/auth/callback']
 
-  it('stays light on a public page when the saved preference is dark, and keeps that preference', () => {
-    localStorage.setItem('theme', 'dark')
+  it.each(publicPaths)('has the dark class on %s with every preference', path => {
+    for (const value of [null, 'dark', 'light', 'system']) {
+      localStorage.clear()
+      if (value) localStorage.setItem('theme', value)
+      systemDark(false)
+      startAt(path)
+      expect(isDark(), `${path} with ${value}`).toBe(true)
+      stop?.()
+      stop = undefined
+      document.documentElement.classList.remove('dark')
+    }
+  })
+
+  it('keeps the saved preference for the app when a public page is shown', () => {
+    localStorage.setItem('theme', 'light')
     startAt('/')
-    expect(isDark()).toBe(false)
-    expect(localStorage.getItem('theme')).toBe('dark')
+    expect(isDark()).toBe(true)
+    expect(localStorage.getItem('theme')).toBe('light')
   })
 })
 
-describe('the signed-in app follows the theme', () => {
-  it.each(['/app', '/app/documents'])('has the dark class on %s with a dark system theme', path => {
+describe('the signed-in app follows the preference', () => {
+  it.each(['/app', '/app/documents', '/APP/documents'])('is dark on %s when nothing is stored, even with a light system theme', path => {
+    systemDark(false)
     startAt(path)
     expect(isDark()).toBe(true)
   })
 
-  it('has no dark class on /app when the preference is light', () => {
+  it('is light with the light preference', () => {
     localStorage.setItem('theme', 'light')
     startAt('/app')
     expect(isDark()).toBe(false)
   })
 
-  it('turns light after leaving /app for a public page, and dark again on returning', () => {
-    startAt('/app/documents')
+  it('follows the media query with the system preference', () => {
+    localStorage.setItem('theme', 'system')
+    systemDark(true)
+    startAt('/app')
     expect(isDark()).toBe(true)
+    stop?.()
+    stop = undefined
+    document.documentElement.classList.remove('dark')
+    systemDark(false)
+    startAt('/app')
+    expect(isDark()).toBe(false)
+  })
+
+  it('stays dark when moving from the app to a public page, and follows the preference again on returning', () => {
+    localStorage.setItem('theme', 'light')
+    startAt('/app/documents')
+    expect(isDark()).toBe(false)
     window.history.pushState({}, '', '/')
     window.dispatchEvent(new Event('route-change'))
-    expect(isDark()).toBe(false)
+    expect(isDark()).toBe(true)
     window.history.pushState({}, '', '/app')
     window.dispatchEvent(new Event('route-change'))
-    expect(isDark()).toBe(true)
+    expect(isDark()).toBe(false)
   })
 })
