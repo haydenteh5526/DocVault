@@ -44,3 +44,29 @@ describe('the sticky landing header', () => {
     expect(landing).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.docbot-site \.poster-nav \{\s*transition: none;/)
   })
 })
+
+describe('the landing header links and tiles', () => {
+  it('brightens the header links on hover with no pill, as on t3.codes', () => {
+    expect(landing).toMatch(/\.poster-nav-link \{[^}]*color: #c4c4ca;[^}]*transition: color 180ms;/)
+    expect(landing).toMatch(/\.poster-nav-link:hover,\s*\.poster-nav-link:focus-visible \{\s*color: var\(--foreground\);\s*\}/)
+    expect(landing).not.toMatch(/\.poster-nav-link[^{]*\{[^}]*background/)
+  })
+
+  it('shifts each tile by the cursor times its depth, and not under reduced motion', () => {
+    expect(landing).toMatch(/\.float-mark \{[^}]*translate: calc\(var\(--px\) \* var\(--depth, 1\)\) calc\(var\(--py\) \* var\(--depth, 1\)\);[^}]*transition: translate 700ms/)
+    expect(landing).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.float-mark \{\s*translate: none;\s*transition: none;/)
+  })
+
+  it('plays the t3-style load-in only under html.motion-ok, with staggered delays', () => {
+    for (const [selector, delay] of [['.h1-line', 'var(--d, 0ms)'], ['.hero-lead', '300ms'], ['.hero-links', '400ms'], ['.product-picture', '520ms']])
+      expect(landing).toContain(`html.motion-ok .poster ${selector} { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) ${delay} both; }`)
+    expect(landing).toMatch(/html\.motion-ok \.poster \.float-tile \{ animation: tileIn 1s/)
+    expect(landing).toMatch(/@keyframes tileIn \{\s*from \{\s*opacity: 0;\s*transform: translate\(var\(--fx\), var\(--fy\)\) rotate\(calc\(var\(--rot\) \+ 24deg\)\) scale\(0\.6\);/)
+  })
+
+  it('sets the landing page in the t3.codes font stack at weight 600', () => {
+    expect(landing).toContain("font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;")
+    expect(landing).not.toContain('font-weight: 800;')
+    expect(readFileSync('index.html', 'utf8')).toContain('family=Inter:wght@100..900')
+  })
+})

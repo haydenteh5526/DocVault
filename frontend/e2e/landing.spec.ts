@@ -67,6 +67,25 @@ test.describe('the landing page', () => {
     await expect(header.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
 
+  test('the hero tiles follow the cursor and the header links brighten on hover', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto('/');
+    const tile = page.locator('.float-mark-file');
+    await expect(tile).toBeVisible();
+    const hero = (await page.locator('.landing-hero').boundingBox())!;
+    await page.mouse.move(hero.x + hero.width - 2, hero.y + 2);
+    // Near the top-right corner the file tile (depth 0.9) settles at about 16 px right and 12 px up.
+    await expect
+      .poll(async () => (await tile.evaluate(el => getComputedStyle(el).translate)).split(' ').map(parseFloat))
+      .toEqual([expect.closeTo(16.2, 0), expect.closeTo(-12.6, 0)]);
+    const signIn = page.getByRole('banner').getByRole('link', { name: 'Sign in' });
+    const colour = () => signIn.evaluate(el => getComputedStyle(el).color);
+    expect(await colour()).toBe('rgb(196, 196, 202)');
+    await signIn.hover();
+    await expect.poll(colour).toBe('rgb(242, 242, 243)');
+    expect(await signIn.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  });
+
   test('lists the eight questions once, and nothing moves with reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');

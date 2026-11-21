@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import Navbar from '@/components/Navbar'
@@ -7,6 +8,7 @@ import { QuestionMarquee } from '@/components/landing/QuestionMarquee'
 import { ASSISTANT_NAME as docbot } from '@/lib/assistant'
 import { REPO_URL } from '@/lib/project'
 import { GithubMark } from '@/components/GithubMark'
+import { VaultMonogram } from '@/components/VaultMonogram'
 import './landing.css'
 
 const repo = REPO_URL
@@ -109,16 +111,26 @@ export default function Landing() {
       <main id="content" tabIndex={-1}>
         <section className="landing-hero" aria-labelledby="hero-title">
           <FloatingTiles />
-          <h1 id="hero-title">Your documents, answered and kept on track.</h1>
+          <h1 id="hero-title">
+            <span className="h1-line">Your documents,</span> <br />
+            <span className="h1-line" style={{ '--d': '90ms' } as CSSProperties}>
+              answered and
+            </span>{' '}
+            <br />
+            <span className="h1-line" style={{ '--d': '180ms' } as CSSProperties}>
+              kept on track.
+            </span>
+          </h1>
           <p className="hero-lead">
             Ask your bills, leases and manuals in your own words. {docbot} shows the line every answer came from and
             asks before it saves anything.
           </p>
           <div className="hero-links">
             <Link to="/register">Get started</Link>
-            <a href={setup} className="text-link">
+            <a href={setup} className="text-link" target="_blank" rel="noopener noreferrer">
               <GithubMark />
-              Run it yourself on GitHub
+              Run it yourself on GitHub{' '}
+              <span className="sr-only">(opens in a new tab)</span>
             </a>
           </div>
         </section>
@@ -233,11 +245,21 @@ export default function Landing() {
         </section>
       </main>
       <footer className="landing-footer">
-        <p>© 2026 DocVault · final-year project</p>
+        <p className="footer-brand">
+          <VaultMonogram size={20} />
+          © 2026 DocVault · by Hayden · final-year project
+        </p>
         <nav aria-label="Project">
-          <a href={repo}>GitHub</a>
-          <a href={`${repo}#architecture`}>Architecture</a>
-          <a href={`${repo}/tree/main/evaluation`}>Evaluation</a>
+          {[
+            ['GitHub', repo],
+            ['Architecture', `${repo}#architecture`],
+            ['Evaluation', `${repo}/tree/main/evaluation`],
+          ].map(([name, href]) => (
+            <a key={name} href={href} target="_blank" rel="noopener noreferrer">
+              {name}{' '}
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          ))}
         </nav>
       </footer>
     </div>

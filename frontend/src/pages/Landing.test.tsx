@@ -53,15 +53,18 @@ it('puts the wordmark, Sign in and GitHub in the banner, and the one primary but
   const banner = within(screen.getByRole('banner'))
   expect(banner.getByRole('link', { name: 'DocVault' })).toHaveAttribute('href', '/')
   expect(banner.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
-  expect(banner.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/haydenteh5526/DocVault')
+  const github = banner.getByRole('link', { name: 'GitHub (opens in a new tab)' })
+  expect(github).toHaveAttribute('href', 'https://github.com/haydenteh5526/DocVault')
+  expect(github).toHaveAttribute('target', '_blank')
+  expect(github).toHaveAttribute('rel', 'noopener noreferrer')
+  for (const name of ['Sign in', 'GitHub (opens in a new tab)']) expect(banner.getByRole('link', { name })).toHaveClass('poster-nav-link')
   expect(banner.queryByRole('link', { name: /create an account|get started/i })).toBeNull()
   const hero = within(screen.getByRole('region', { name: 'Your documents, answered and kept on track.' }))
-  expect(hero.getAllByRole('link').map(l => l.textContent)).toEqual(['Get started', 'Run it yourself on GitHub'])
+  expect(hero.getAllByRole('link').map(l => l.textContent)).toEqual(['Get started', 'Run it yourself on GitHub (opens in a new tab)'])
   expect(hero.getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '/register')
-  expect(hero.getByRole('link', { name: 'Run it yourself on GitHub' })).toHaveAttribute(
-    'href',
-    expect.stringContaining('#quick-start'),
-  )
+  const runIt = hero.getByRole('link', { name: 'Run it yourself on GitHub (opens in a new tab)' })
+  expect(runIt).toHaveAttribute('href', expect.stringContaining('#quick-start'))
+  expect(runIt).toHaveAttribute('target', '_blank')
   expect(document.body).not.toHaveTextContent('Create an account')
 })
 
@@ -71,6 +74,83 @@ it('shows six aria-hidden floating tiles', () => {
   expect(tiles.getAttribute('aria-hidden')).toBe('true')
   expect(tiles.children).toHaveLength(6)
   expect(tiles.querySelector('svg[data-variant="head"]')).not.toBeNull()
+})
+
+it('colours the five icon tiles and gives every tile a depth', () => {
+  const { container } = open()
+  const tiles = [...container.querySelectorAll<HTMLElement>('.float-tile')]
+  expect(tiles.map(t => t.style.getPropertyValue('--tile-color'))).toEqual(['', '#F472B6', '#8FD19B', '#F0A55B', '#7AA7FF', '#5EEAD4'])
+  for (const tile of tiles) expect(tile.style.getPropertyValue('--rot')).toMatch(/^-?\d+deg$/)
+  const marks = [...container.querySelectorAll<HTMLElement>('.float-mark')]
+  for (const mark of marks) expect(Number(mark.style.getPropertyValue('--depth'))).toBeGreaterThan(0)
+})
+
+it('spreads the tiles in three mirrored pairs, as on t3.codes', () => {
+  const { container } = open()
+  const marks = [...container.querySelectorAll<HTMLElement>('.float-mark')].map(m => [
+    m.style.getPropertyValue('--x'),
+    m.style.getPropertyValue('--y'),
+    m.style.getPropertyValue('--s'),
+  ])
+  expect(marks).toEqual([
+    ['max(-300px, -19vw)', '20px', '64px'],
+    ['min(300px, 19vw)', '20px', '64px'],
+    ['max(-560px, -38vw)', '128px', '96px'],
+    ['min(560px, 38vw)', '128px', '96px'],
+    ['max(-440px, -30vw)', '440px', '80px'],
+    ['min(440px, 30vw)', '440px', '80px'],
+  ])
+})
+
+it('splits the headline into three lines that rise in turn', () => {
+  const { container } = open()
+  const lines = [...container.querySelectorAll<HTMLElement>('h1 .h1-line')]
+  expect(lines.map(l => l.textContent)).toEqual(['Your documents,', 'answered and', 'kept on track.'])
+  expect(lines.map(l => l.style.getPropertyValue('--d'))).toEqual(['', '90ms', '180ms'])
+})
+
+function pointer(fine: boolean, reduce: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('pointer: fine') ? fine : query.includes('reduce') ? reduce : false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }))
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    cb(0)
+    return 1
+  })
+}
+function hover(fine: boolean, reduce: boolean) {
+  pointer(fine, reduce)
+  const { container } = render(
+    <MemoryRouter>
+      <Landing />
+    </MemoryRouter>,
+  )
+  const hero = container.querySelector<HTMLElement>('.landing-hero')!
+  hero.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 500, right: 1000, bottom: 500, x: 0, y: 0, toJSON: () => ({}) })
+  const field = container.querySelector<HTMLElement>('.floating-tiles')!
+  return { hero, field }
+}
+
+it('moves the tiles with a fine pointer and settles them when it leaves', () => {
+  const { hero, field } = hover(true, false)
+  fireEvent.pointerMove(hero, { clientX: 1000, clientY: 0 })
+  expect(field.style.getPropertyValue('--px')).toBe('18.0px')
+  expect(field.style.getPropertyValue('--py')).toBe('-14.0px')
+  fireEvent.pointerLeave(hero)
+  expect(field.style.getPropertyValue('--px')).toBe('0px')
+  expect(field.style.getPropertyValue('--py')).toBe('0px')
+})
+
+it('keeps the tiles still for touch and under reduced motion', () => {
+  for (const [fine, reduce] of [[false, false], [true, true]] as const) {
+    const { hero, field } = hover(fine, reduce)
+    fireEvent.pointerMove(hero, { clientX: 1000, clientY: 0 })
+    expect(field.style.getPropertyValue('--px')).not.toBe('18.0px')
+    cleanup()
+  }
 })
 
 it('describes the product picture in words', () => {
@@ -144,8 +224,13 @@ it('keeps the stats, the closing line and the one-line footer', () => {
   expect(stats).toHaveTextContent('Line 17')
   expect(stats).toHaveTextContent('€0')
   const footer = within(screen.getByRole('contentinfo'))
-  expect(footer.getByText('© 2026 DocVault · final-year project')).toBeVisible()
-  for (const name of ['GitHub', 'Architecture', 'Evaluation']) expect(footer.getByRole('link', { name })).toBeVisible()
+  expect(footer.getByText('© 2026 DocVault · by Hayden · final-year project')).toBeVisible()
+  expect(footer.getByText('© 2026 DocVault · by Hayden · final-year project').querySelector('svg')).not.toBeNull()
+  for (const name of ['GitHub', 'Architecture', 'Evaluation']) {
+    const link = footer.getByRole('link', { name: `${name} (opens in a new tab)` })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  }
 })
 
 it('has no testimonials and keeps the earlier banned claims out', () => {
@@ -155,13 +240,12 @@ it('has no testimonials and keeps the earlier banned claims out', () => {
   expect(container).toHaveTextContent('€123.47')
 })
 
-it('drifts and scrolls only when motion is allowed', () => {
+it('scrolls only when motion is allowed, and the tiles no longer drift', () => {
   const moving = open(false).container
-  expect(moving.querySelector('.docbot-drift')).not.toBeNull()
   expect(moving.querySelector('.marquee-track')).not.toBeNull()
+  expect(moving.querySelector('.docbot-drift')).toBeNull()
   cleanup()
   const still = open(true).container
-  expect(still.querySelector('.docbot-drift')).toBeNull()
   expect(still.querySelector('.marquee-track')).toBeNull()
   expect(still.querySelector('.docbot-blink')).toBeNull()
 })
