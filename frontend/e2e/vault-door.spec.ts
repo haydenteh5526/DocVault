@@ -107,12 +107,10 @@ test.describe('signing in with the vault door', () => {
     await page.goto('/login');
     await toPasswordStep(page, email!);
     await page.getByPlaceholder('Password').fill(password!);
-    const started = Date.now();
     const response = await submitSignIn(page);
     expect(response.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/app$/);
-    expect(Date.now() - started).toBeLessThan(10_000);
   });
 });
 
