@@ -95,7 +95,7 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground antialiased font-sans; }
   button:not(:disabled), summary { cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+  :focus-visible:not([data-focus-ring="container"]) { outline: 2px solid var(--foreground); outline-offset: 3px; }
   button, input, select, textarea, a { -webkit-tap-highlight-color: transparent; }
   [cmdk-list] { scrollbar-width: thin; }
   [cmdk-input-wrapper] { width: 100%; }
@@ -113,7 +113,7 @@
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, summary, [tabindex]):not([data-focus-ring="container"]):focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }

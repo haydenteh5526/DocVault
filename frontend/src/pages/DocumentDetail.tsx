@@ -201,7 +201,7 @@ export default function DocumentDetail() {
                 </Button>
               )}
               <ShareButton documentId={doc.id} />
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-destructive/10" onClick={handleDelete}>
+              <Button variant="ghost" size="icon" aria-label="Delete document" className="h-9 w-9 rounded-full hover:bg-destructive/10" onClick={handleDelete}>
                 <Trash2 size={16} className="text-muted-foreground hover:text-destructive" />
               </Button>
             </div>
