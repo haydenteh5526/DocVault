@@ -29,7 +29,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.getByRole('button', { name: /Continue with Email/i }).click();
   await page.getByPlaceholder('Password').fill(password);
   await submitSignIn(page);
-  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 /** Navigate inside the single-page app without reloading it. */

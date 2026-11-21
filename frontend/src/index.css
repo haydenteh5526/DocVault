@@ -3,6 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --docbot-yellow: #FFD83D;
   --background: #FFFFFF;
   --foreground: #0A0A0A;
   --card: #FFFFFF;
@@ -29,13 +30,15 @@
   --mark-text: #14171F;
   --mark-edge: #14171F;
   --radius: 0.625rem;
+  --brand-ink: #171717;
   --font-display: 'Archivo', 'Arial Narrow', Arial, sans-serif;
   color-scheme: light;
 }
 .dark {
-  --background: #0A0A0A;
-  --foreground: #FAFAFA;
-  --card: #171717;
+  --brand-ink: #F2F2F3;
+  --background: #0A0A0B;
+  --foreground: #F2F2F3;
+  --card: #17171A;
   --card-foreground: #FAFAFA;
   --popover: #171717;
   --popover-foreground: #FAFAFA;
@@ -44,10 +47,10 @@
   --secondary: #262626;
   --secondary-foreground: #FAFAFA;
   --muted: #262626;
-  --muted-foreground: #A1A1A1;
+  --muted-foreground: #A9A9AF;
   --accent: #262626;
   --accent-foreground: #FAFAFA;
-  --border: #2E2E2E;
+  --border: #222226;
   --input: #6B6B6B;
   --ring: #737373;
   --destructive: #FF6467;
@@ -86,6 +89,7 @@
   --color-mark: var(--mark);
   --color-mark-text: var(--mark-text);
   --color-mark-edge: var(--mark-edge);
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-sans: 'Geist', system-ui, sans-serif;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -117,3 +121,14 @@
   outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }
+.docbot-blink { transform-origin: center; animation: docbotBlink 7s infinite; }
+@keyframes docbotBlink { 0%, 95%, 98%, 100% {transform:scaleY(1)} 96.5% {transform:scaleY(.1)} }
+.docbot-composer:focus-within { border-color: var(--muted-foreground); }
+.docbot-composer textarea:focus-visible { outline: none; }
+.docbot-activity section + section { margin-top: 2rem }
+.docbot-activity h2 { font-size: .95rem; font-weight: 650; margin-bottom: .75rem }
+.docbot-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
+.docbot-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
+.docbot-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }
+.docbot-bob { animation: docbotBob 1.6s ease-in-out infinite; }
+@keyframes docbotBob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(2px) } }

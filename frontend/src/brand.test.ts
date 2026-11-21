@@ -4,25 +4,19 @@ import { describe, expect, it } from 'vitest'
 
 const favicon = readFileSync('public/favicon.svg', 'utf8')
 
-describe('the tab icon is the DocVault glyph (R-E)', () => {
-  it('is a #171717 rounded square with the Lucide FileText paths', () => {
+describe('the tab icon is the Vault-Page Monogram', () => {
+  it('is the monogram in #171717 on a transparent background, titled DocVault', () => {
     expect(favicon).toContain('<title>DocVault</title>')
     expect(favicon).toContain('#171717')
-    expect(favicon).toContain('M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z')
-    expect(favicon).toContain('M14 2v5a1 1 0 0 0 1 1h5')
-    expect(favicon).toContain('M10 9H8')
-    expect(favicon).toContain('M16 13H8')
-    expect(favicon).toContain('M16 17H8')
+    expect(favicon).toContain('M30.8 32.5h3.4l1.1 7h-5.6z')
+    expect(favicon).toContain('M20.5 15h19l9 9v21.5a4.5 4.5 0 0 1-4.5 4.5h-23.5a4.5 4.5 0 0 1-4.5-4.5v-26a4.5 4.5 0 0 1 4.5-4.5z')
+    expect(favicon).not.toMatch(/<rect[^>]*width="(80|64)"[^>]*fill="#171717"/)
   })
 
-  it('no longer has the old layers path, gradient or purple', () => {
+  it('no longer has the FileText paths, the old layers path, a gradient or purple', () => {
+    expect(favicon).not.toContain('M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8')
     expect(favicon).not.toContain('M12.83 2.18')
-    expect(favicon).not.toMatch(/linearGradient|#7d36d9|#2948c8/i)
-  })
-
-  it('keeps the Lucide licence comment', () => {
-    expect(favicon).toContain('ISC License')
-    expect(favicon).toContain('Lucide Icons and Contributors')
+    expect(favicon).not.toMatch(/linearGradient|#7d36d9|#2948c8|Lucide/i)
   })
 })
 

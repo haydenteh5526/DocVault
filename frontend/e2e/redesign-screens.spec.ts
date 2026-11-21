@@ -120,7 +120,7 @@ test('record the redesign screens', async ({ page }) => {
     await expect(page.getByRole('link', { name: /\.png$/ }).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('Checking status')).toHaveCount(0, { timeout: 60_000 });
   };
-  await shoot(page, 'home', '/app', listSettled);
+  await shoot(page, 'home', '/app', async () => { await expect(page.getByRole('heading', {name:'DocBot', exact:true})).toBeVisible(); });
   await shoot(page, 'documents', '/app/documents', listSettled);
   await shoot(page, 'documents-search', '/app/documents?q=october', listSettled);
   await shoot(page, 'documents-no-match', '/app/documents?q=octber');
@@ -181,43 +181,6 @@ test('record the redesign screens', async ({ page }) => {
       await page.screenshot({ path: path.join(OUT_DIR, `upload-mid-${size.name}-${theme}.png`) });
     }
   }
-});
-
-// Needs no account, so it runs with the normal browser suite.
-test.describe('landing preview is above the fold', () => {
-  const bottom = async (locator: ReturnType<Page['locator']>) => {
-    await expect(locator.first()).toBeVisible();
-    const box = await locator.first().boundingBox();
-    return box!.y + box!.height;
-  };
-
-  for (const scheme of ['light', 'dark'] as const) {
-    test(`at 1366 x 768 the question, the answer and the source line are on the first screen (${scheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
-      await page.setViewportSize({ width: 1366, height: 768 });
-      await page.goto('/');
-      const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
-      for (const locator of [
-        preview.getByText('When is my electricity bill due?', { exact: true }),
-        preview.getByText('23 November 2026', { exact: true }).first(),
-        preview.getByText('October electricity bill · line 17', { exact: true }),
-        preview.getByText('OCR line 17', { exact: true }),
-        preview.getByText('Payment due date: 23 November 2026', { exact: true }),
-        page.getByRole('banner').getByRole('link', { name: 'Create an account' }),
-      ]) {
-        expect(await bottom(locator)).toBeLessThanOrEqual(768);
-      }
-    });
-  }
-
-  test('at 390 x 844 the answer is on the first screen and nothing scrolls sideways', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
-    const preview = page.getByRole('img', { name: /When is my electricity bill due\?/ });
-    expect(await bottom(preview.getByText('23 November 2026', { exact: true }).first())).toBeLessThanOrEqual(844);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth)).toBe(true);
-    await expect(page.getByRole('banner').getByRole('link', { name: 'Create an account' })).toBeVisible();
-  });
 });
 
 // Needs the verified synthetic account (E2E_EMAIL, E2E_PASSWORD); it adds one document and removes it again.

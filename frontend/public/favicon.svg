@@ -1,28 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <title>DocVault</title>
-  <!--
-    FileText icon: Copyright (c) 2026 Lucide Icons and Contributors
-    ISC License
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted, provided that the above
-    copyright notice and this permission notice appear in all copies.
-
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-  -->
-  <rect width="80" height="80" rx="16" fill="#171717"/>
-  <g transform="translate(15 15) scale(2.0833)" fill="none" stroke="#FAFAFA"
-     stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
-    <path d="M14 2v5a1 1 0 0 0 1 1h5"/>
-    <path d="M10 9H8"/>
-    <path d="M16 13H8"/>
-    <path d="M16 17H8"/>
+  <g fill="none" stroke="#171717" stroke-linejoin="round">
+    <rect x="5" y="5" width="54" height="54" rx="14" stroke-width="6"/>
+    <path d="M20.5 15h19l9 9v21.5a4.5 4.5 0 0 1-4.5 4.5h-23.5a4.5 4.5 0 0 1-4.5-4.5v-26a4.5 4.5 0 0 1 4.5-4.5z" stroke-width="3.6"/>
+    <path d="M21.5 21.5v22" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <g fill="#171717" stroke="#171717" stroke-linejoin="round">
+    <path d="M39.5 15v6.5a2.5 2.5 0 0 0 2.5 2.5h6.5z" stroke-width="1.5"/>
+    <circle cx="32.5" cy="30.5" r="3.6" stroke="none"/>
+    <path d="M30.8 32.5h3.4l1.1 7h-5.6z" stroke="none"/>
   </g>
 </svg>
