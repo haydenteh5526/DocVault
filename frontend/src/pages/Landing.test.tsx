@@ -78,9 +78,9 @@ it('describes the product picture in words', () => {
   const picture = screen.getByRole('img', { name: /^DocBot's home:/ })
   expect(picture.tagName).toBe('FIGURE')
   expect(picture).toHaveAccessibleName(
-    "DocBot's home: the side menu with DocBot's status, a question about lease notice answered with 28 days in writing from clause 9.2 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.",
+    "DocBot's home: the side menu with DocBot's status, a question about lease notice answered with 28 days in writing from line 14 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.",
   )
-  expect(picture).toHaveTextContent('Tenancy agreement · clause 9.2')
+  expect(picture).toHaveTextContent('Tenancy agreement · line 14')
   expect(picture).toHaveTextContent('Kettle receipt · 2-year warranty')
   expect(picture).not.toHaveTextContent('Requires approval')
   expect(picture.querySelector('a, button, input')).toBeNull()
@@ -170,6 +170,7 @@ it('shows the approval card once, beside its highlighted source line', () => {
   open()
   const section = screen.getByRole('heading', { level: 2, name: /^One button to approve/ }).closest('section')!
   const figure = within(section).getByRole('img')
+  expect(figure).toHaveAccessibleName(expect.stringContaining('Electricity bill, 2 days before due, a reminder on 21 November for €123.47 split 4 ways'))
   expect(figure).toHaveTextContent('Amount due €123.47 · by 23 Nov 2026')
   expect(figure.querySelector('.source-line .line-no')).toHaveTextContent('17')
   expect(figure.querySelector('.approval-card')).not.toBeNull()

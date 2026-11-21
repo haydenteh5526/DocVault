@@ -45,7 +45,7 @@ function CitedAnswer({ question, answer, source, size = 20 }: { question: string
 
 /** DocBot's home as a picture, with synthetic data. Nothing in it can be clicked. */
 function ProductPicture() {
-  const alt = `${docbot}'s home: the side menu with ${docbot}'s status, a question about lease notice answered with 28 days in writing from clause 9.2 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.`
+  const alt = `${docbot}'s home: the side menu with ${docbot}'s status, a question about lease notice answered with 28 days in writing from line 14 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.`
   return (
     <figure role="img" aria-label={alt} className="product-picture">
       <div className="picture-chrome" aria-hidden="true">
@@ -68,7 +68,7 @@ function ProductPicture() {
           <CitedAnswer
             question="How much notice do I give the landlord?"
             answer="28 days, in writing"
-            source="Tenancy agreement · clause 9.2"
+            source="Tenancy agreement · line 14"
           />
           <CitedAnswer
             question="Is the kettle still under warranty?"
@@ -168,7 +168,7 @@ export default function Landing() {
         <section className="feature-block">
           <figure
             role="img"
-            aria-label="Line 17 of the October electricity bill, amount due €123.47 by 23 November 2026, above a reminder for that bill that requires approval, with the buttons Approve and save and Review in bill."
+            aria-label="Line 17 of the October electricity bill, amount due €123.47 by 23 November 2026, above a card that requires approval: Electricity bill, 2 days before due, a reminder on 21 November for €123.47 split 4 ways, with the buttons Approve and save and Review in bill."
           >
             <div className="source-line">
               <span>October electricity bill</span>
