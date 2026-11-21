@@ -83,7 +83,7 @@
 .landing-hero {
   position: relative;
   text-align: center;
-  padding: clamp(40px, 5vw, 72px) 0 40px;
+  padding: clamp(28px, 4vw, 56px) 0 40px;
   isolation: isolate;
 }
 .landing-hero::before {
@@ -97,6 +97,24 @@
   mask-image: linear-gradient(to bottom, #000 40%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
   opacity: 0.55;
+}
+/* The category label above the headline. Muted text on the page is 8.5:1. */
+.hero-eyebrow {
+  display: inline-flex;
+  margin: 0 auto 18px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font:
+    500 13px/1.5 'Geist Mono',
+    ui-monospace,
+    monospace;
+}
+.meet-lead {
+  color: var(--muted-foreground);
+  max-width: 46ch;
+  line-height: 1.55;
 }
 .h1-line {
   display: inline-block;

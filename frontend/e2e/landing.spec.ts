@@ -9,12 +9,14 @@ const bottom = async (locator: Locator) => {
 };
 
 test.describe('the landing page', () => {
-  test('at 1366 x 768 the headline, the button and the top of the picture are on the first screen', async ({ page }) => {
+  test('at 1366 x 768 the eyebrow, the headline, the button and the top of the picture are on the first screen', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/');
-    const headline = page.getByRole('heading', { level: 1, name: 'Your documents, answered and kept on track.' });
+    const eyebrow = page.getByText('DocVault · personal AI document assistant');
+    expect(await bottom(eyebrow)).toBeLessThanOrEqual(768);
+    const headline = page.getByRole('heading', { level: 1, name: 'Ask your documents anything.' });
     expect(await bottom(headline)).toBeLessThanOrEqual(768);
-    const button = page.getByRole('region', { name: 'Your documents, answered and kept on track.' }).getByRole('link', { name: 'Get started' });
+    const button = page.getByRole('region', { name: 'Ask your documents anything.' }).getByRole('link', { name: 'Get started' });
     expect(await bottom(button)).toBeLessThanOrEqual(768);
     const picture = page.getByRole('img', { name: /^DocBot's home:/ });
     await expect(picture).toBeVisible();

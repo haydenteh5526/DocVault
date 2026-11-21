@@ -47,7 +47,7 @@ function CitedAnswer({ question, answer, source, size = 20 }: { question: string
 
 /** DocBot's home as a picture, with synthetic data. Nothing in it can be clicked. */
 function ProductPicture() {
-  const alt = `${docbot}'s home: the side menu with ${docbot}'s status, a question about lease notice answered with 28 days in writing from line 14 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.`
+  const alt = `${docbot}'s home: two questions answered from your own documents. How much notice to give the landlord: 28 days in writing, from line 14 of the tenancy agreement. Whether the kettle is still under warranty: yes, until 14 March 2027, from the kettle receipt.`
   return (
     <figure role="img" aria-label={alt} className="product-picture">
       <div className="picture-chrome" aria-hidden="true">
@@ -84,11 +84,11 @@ function ProductPicture() {
 }
 
 const documents: [string, string][] = [
-  ['Bills', 'amount · due date'],
   ['Leases', 'notice · rent day'],
   ['Manuals', 'fault codes'],
   ['Warranties', 'end dates'],
   ['Receipts', 'proof of purchase'],
+  ['Bills', 'amount · due date'],
 ]
 
 function Ticks({ items }: { items: string[] }) {
@@ -111,19 +111,17 @@ export default function Landing() {
       <main id="content" tabIndex={-1}>
         <section className="landing-hero" aria-labelledby="hero-title">
           <FloatingTiles />
+          <p className="hero-eyebrow">DocVault · personal AI document assistant</p>
           <h1 id="hero-title">
-            <span className="h1-line">Your documents,</span> <br />
+            <span className="h1-line">Ask your documents</span> <br />
             <span className="h1-line" style={{ '--d': '90ms' } as CSSProperties}>
-              answered and
-            </span>{' '}
-            <br />
-            <span className="h1-line" style={{ '--d': '180ms' } as CSSProperties}>
-              kept on track.
+              anything.
             </span>
           </h1>
           <p className="hero-lead">
-            Ask your bills, leases and manuals in your own words. {docbot} shows the line every answer came from and
-            asks before it saves anything.
+            Upload photos or PDFs of your paperwork and ask about them in your own words. {docbot} points to the line
+            each answer came from, says so when your documents don't, and asks before it saves anything. It all runs on
+            your own computer.
           </p>
           <div className="hero-links">
             <Link to="/register">Get started</Link>
@@ -141,31 +139,33 @@ export default function Landing() {
         <section id="meet-docbot" className="meet-docbot">
           <div>
             <DocBotMark variant="full" state="done" size={120} />
-            <h2>{`Meet ${docbot}, who keeps your paperwork moving.`}</h2>
+            <h2>{`Meet ${docbot}, who reads your paperwork so you don't have to.`}</h2>
+            <p className="meet-lead">
+              Ask about anything you've uploaded. {docbot} answers from your own files, shows where the answer is, and
+              tells you when it isn't there.
+            </p>
           </div>
           <figure
             role="img"
-            aria-label={`${docbot} answers that the electricity bill is due on 23 November 2026, from line 17, then drafts a reminder for 21 November that waits for your approval.`}
+            aria-label={`${docbot} answers that E21 on the dishwasher means the water temperature is too low, from line 22 of the dishwasher manual, then says it couldn't find when the car insurance renews in your documents.`}
           >
             <CitedAnswer
-              question="When is the electricity bill due?"
-              answer="23 November 2026"
-              source="October electricity bill · line 17"
+              question="What does E21 mean on the dishwasher?"
+              answer="Water temperature too low. Switch off and call the helpline."
+              source="Dishwasher manual · line 22"
               size={28}
             />
-            <span className="sample-bubble">Remind me two days before.</span>
-            <div className="sample-answer">
-              <DocBotMark size={28} />
-              <span>
-                <b>Drafted a reminder for 21 November.</b>
-                <small>Waiting for your approval</small>
-              </span>
-            </div>
+            <CitedAnswer
+              question="When does the car insurance renew?"
+              answer="I couldn't find this in your documents."
+              source="No matching source line"
+              size={28}
+            />
           </figure>
         </section>
 
         <section className="own-documents" aria-labelledby="own-documents-title">
-          <h2 id="own-documents-title">Bring your own documents</h2>
+          <h2 id="own-documents-title">Works with the paperwork you already have</h2>
           <p>Photos or PDFs. DocVault reads them on your computer.</p>
           <ul>
             {documents.map(([name, caption]) => (
@@ -227,7 +227,7 @@ export default function Landing() {
         <dl id="trust" className="docbot-stats">
           {[
             ['0', 'actions saved without your approval'],
-            ['Line 17', 'every answer points to its source line'],
+            ['Line 14', 'every answer points to its source line'],
             ['€0', 'runs on your own computer'],
           ].map(([n, t]) => (
             <div key={n}>
