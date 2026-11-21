@@ -114,6 +114,8 @@ Frontend only. No backend, migration or API change.
 
 ## Task 5: The landing page in the t3.codes structure
 
+> **Superseded in part (21 Nov 2026):** [`2026-11-21-landing-positioning.md`](2026-11-21-landing-positioning.md) replaces this task's `h1`, lead and section copy, and the landing page now uses the t3.codes font stack at weight 600 instead of Geist 800.
+
 - **Files:** `pages/Landing.tsx`, `landing.css`, new `components/landing/FloatingTiles.tsx` and `components/landing/QuestionMarquee.tsx`. This replaces Codex's x.ai-style hero, the four product panels and the "Choose how to start" cards.
 - **Order and exact copy.** The page is dark, with a faint 28 px grid of `--border` lines behind the hero.
   1. **Top bar:** the Wordmark; "Sign in" (link); "Create an account" (white button).

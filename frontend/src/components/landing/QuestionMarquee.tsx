@@ -1,13 +1,13 @@
 import { useReducedMotion } from '@/lib/useReducedMotion'
 
 export const QUESTIONS = [
-  'When is the electricity bill due?',
-  'How much notice do I give the landlord?',
   'What does E21 mean on the dishwasher?',
+  'How much notice do I give the landlord?',
   'Is the kettle still under warranty?',
-  'Split the gas bill by days at home',
-  'How much was the October bill?',
   'When does the tenancy end?',
+  'When is the electricity bill due?',
+  'How much was the October bill?',
+  'Split the gas bill by days at home',
   'Remind me two days before the bill is due',
 ]
 
