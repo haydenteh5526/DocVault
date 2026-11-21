@@ -4,15 +4,44 @@
   font-family: Geist, system-ui, sans-serif;
   overflow-x: clip;
 }
-.docbot-site :is(main, footer, .poster-nav) {
+.docbot-site :is(main, footer) {
   width: min(100% - 64px, 1180px);
   margin-inline: auto;
 }
+/* Sticky header, as on t3.codes: a constant 75% tint of the page colour with no blur.
+   Only the bottom border fades in once the page scrolls. The surface spans the full
+   width; the padding lines the content up with main. */
 .docbot-site .poster-nav {
-  height: 72px;
+  --nav-gutter: max(32px, (100% - 1180px) / 2);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 60px;
+  padding-inline: var(--nav-gutter);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Over pure white this composites to about #474747, so white nav text stays above 9:1. */
+  background-color: color-mix(in srgb, var(--background) 75%, transparent);
+  border-bottom: 1px solid transparent;
+  transition: border-color 300ms;
+}
+.docbot-site .poster-nav[data-scrolled='true'] {
+  border-bottom-color: var(--border);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .docbot-site .poster-nav {
+    background-color: var(--background);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .docbot-site .poster-nav {
+    transition: none;
+  }
+}
+/* Keep anchored sections clear of the sticky header. */
+.docbot-site [id] {
+  scroll-margin-top: 76px;
 }
 .poster-nav nav a,
 .hero-links a,
@@ -83,6 +112,23 @@
 .text-link:hover {
   color: var(--foreground);
   text-decoration: underline;
+}
+.text-link-strong {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 0.35);
+  text-decoration-thickness: 1px;
+}
+.text-link-strong:hover {
+  text-decoration-color: currentColor;
+}
+.text-link-strong > span {
+  transition: transform 150ms ease;
+}
+.text-link-strong:hover > span {
+  transform: translateX(3px);
 }
 
 /* Floating tiles */
@@ -418,9 +464,40 @@
   border: 1px solid var(--border);
   border-radius: 19px;
   background: var(--card);
-  padding: clamp(20px, 3vw, 40px);
+  padding: clamp(14px, 1.6vw, 20px);
   display: grid;
-  place-items: center;
+  gap: 10px;
+  align-content: center;
+  font-size: 14px;
+}
+.feature-block .approval-card {
+  max-width: none;
+}
+/* The bill line the proposal came from, highlighted like a cited source. */
+.source-line {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+.source-line > span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.source-line code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border-left: 3px solid #f0a55b;
+  background: rgb(240 165 91 / 0.1);
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.source-line .line-no {
+  color: #f0a55b;
+  flex: none;
 }
 .feature-block > div:not(.terminal-card) {
   display: grid;
@@ -537,11 +614,11 @@
   }
 }
 @media (max-width: 600px) {
-  .docbot-site :is(main, footer, .poster-nav) {
+  .docbot-site :is(main, footer) {
     width: calc(100% - 32px);
   }
   .docbot-site .poster-nav {
-    height: 60px;
+    --nav-gutter: 16px;
   }
   .picture-app {
     grid-template-columns: 1fr;
@@ -562,6 +639,9 @@
   .docbot-drift,
   .marquee-track {
     animation: none;
+  }
+  .text-link-strong > span {
+    transition: none;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

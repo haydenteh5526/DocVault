@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { it, expect, afterEach, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, cleanup, screen, within } from '@testing-library/react'
+import { render, cleanup, screen, within, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Landing from './Landing'
 
@@ -48,19 +48,21 @@ it('has one headline, the lead, and no form fields', () => {
   expect(document.querySelector('input, textarea, select')).toBeNull()
 })
 
-it('puts the wordmark and both account actions in the banner, and one primary button plus the GitHub link in the hero', () => {
+it('puts the wordmark, Sign in and GitHub in the banner, and the one primary button plus the GitHub link in the hero', () => {
   open()
   const banner = within(screen.getByRole('banner'))
   expect(banner.getByRole('link', { name: 'DocVault' })).toHaveAttribute('href', '/')
   expect(banner.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
-  expect(banner.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
+  expect(banner.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/haydenteh5526/DocVault')
+  expect(banner.queryByRole('link', { name: /create an account|get started/i })).toBeNull()
   const hero = within(screen.getByRole('region', { name: 'Your documents, answered and kept on track.' }))
-  expect(hero.getAllByRole('link').map(l => l.textContent)).toEqual(['Create an account', 'Run it yourself on GitHub'])
-  expect(hero.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
+  expect(hero.getAllByRole('link').map(l => l.textContent)).toEqual(['Get started', 'Run it yourself on GitHub'])
+  expect(hero.getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '/register')
   expect(hero.getByRole('link', { name: 'Run it yourself on GitHub' })).toHaveAttribute(
     'href',
     expect.stringContaining('#quick-start'),
   )
+  expect(document.body).not.toHaveTextContent('Create an account')
 })
 
 it('shows six aria-hidden floating tiles', () => {
@@ -76,8 +78,11 @@ it('describes the product picture in words', () => {
   const picture = screen.getByRole('img', { name: /^DocBot's home:/ })
   expect(picture.tagName).toBe('FIGURE')
   expect(picture).toHaveAccessibleName(
-    "DocBot's home: the side menu with DocBot's status, a question about the electricity bill answered with 23 November 2026 from line 17, and a reminder that requires approval.",
+    "DocBot's home: the side menu with DocBot's status, a question about lease notice answered with 28 days in writing from clause 9.2 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.",
   )
+  expect(picture).toHaveTextContent('Tenancy agreement · clause 9.2')
+  expect(picture).toHaveTextContent('Kettle receipt · 2-year warranty')
+  expect(picture).not.toHaveTextContent('Requires approval')
   expect(picture.querySelector('a, button, input')).toBeNull()
 })
 
@@ -117,7 +122,9 @@ it('has the five section headings and the DocBot section anchor', () => {
     'Your paperwork deserves better than a drawer.',
   ])
   expect(container.querySelector('#meet-docbot')).not.toBeNull()
-  expect(screen.getAllByText('Requires approval').length).toBeGreaterThanOrEqual(2)
+  expect(screen.getAllByText('Requires approval')).toHaveLength(1)
+  expect(screen.getByText('Electricity bill · 2 days before due')).toBeVisible()
+  expect(document.body).not.toHaveTextContent(/proposal 2/i)
   expect(screen.getByText('$ git clone https://github.com/haydenteh5526/DocVault')).toBeVisible()
   expect(screen.getByText('✓ api, worker, db, ollama ready')).toBeVisible()
   expect(screen.getByRole('link', { name: 'Read the setup' })).toHaveAttribute('href', expect.stringContaining('#quick-start'))
@@ -157,4 +164,27 @@ it('drifts and scrolls only when motion is allowed', () => {
   expect(still.querySelector('.docbot-drift')).toBeNull()
   expect(still.querySelector('.marquee-track')).toBeNull()
   expect(still.querySelector('.docbot-blink')).toBeNull()
+})
+
+it('shows the approval card once, beside its highlighted source line', () => {
+  open()
+  const section = screen.getByRole('heading', { level: 2, name: /^One button to approve/ }).closest('section')!
+  const figure = within(section).getByRole('img')
+  expect(figure).toHaveTextContent('Amount due €123.47 · by 23 Nov 2026')
+  expect(figure.querySelector('.source-line .line-no')).toHaveTextContent('17')
+  expect(figure.querySelector('.approval-card')).not.toBeNull()
+  const meet = document.querySelector('#meet-docbot')!
+  expect(meet.querySelector('.approval-card')).toBeNull()
+  expect(meet).toHaveTextContent('Waiting for your approval')
+})
+
+it('marks the sticky header as scrolled only after the page scrolls past 16 px', () => {
+  open()
+  const banner = screen.getByRole('banner')
+  expect(banner).toHaveAttribute('data-scrolled', 'false')
+  for (const [y, state] of [[16, 'false'], [17, 'true'], [400, 'true'], [0, 'false']] as const) {
+    vi.stubGlobal('scrollY', y)
+    fireEvent.scroll(window)
+    expect(banner).toHaveAttribute('data-scrolled', state)
+  }
 })

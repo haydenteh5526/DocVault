@@ -14,7 +14,7 @@ test.describe('the landing page', () => {
     await page.goto('/');
     const headline = page.getByRole('heading', { level: 1, name: 'Your documents, answered and kept on track.' });
     expect(await bottom(headline)).toBeLessThanOrEqual(768);
-    const button = page.getByRole('region', { name: 'Your documents, answered and kept on track.' }).getByRole('link', { name: 'Create an account' });
+    const button = page.getByRole('region', { name: 'Your documents, answered and kept on track.' }).getByRole('link', { name: 'Get started' });
     expect(await bottom(button)).toBeLessThanOrEqual(768);
     const picture = page.getByRole('img', { name: /^DocBot's home:/ });
     await expect(picture).toBeVisible();
@@ -48,6 +48,23 @@ test.describe('the landing page', () => {
     expect(results.violations.map(v => ({ id: v.id, targets: v.nodes.flatMap(n => n.target) }))).toEqual([]);
     await page.getByRole('region', { name: 'Setup commands' }).focus();
     await expect(page.getByRole('region', { name: 'Setup commands' })).toBeFocused();
+  });
+
+  test('keeps the tinted header at the top and shows its border once the page scrolls', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    const style = () => header.evaluate(el => {
+      const s = getComputedStyle(el);
+      return { blur: s.backdropFilter, border: s.borderBottomColor };
+    });
+    await expect(header).toHaveAttribute('data-scrolled', 'false');
+    expect(await style()).toEqual({ blur: 'none', border: 'rgba(0, 0, 0, 0)' });
+    await page.mouse.wheel(0, 1200);
+    await expect(header).toHaveAttribute('data-scrolled', 'true');
+    expect(await style()).toEqual({ blur: 'none', border: 'rgb(34, 34, 38)' });
+    expect((await header.boundingBox())!.y).toBe(0);
+    await expect(header.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
 
   test('lists the eight questions once, and nothing moves with reduced motion', async ({ page }) => {
