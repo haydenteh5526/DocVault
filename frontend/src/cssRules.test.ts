@@ -31,3 +31,16 @@ describe('the hero load animation (N5)', () => {
     for (const rule of rules) expect(rule.match(/html\.motion-ok\s+\S+/g)!.every(part => /\.poster/.test(rule.slice(rule.indexOf(part)).split('{')[0]))).toBe(true)
   })
 })
+
+describe('the sticky landing header', () => {
+  it('sticks to the top with a 75% tint, no blur, and a border only when scrolled', () => {
+    expect(landing).toMatch(/\.poster-nav \{[^}]*position: sticky;[^}]*top: 0;[^}]*color-mix\(in srgb, var\(--background\) 75%, transparent\)/)
+    expect(landing).toMatch(/\.poster-nav\[data-scrolled='true'\] \{\s*border-bottom-color: var\(--border\);\s*\}/)
+    expect(landing).not.toMatch(/backdrop-filter/)
+  })
+
+  it('goes opaque under reduced transparency and drops the fade under reduced motion', () => {
+    expect(landing).toMatch(/@media \(prefers-reduced-transparency: reduce\) \{\s*\.docbot-site \.poster-nav \{\s*background-color: var\(--background\);/)
+    expect(landing).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.docbot-site \.poster-nav \{\s*transition: none;/)
+  })
+})
