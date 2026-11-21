@@ -1,0 +1,12 @@
+# Read by ripgrep and Claude Code search tools. Keeps recursive searches out of
+# sibling worktrees and dependency trees (these caused search timeouts).
+.claude/worktrees/
+.worktrees/
+node_modules/
+__pycache__/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
