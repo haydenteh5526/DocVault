@@ -1,6 +1,6 @@
 # DocBot Redesign, PR 2 of 2: The Vault Door on the Account Pages
 
-**Status:** approved by the owner on 21 November 2026 (decisions V4 and V5 in revision R3 of `specs/plans/2026-11-20-agent-experience.md`; the [redesign review](https://claude.ai/artifact/T92uXnst4xzik6TfqFSqJg) version 7, "Sign in like opening a vault", with its clickable preview). Nothing in it is implemented.
+**Status:** approved by the owner on 21 November 2026 (decisions V4 and V5 in revision R3 of `specs/plans/2026-11-20-agent-experience.md`; the [redesign review](https://claude.ai/artifact/T92uXnst4xzik6TfqFSqJg) version 7, "Sign in like opening a vault", with its clickable preview). Revision R1 (below) changes the layout; it is built on top of the first build on the branch.
 
 **Issue:** #35. The PR says `Part of #35`.
 
@@ -12,6 +12,17 @@
 - it unlocks and swings open into DocBot's home when you're in
 
 It must never slow signing in, never hint at whether a password is right before the server answers, and never move under reduced motion. Frontend only.
+
+## Revision R1 (21 November 2026): the whole page is the safe door
+
+After previewing the first build (`dvvault`: a small door above the card on the old 50/50 page), the owner reopened four decisions. R1 replaces the parts of the plan named below; everything else stands.
+
+1. **Layout (replaces "the door sits centred above the existing card" and Task 1's drawing).** `/login`, `/register` and `/forgot-password` drop the 50/50 split and the left bill preview. The full viewport is the front face of a matte-black electronic safe: `#121212` to `#1A1A1A` layers, a faint brushed grain, a 1 px machined seam, two hinges on the left edge, three locking bolts on the right edge, the Vault-Page Monogram top-left and the `Create account` / `Sign in` link top-right. The form is the recessed lock console in the middle: a status LED and label, the compact dial ring centred above the heading, then the unchanged heading, fields and buttons. New components: `SafeDoor` (stage, face, console) and `VaultDoor`, reduced to the dial ring.
+2. **New words (amends decision 4).** The console shows `LOCKED`, `VERIFYING`, `INVALID` and `UNLOCKED` beside the LED, always as text, with a × or ✓ inside the LED for the last two. Headings, field labels and button names are unchanged.
+3. **Timing (amends decision 2).** The open phase is 600 ms: the bolts retract for 150 ms, then the door swings for 450 ms (`rotateY(-88deg)` about the left hinge, `perspective` on the stage) in front of an amber glow. The bolts stay locked during `VERIFYING`. A refusal is a damped shake of the whole door for 0.4 s. Any key or click still skips, and `login()` is still called when the door finishes or is skipped. Under reduced motion there is no swing, spin or shake: the state changes at once and the interior fades in over 150 ms.
+4. **Register (amends the Register paragraph).** "Check your email" is shown in the interior behind the door, not on the swinging face, so it stays readable once the door has opened. The face is `inert` and `aria-hidden` once open, and the "Signed in" live region sits outside it.
+
+Deviation approved earlier and still in force: the session is stored when the door finishes or is skipped, because `App.tsx` redirects `/login` to `/app` as soon as a session exists.
 
 ## Decisions (approved; do not reopen)
 

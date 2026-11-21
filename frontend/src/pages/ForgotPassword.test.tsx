@@ -12,6 +12,9 @@ it('shows the vault door closed with a key badge', () => {
   const door = document.querySelector('.vault-door') as HTMLElement
   expect(door).toHaveClass('vault-closed')
   expect(door.querySelector('[data-part="badge-key"]')).not.toBeNull()
+  expect(screen.getByText('LOCKED')).toBeVisible()
+  expect(document.querySelector('.safe-stage')).not.toBeNull()
+  expect(screen.getByRole('link', { name: /Back to sign in/ })).toBeVisible()
   expect(screen.getByRole('heading', { name: 'Forgot your password?' })).toBeVisible()
   expect(screen.getByLabelText('Email address')).toBeVisible()
 })

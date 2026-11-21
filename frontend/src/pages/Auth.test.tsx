@@ -163,10 +163,10 @@ describe('the vault door on the sign-in page', () => {
     expect(door()).toHaveClass('vault-unlocking')
     expect(loginMock).not.toHaveBeenCalled()
     release({ access_token: 'a', refresh_token: 'r' })
-    await settle(450)
+    await settle(600)
   })
 
-  it('opens, announces "Signed in", stores the session and goes to /app after 450 ms', async () => {
+  it('opens, announces "Signed in", stores the session and goes to /app after 600 ms', async () => {
     const user = setup()
     await reachPassword(user)
     vi.mocked(loginUser).mockResolvedValueOnce({ access_token: 'a', refresh_token: 'r' } as never)
@@ -176,7 +176,7 @@ describe('the vault door on the sign-in page', () => {
     expect(door()).toHaveClass('vault-open')
     expect(screen.getByRole('status')).toHaveTextContent('Signed in')
     expect(navigateMock).not.toHaveBeenCalled()
-    await settle(449)
+    await settle(599)
     expect(navigateMock).not.toHaveBeenCalled()
     await settle(1)
     expect(loginMock).toHaveBeenCalledWith('a', 'r')
@@ -257,12 +257,12 @@ describe('the vault door on the sign-in page', () => {
     await submit('Verify')
     await settle()
     expect(door()).toHaveClass('vault-open')
-    await settle(450)
+    await settle(600)
     expect(loginMock).toHaveBeenCalledWith('a2', 'r2')
     expect(navigateMock).toHaveBeenCalledWith('/app')
   })
 
-  it('shows "Check your email" after the door opens when registering, with no navigation', async () => {
+  it('shows "Check your email" in the interior behind the open door when registering, with no navigation', async () => {
     const user = setup()
     await reachPassword(user, 'register')
     vi.mocked(registerUser).mockResolvedValueOnce({} as never)
@@ -270,10 +270,37 @@ describe('the vault door on the sign-in page', () => {
     await submit('Create account')
     await settle()
     expect(door()).toHaveClass('vault-open')
-    expect(screen.queryByRole('heading', { name: 'Check your email' })).not.toBeInTheDocument()
-    await settle(450)
+    const interior = document.querySelector('.safe-interior') as HTMLElement
+    expect(interior).toContainElement(screen.getByRole('heading', { name: 'Check your email' }))
+    expect(document.querySelector('.safe-door')).toHaveAttribute('aria-hidden', 'true')
+    expect(document.querySelector('.safe-stage')).not.toHaveClass('safe-settled')
+    await settle(600)
+    expect(document.querySelector('.safe-stage')).toHaveClass('safe-settled')
     expect(screen.getByRole('heading', { name: 'Check your email' })).toBeVisible()
     expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('labels the lock with text: LOCKED, VERIFYING, INVALID, then LOCKED again', async () => {
+    const user = setup()
+    await reachPassword(user)
+    expect(screen.getByText('LOCKED')).toBeVisible()
+    let release!: (v: unknown) => void
+    vi.mocked(loginUser).mockReturnValueOnce(new Promise((_, reject) => { release = reject }) as never)
+    await user.type(password(), 'wrongpass1')
+    await submit('Sign in')
+    expect(screen.getByText('VERIFYING')).toBeVisible()
+    release(new Error('Invalid email or password'))
+    await settle()
+    expect(screen.getByText('INVALID')).toBeVisible()
+    await settle(400)
+    expect(screen.getByText('LOCKED')).toBeVisible()
+  })
+
+  it('has no split-screen bill preview any more', async () => {
+    const user = setup()
+    await reachPassword(user)
+    expect(screen.queryByText('Synthetic Example Energy bill')).not.toBeInTheDocument()
+    expect(document.querySelector('aside')).toBeNull()
   })
 })
 

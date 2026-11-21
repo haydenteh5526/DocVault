@@ -10,7 +10,7 @@ import { submitSignIn } from './signInSubmit';
 //
 //   E2E_SCREENSHOTS=1 npx playwright test vault-door
 //
-// into evaluation/docbot-redesign/vault/. A recording run stretches the 400 ms and 450 ms waits so the
+// into evaluation/docbot-redesign/vault/. A recording run stretches the 400 ms and 600 ms waits so the
 // error and open states stay on screen long enough to photograph; nothing else about the page changes.
 
 const OUT_DIR = path.resolve(process.cwd(), '..', 'evaluation', 'docbot-redesign', 'vault');
@@ -54,11 +54,35 @@ test.describe('the vault door at 390 px', () => {
     await expectNoWcagViolations(page);
   });
 
-  test('the door fits the screen without a sideways scroll', async ({ page }) => {
+  test('every door page fits the screen without a sideways scroll', async ({ page }) => {
+    const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    for (const route of ['/login', '/register', '/forgot-password']) {
+      await page.goto(route);
+      await expect(page.locator('.safe-stage')).toBeVisible();
+      expect(await overflow(), route).toBeLessThanOrEqual(0);
+    }
+    await page.goto('/register');
+    await toPasswordStep(page, 'someone@example.com');
+    await page.getByPlaceholder('Password').fill('Password123!');
+    expect(await overflow(), 'register, password step').toBeLessThanOrEqual(0);
+    await expect(page.locator('aside')).toHaveCount(0);
+  });
+
+  test('the whole console can be reached and used from the keyboard', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
+    await page.getByPlaceholder('name@example.com').focus();
+    await page.keyboard.type('someone@example.com');
+    await page.keyboard.press('Enter');
+    await expect(page.getByPlaceholder('Password')).toBeFocused();
+    await page.keyboard.type('abcdefgh');
+    await expect(page.locator('.vault-door')).toHaveClass(/vault-entering/);
+    const reached: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab');
+      reached.push(await page.evaluate(() => document.activeElement?.textContent?.trim() || document.activeElement?.getAttribute('aria-label') || document.activeElement?.tagName || ''));
+    }
+    expect(reached.join('|')).toContain('Sign in');
+    expect(reached.join('|')).toContain('Forgot password?');
   });
 });
 
@@ -105,7 +129,7 @@ test.describe('recording the vault door', () => {
       await page.addInitScript(() => {
         const original = window.setTimeout.bind(window);
         window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) =>
-          original(fn, ms === 450 || ms === 400 ? 30_000 : ms, ...args)) as typeof window.setTimeout;
+          original(fn, ms === 600 || ms === 400 ? 30_000 : ms, ...args)) as typeof window.setTimeout;
       });
       const shot = (state: string) => page.screenshot({ path: path.join(OUT_DIR, `vault-${state}-${size.name}.png`), animations: 'disabled' });
 
@@ -129,8 +153,19 @@ test.describe('recording the vault door', () => {
       await page.getByPlaceholder('Password').fill(password!);
       await submitSignIn(page);
       await expect(page.locator('.vault-door')).toHaveClass(/vault-open/);
-      await page.waitForTimeout(600);
+      // About 300 ms in: the bolts are in and the door is part-way round its left hinge.
+      await page.waitForTimeout(280);
+      await page.screenshot({ path: path.join(OUT_DIR, `vault-swing-${size.name}.png`), animations: 'allow' });
+      await page.waitForTimeout(500);
       await shot('open');
+
+      await page.goto('/register');
+      await toPasswordStep(page, 'someone@example.com');
+      await page.getByPlaceholder('Password').fill('Password123!');
+      await shot('register');
+      await page.goto('/forgot-password');
+      await expect(page.locator('.safe-stage')).toBeVisible();
+      await shot('forgot');
     });
   }
 });

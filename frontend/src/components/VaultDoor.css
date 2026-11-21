@@ -1,31 +1,12 @@
-.vault-door { position: relative; width: 104px; height: 104px; margin: 0 auto 1.5rem; perspective: 600px; }
-@media (min-width: 1024px) { .vault-door { width: 132px; height: 132px; } }
+/* The dial ring in the lock console. */
+.vault-door { width: 76px; height: 76px; margin: 0 auto 1rem; }
 .vault-door svg { display: block; width: 100%; height: 100%; overflow: visible; }
-
-/* Behind the door: a warm light, visible only once it is open. */
-.vault-glow {
-  position: absolute; inset: 8%; border-radius: 50%; opacity: 0;
-  background: radial-gradient(circle, #FFE98A 0%, #FFC23D 45%, transparent 72%);
-  transition: opacity .45s ease-out;
-}
-.vault-open .vault-glow { opacity: 1; }
-
-.vault-face { transform-origin: 6% 50%; transition: transform .45s ease-in-out; }
-.vault-open .vault-face { transform: rotateY(-105deg); }
 
 .vault-dial { transform-box: view-box; transform-origin: 85px 85px; transition: transform .12s linear; }
 .vault-unlocking .vault-dial, .vault-open .vault-dial { transition-duration: .45s; transition-timing-function: ease-in-out; }
 
-.vault-bolt { transition: transform .45s ease-in-out; }
-.vault-unlocking .vault-bolt-left, .vault-open .vault-bolt-left { transform: translateX(10px); }
-.vault-unlocking .vault-bolt-right, .vault-open .vault-bolt-right { transform: translateX(-10px); }
-
 .vault-second-ring { transform-box: view-box; transform-origin: 85px 85px; transition: transform .45s ease-in-out; }
 .vault-unlocking .vault-second-ring, .vault-open .vault-second-ring { transform: rotate(360deg); }
-
-/* Two 5 px shakes of 0.16 s each. */
-.vault-error { animation: vaultShake .16s ease-in-out 2; }
-@keyframes vaultShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
 
 /* Reduced motion: every state appears at once. */
 @media (prefers-reduced-motion: reduce) {

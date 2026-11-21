@@ -3,24 +3,27 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ExampleBill } from '@/components/ExampleBill'
-import { Wordmark } from '@/components/Wordmark'
 import './landing.css'
 import { PasswordStrength } from '@/components/PasswordStrength'
 import { PinInput } from '@/components/PinInput'
-import { VaultDoor, type VaultState } from '@/components/VaultDoor'
+import { SafeDoor } from '@/components/SafeDoor'
+import type { VaultState } from '@/components/VaultDoor'
 import { useAuth } from '@/lib/auth'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
 
-/** How long the open door shows before the page changes. Any key or click skips it. */
-const DOOR_OPEN_MS = 450
+/** The open phase: the bolts retract for 150 ms, then the door swings for 450 ms. Any key or click skips it. */
+const DOOR_OPEN_MS = 600
 /** How long the shake shows before the door settles again. */
 const DOOR_ERROR_MS = 400
 
 export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' }) {
   const isRegister = mode === 'register'
-  const [step, setStep] = useState<'email' | 'credentials' | 'verify-sent' | '2fa'>('email')
+  const [step, setStep] = useState<'email' | 'credentials' | '2fa'>('email')
+  // Registration worked: the confirmation shows in the interior behind the open door.
+  const [confirmed, setConfirmed] = useState(false)
+  // The open door has finished (or was skipped) and is taken away.
+  const [settled, setSettled] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -104,6 +107,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     setPassword('')
     setName('')
     setDoor('closed')
+    setConfirmed(false)
+    setSettled(false)
   }, [mode])
 
   async function handleEmailContinue(e: React.FormEvent) {
@@ -126,7 +131,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         await registerUser(email, password, name || undefined)
         opening = true
         setDoor('open')
-        afterDoorOpens(() => setStep('verify-sent'))
+        setConfirmed(true)
+        afterDoorOpens(() => setSettled(true))
       } else {
         const data = await loginUser(email, password, rememberMe)
         if (data.requires_2fa) {
@@ -145,47 +151,34 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   }
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="hidden w-1/2 flex-col justify-between border-r bg-muted p-12 lg:flex">
-        <Link to="/" className="self-start"><Wordmark /></Link>
-        <ExampleBill />
-        <p className="text-sm text-muted-foreground">Synthetic Example Energy bill</p>
-      </aside>
-      {/* Right pane */}
-      <main id="account-form" tabIndex={-1} className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12 relative bg-background">
-        <Link to="/" className="lg:hidden absolute top-6 left-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-          <Wordmark />
-        </Link>
-        <Link to={isRegister ? '/login' : '/register'} className="absolute top-6 right-6 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-          {isRegister ? 'Sign in' : 'Create account'}
-        </Link>
-
-        <div className="w-full max-w-sm mx-auto">
-          <p role="status" className="sr-only">{announcement}</p>
-          {step !== 'verify-sent' && (
-            <VaultDoor state={door} progress={password.length} badge={step === '2fa' ? 'second-ring' : undefined} />
-          )}
-
-          {/* Verification sent screen */}
-          {step === 'verify-sent' ? (
-            <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-5">
-                <CheckCircle className="h-7 w-7 text-success" />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
-              <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
-                We sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
-              </p>
-              <div className="mt-8 space-y-3">
-                <Button variant="outline" className="w-full h-10" asChild>
-                  <Link to="/login">Go to sign in</Link>
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Didn't receive it? Check your spam folder.
-                </p>
-              </div>
-            </div>
-          ) : step === '2fa' ? (
+    <SafeDoor
+      state={door}
+      progress={password.length}
+      badge={step === '2fa' ? 'second-ring' : undefined}
+      settled={settled}
+      announcement={announcement}
+      topRight={<Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Sign in' : 'Create account'}</Link>}
+      interior={confirmed ? (
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle className="h-7 w-7 text-success" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+            We sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
+          </p>
+          <div className="mt-8 space-y-3">
+            <Button variant="outline" className="w-full h-10" asChild>
+              <Link to="/login">Go to sign in</Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Didn't receive it? Check your spam folder.
+            </p>
+          </div>
+        </div>
+      ) : undefined}
+    >
+          {step === '2fa' ? (
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/[0.07] flex items-center justify-center mx-auto mb-5">
                 <ShieldCheck className="h-7 w-7 text-primary" />
@@ -312,9 +305,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
               </p>
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </SafeDoor>
   )
 }
 

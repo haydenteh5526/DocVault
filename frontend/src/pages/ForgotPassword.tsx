@@ -1,5 +1,4 @@
-import { Wordmark } from '@/components/Wordmark'
-import { VaultDoor } from '@/components/VaultDoor'
+import { SafeDoor } from '@/components/SafeDoor'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react'
@@ -29,17 +28,11 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-12 relative bg-background">
-      <Link to="/login" className="absolute top-6 left-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-        <ArrowLeft size={15} /> Back to sign in
-      </Link>
-
-      <div className="w-full max-w-sm mx-auto">
-        <VaultDoor state="closed" badge="key" />
-        <div className="flex items-center gap-2 mb-8">
-          <Wordmark />
-        </div>
-
+    <SafeDoor
+      state="closed"
+      badge="key"
+      topRight={<Link to="/login"><ArrowLeft size={15} aria-hidden="true" /> Back to sign in</Link>}
+    >
         {sent ? (
           <div className="">
             <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mb-5">
@@ -77,7 +70,6 @@ export default function ForgotPassword() {
             </form>
           </>
         )}
-      </div>
-    </div>
+    </SafeDoor>
   )
 }
