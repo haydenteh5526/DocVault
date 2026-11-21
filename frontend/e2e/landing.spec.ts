@@ -17,7 +17,8 @@ test.describe('the landing page', () => {
     const leadBox = (await lead.boundingBox())!;
     const lineHeight = parseFloat(await lead.evaluate(el => getComputedStyle(el).lineHeight));
     expect(Math.round(leadBox.height / lineHeight)).toBe(2);
-    // So is the headline, even with SF Pro's slightly wider letters on Apple devices.
+    // So is the headline. This runs in Chromium with Inter; on Apple devices (SF Pro) the 16ch max-width leaves
+    // room for slightly wider letters, but that is not measured here.
     const h1 = page.getByRole('heading', { level: 1 });
     const h1Height = (await h1.boundingBox())!.height;
     const h1Line = parseFloat(await h1.evaluate(el => getComputedStyle(el).lineHeight));
