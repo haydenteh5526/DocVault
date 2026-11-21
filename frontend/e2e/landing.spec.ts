@@ -9,12 +9,23 @@ const bottom = async (locator: Locator) => {
 };
 
 test.describe('the landing page', () => {
-  test('at 1366 x 768 the headline, the button and the top of the picture are on the first screen', async ({ page }) => {
+  test('at 1366 x 768 a two-line headline and lead, the button and the top of the picture are on the first screen', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/');
-    const headline = page.getByRole('heading', { level: 1, name: 'Your documents, answered and kept on track.' });
+    // The lead fits on two lines at this width, as on t3.codes.
+    const lead = page.locator('.hero-lead');
+    const leadBox = (await lead.boundingBox())!;
+    const lineHeight = parseFloat(await lead.evaluate(el => getComputedStyle(el).lineHeight));
+    expect(Math.round(leadBox.height / lineHeight)).toBe(2);
+    // So is the headline. This runs in Chromium with Inter; on Apple devices (SF Pro) the 16ch max-width leaves
+    // room for slightly wider letters, but that is not measured here.
+    const h1 = page.getByRole('heading', { level: 1 });
+    const h1Height = (await h1.boundingBox())!.height;
+    const h1Line = parseFloat(await h1.evaluate(el => getComputedStyle(el).lineHeight));
+    expect(Math.round(h1Height / h1Line)).toBe(2);
+    const headline = page.getByRole('heading', { level: 1, name: 'Ask your documents anything.' });
     expect(await bottom(headline)).toBeLessThanOrEqual(768);
-    const button = page.getByRole('region', { name: 'Your documents, answered and kept on track.' }).getByRole('link', { name: 'Get started' });
+    const button = page.getByRole('region', { name: 'Ask your documents anything.' }).getByRole('link', { name: 'Get started' });
     expect(await bottom(button)).toBeLessThanOrEqual(768);
     const picture = page.getByRole('img', { name: /^DocBot's home:/ });
     await expect(picture).toBeVisible();

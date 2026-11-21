@@ -26,25 +26,24 @@ function open(reduce = false) {
   )
 }
 const questions = [
-  'When is the electricity bill due?',
-  'How much notice do I give the landlord?',
   'What does E21 mean on the dishwasher?',
+  'How much notice do I give the landlord?',
   'Is the kettle still under warranty?',
-  'Split the gas bill by days at home',
-  'How much was the October bill?',
   'When does the tenancy end?',
+  'When is the electricity bill due?',
+  'How much was the October bill?',
+  'Split the gas bill by days at home',
   'Remind me two days before the bill is due',
 ]
 
 it('has one headline, the lead, and no form fields', () => {
   open()
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your documents, answered and kept on track.')
-  expect(
-    screen.getByText(
-      'Ask your bills, leases and manuals in your own words. DocBot shows the line every answer came from and asks before it saves anything.',
-    ),
-  ).toBeVisible()
+  const h1 = screen.getByRole('heading', { level: 1 })
+  expect(h1).toHaveTextContent('Ask your documents anything.')
+  expect(screen.getByText("Your personal AI document assistant. Upload photos or PDFs, ask in your own words, and get answers that cite their source line.")).toBeVisible()
+  expect(document.querySelector('.hero-eyebrow')).toBeNull()
+  expect(screen.queryByText('DocVault · personal AI document assistant')).toBeNull()
   expect(document.querySelector('input, textarea, select')).toBeNull()
 })
 
@@ -59,7 +58,7 @@ it('puts the wordmark, Sign in and GitHub in the banner, and the one primary but
   expect(github).toHaveAttribute('rel', 'noopener noreferrer')
   for (const name of ['Sign in', 'GitHub (opens in a new tab)']) expect(banner.getByRole('link', { name })).toHaveClass('poster-nav-link')
   expect(banner.queryByRole('link', { name: /create an account|get started/i })).toBeNull()
-  const hero = within(screen.getByRole('region', { name: 'Your documents, answered and kept on track.' }))
+  const hero = within(screen.getByRole('region', { name: 'Ask your documents anything.' }))
   expect(hero.getAllByRole('link').map(l => l.textContent)).toEqual(['Get started', 'Run it yourself on GitHub (opens in a new tab)'])
   expect(hero.getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '/register')
   const runIt = hero.getByRole('link', { name: 'Run it yourself on GitHub (opens in a new tab)' })
@@ -97,16 +96,16 @@ it('spreads the tiles in three mirrored pairs, as on t3.codes', () => {
     ['min(300px, 19vw)', '20px', '64px'],
     ['max(-560px, -38vw)', '128px', '96px'],
     ['min(560px, 38vw)', '128px', '96px'],
-    ['max(-440px, -30vw)', '440px', '80px'],
-    ['min(440px, 30vw)', '440px', '80px'],
+    ['max(-440px, -30vw)', '370px', '80px'],
+    ['min(440px, 30vw)', '370px', '80px'],
   ])
 })
 
-it('splits the headline into three lines that rise in turn', () => {
+it('splits the headline into two lines that rise in turn', () => {
   const { container } = open()
   const lines = [...container.querySelectorAll<HTMLElement>('h1 .h1-line')]
-  expect(lines.map(l => l.textContent)).toEqual(['Your documents,', 'answered and', 'kept on track.'])
-  expect(lines.map(l => l.style.getPropertyValue('--d'))).toEqual(['', '90ms', '180ms'])
+  expect(lines.map(l => l.textContent)).toEqual(['Ask your documents', 'anything.'])
+  expect(lines.map(l => l.style.getPropertyValue('--d'))).toEqual(['', '90ms'])
 })
 
 function pointer(fine: boolean, reduce: boolean) {
@@ -168,7 +167,7 @@ it('describes the product picture in words', () => {
   const picture = screen.getByRole('img', { name: /^DocBot's home:/ })
   expect(picture.tagName).toBe('FIGURE')
   expect(picture).toHaveAccessibleName(
-    "DocBot's home: the side menu with DocBot's status, a question about lease notice answered with 28 days in writing from line 14 of the tenancy agreement, and a question about the kettle answered with under warranty until 14 March 2027 from the receipt.",
+    "DocBot's home: two questions answered from your own documents. How much notice to give the landlord: 28 days in writing, from line 14 of the tenancy agreement. Whether the kettle is still under warranty: yes, until 14 March 2027, from the kettle receipt.",
   )
   expect(picture).toHaveTextContent('Tenancy agreement · line 14')
   expect(picture).toHaveTextContent('Kettle receipt · 2-year warranty')
@@ -190,23 +189,23 @@ it('lists the eight questions once for screen readers and hides the moving copie
 
 it('has the five document cards with their captions', () => {
   open()
-  const section = screen.getByRole('heading', { level: 2, name: 'Bring your own documents' }).closest('section')!
+  const section = screen.getByRole('heading', { level: 2, name: 'Works with the paperwork you already have' }).closest('section')!
   expect(within(section).getByText('Photos or PDFs. DocVault reads them on your computer.')).toBeVisible()
   const cards = within(section).getAllByRole('listitem')
   expect(cards.map(c => c.textContent)).toEqual([
-    'Billsamount · due date',
     'Leasesnotice · rent day',
     'Manualsfault codes',
     'Warrantiesend dates',
     'Receiptsproof of purchase',
+    'Billsamount · due date',
   ])
 })
 
 it('has the five section headings and the DocBot section anchor', () => {
   const { container } = open()
   expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual([
-    'Meet DocBot, who keeps your paperwork moving.',
-    'Bring your own documents',
+    "Meet DocBot, who reads your paperwork so you don't have to.",
+    'Works with the paperwork you already have',
     'One button to approve. Nothing saves without it.',
     "If you'd rather run it yourself, you can.",
     'Your paperwork deserves better than a drawer.',
@@ -231,7 +230,8 @@ it('keeps the stats, the closing line and the one-line footer', () => {
   const { container } = open()
   const stats = container.querySelector('.docbot-stats')!
   expect(stats).toHaveTextContent('0')
-  expect(stats).toHaveTextContent('Line 17')
+  expect(stats).toHaveTextContent('Line 14')
+  expect(stats).not.toHaveTextContent('Line 17')
   expect(stats).toHaveTextContent('€0')
   const footer = within(screen.getByRole('contentinfo'))
   expect(footer.getByText('© 2026 DocVault · by Hayden · final-year project')).toBeVisible()
@@ -270,7 +270,16 @@ it('shows the approval card once, beside its highlighted source line', () => {
   expect(figure.querySelector('.approval-card')).not.toBeNull()
   const meet = document.querySelector('#meet-docbot')!
   expect(meet.querySelector('.approval-card')).toBeNull()
-  expect(meet).toHaveTextContent('Waiting for your approval')
+  expect(meet).not.toHaveTextContent('Waiting for your approval')
+  expect(meet).toHaveTextContent('Dishwasher manual · line 22')
+  expect(meet).toHaveTextContent("I couldn't find this in your documents.")
+  expect(meet).not.toHaveTextContent('No matching source line')
+  const miss = within(meet as HTMLElement).getByText("I couldn't find this in your documents.").parentElement!
+  expect(miss.querySelector('small')).toBeNull()
+  expect(meet).toHaveTextContent("Ask about anything you've uploaded. DocBot answers from your own files, shows where the answer is, and tells you when it isn't there.")
+  expect(within(meet as HTMLElement).getByRole('img')).toHaveAccessibleName(
+    "DocBot answers that E21 on the dishwasher means the water temperature is too low, from line 22 of the dishwasher manual, then says it couldn't find when the car insurance renews in your documents.",
+  )
 })
 
 it('marks the sticky header as scrolled only after the page scrolls past 16 px', () => {
@@ -282,4 +291,11 @@ it('marks the sticky header as scrolled only after the page scrolls past 16 px',
     fireEvent.scroll(window)
     expect(banner).toHaveAttribute('data-scrolled', state)
   }
+})
+
+it('introduces the assistant before any document type', () => {
+  open()
+  const hero = screen.getByRole('region', { name: 'Ask your documents anything.' })
+  expect(hero).toHaveTextContent('personal AI document assistant')
+  for (const word of ['bill', 'lease', 'manual', 'warranty', 'receipt']) expect(hero.textContent!.toLowerCase()).not.toContain(word)
 })
