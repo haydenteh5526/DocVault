@@ -30,10 +30,12 @@
   --mark-text: #14171F;
   --mark-edge: #14171F;
   --radius: 0.625rem;
+  --brand-ink: #171717;
   --font-display: 'Archivo', 'Arial Narrow', Arial, sans-serif;
   color-scheme: light;
 }
 .dark {
+  --brand-ink: #F2F2F3;
   --background: #0A0A0B;
   --foreground: #F2F2F3;
   --card: #17171A;
