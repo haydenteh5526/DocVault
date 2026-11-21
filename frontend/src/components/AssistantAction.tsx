@@ -58,6 +58,7 @@ function cardBody(action: AssistantAction, onOpenDocument: (id: string) => void)
       const { details } = proposal
       return (
         <Card label="Reminder proposal">
+          <span className="inline-block rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-attention">Requires approval</span>
           <p className="font-medium">{`Proposal ${proposal.proposal_number} · not saved when proposed`}</p>
           <p>{`Remind on ${formatBillDate(details.remind_on)}`}</p>
           <p>{`€${details.amount_due} due ${formatBillDate(details.due_date)} (revision ${details.bill_revision})`}</p>

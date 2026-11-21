@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createConversation, getConversation, sendMessage, type ConversationDetail } from '@/lib/api'
+import { createConversation, getConversation, getDocuments, getExpiringWarranties, getHousemates, sendMessage, type ConversationDetail } from '@/lib/api'
 import { AuthProvider } from '@/lib/auth'
 import AskAI from './AskAI'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getConversation: vi.fn(), createConversation: vi.fn(), sendMessage: vi.fn() }
+  return { ...actual, getConversation: vi.fn(), createConversation: vi.fn(), sendMessage: vi.fn(), getDocuments: vi.fn(), getExpiringWarranties: vi.fn(), getHousemates: vi.fn() }
 })
 
 // jsdom has no scrollIntoView, which the chat calls after every message.
@@ -170,4 +170,49 @@ it('keeps the home thread after a temporary failure and waits for history before
     localStorage.removeItem('token')
     sessionStorage.removeItem('docbot-thread:owner-a')
   }
+})
+
+describe('DocBot home', () => {
+  function home(wide: boolean) {
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: query.includes('1280') ? wide : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia
+    vi.mocked(getDocuments).mockResolvedValue({ documents: [] } as unknown as Awaited<ReturnType<typeof getDocuments>>)
+    vi.mocked(getExpiringWarranties).mockResolvedValue([])
+    vi.mocked(getHousemates).mockResolvedValue([{ id: 'h1', label: 'Dara' }] as unknown as Awaited<ReturnType<typeof getHousemates>>)
+    localStorage.setItem('token', 'h.' + btoa(JSON.stringify({ sub: 'owner-a' })) + '.s')
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AuthProvider><MemoryRouter initialEntries={['/app']}><AskAI home /></MemoryRouter></AuthProvider>
+      </QueryClientProvider>,
+    )
+  }
+  afterEach(() => localStorage.removeItem('token'))
+
+  it("is DocBot's thread, headed DocBot", async () => {
+    home(true)
+    expect(await screen.findByRole('heading', { level: 1, name: 'DocBot' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Message DocBot')).toBeInTheDocument()
+  })
+
+  it('shows the keeping-track panel from 1280 px with only the groups that have data', async () => {
+    home(true)
+    const panel = await screen.findByRole('complementary', { name: 'Activity' })
+    expect(await within(panel).findByRole('heading', { name: 'Household' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('heading', { name: 'Coming up' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('heading', { name: 'Requires approval' })).not.toBeInTheDocument()
+  })
+
+  it('opens the same groups from the Activity button below 1280 px', async () => {
+    const user = userEvent.setup()
+    home(false)
+    await screen.findByRole('heading', { level: 1, name: 'DocBot' })
+    expect(screen.queryByRole('complementary', { name: 'Activity' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Activity' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Activity' })
+    expect(await within(dialog).findByRole('heading', { name: 'Household' })).toBeInTheDocument()
+  })
 })

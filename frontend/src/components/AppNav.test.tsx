@@ -105,7 +105,7 @@ describe('AppShell navigation', () => {
     await screen.findByText('Ask page')
     await user.tab()
     expect(screen.getByRole('link', {name: 'Skip to content'})).toHaveFocus()
-    expect(screen.getByRole('button', {name: 'Ask DocBot'})).toHaveAttribute('aria-current','page')
+    expect(screen.getByRole('button', {name: 'DocBot, Open DocBot for activity'})).toHaveAttribute('aria-current','page')
   })
 
   it('puts the three labelled destinations in the phone tab bar', async () => {
@@ -143,12 +143,14 @@ describe('AppShell navigation', () => {
       renderShell('/app/documents')
       await screen.findByText('Documents page')
       const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-      expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Ask DocBot', 'Documents', 'Upload'])
-      await user.click(within(nav).getByRole('button', { name: 'Ask DocBot' }))
+      expect(within(nav).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['DocBot, Open DocBot for activity', 'Documents', 'Upload'])
+      await user.click(within(nav).getByRole('button', { name: 'DocBot, Open DocBot for activity' }))
       expect(await screen.findByText('Ask page')).toBeVisible()
       expect(start).toHaveBeenCalled()
       expect(window.location.pathname).toBe('/app')
-      expect(within(nav).getByRole('button', { name: 'Ask DocBot' })).toHaveAccessibleDescription('Open DocBot for activity')
+      const presence = within(nav).getByRole('button', { name: 'DocBot, Open DocBot for activity' })
+      expect(presence).toBeVisible()
+      expect(presence).not.toHaveAccessibleDescription(/\S/)
     } finally {
       delete (document as unknown as { startViewTransition?: unknown }).startViewTransition
     }
@@ -216,7 +218,7 @@ describe('the phone account menu (L5, M2)', () => {
     renderShell('/app/documents')
     await screen.findByText('Documents page')
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-    await user.click(within(nav).getByRole('button', { name: 'Ask DocBot' }))
+    await user.click(within(nav).getByRole('button', { name: 'DocBot, Open DocBot for activity' }))
     await screen.findByText('Ask page')
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(nav)
   })
