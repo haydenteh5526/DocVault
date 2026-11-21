@@ -114,10 +114,10 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.getByRole('button', { name: /Continue with Email/i }).click();
       await page.getByPlaceholder('Password').fill(password!);
       await submitSignIn(page);
-      await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10_000 });
       await page.goto('/app/ask');
 
-      const box = page.getByPlaceholder(/Ask a question/);
+      const box = page.getByPlaceholder('Message DocBot');
       const wrapper = box.locator('xpath=..');
       await expect(box).toBeVisible();
       await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });

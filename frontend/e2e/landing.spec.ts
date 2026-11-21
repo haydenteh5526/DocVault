@@ -39,6 +39,17 @@ test.describe('the landing page', () => {
     expect(results.violations.map(v => ({ id: v.id, targets: v.nodes.flatMap(n => n.target) }))).toEqual([]);
   });
 
+  test('has no automated WCAG A/AA violations at 390 x 844, and the setup card is keyboard-reachable', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; }' });
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(results.violations.map(v => ({ id: v.id, targets: v.nodes.flatMap(n => n.target) }))).toEqual([]);
+    await page.getByRole('region', { name: 'Setup commands' }).focus();
+    await expect(page.getByRole('region', { name: 'Setup commands' })).toBeFocused();
+  });
+
   test('lists the eight questions once, and nothing moves with reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');

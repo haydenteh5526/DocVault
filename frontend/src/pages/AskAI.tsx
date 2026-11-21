@@ -176,7 +176,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 border-b px-4 py-2 pr-12 sm:px-8 sm:pr-14">
         <DocBotMark size={28} state={loading ? 'working' : activity.pending.length ? 'needs-approval' : 'idle'}/>
         <div className="mr-auto"><h1 className="font-semibold">{ASSISTANT_NAME}</h1><small className="text-muted-foreground">{loading ? 'Working' : activity.status}</small></div>
-        <button className="rounded-full border px-3 py-1.5 text-sm" onClick={() => wide && hasActivity ? setHideRail(!hideRail) : setActivityOpen(true)}>Activity</button>
+        <button className="min-h-11 rounded-full border px-3 text-sm" aria-expanded={wide && hasActivity ? !hideRail : activityOpen} onClick={() => wide && hasActivity ? setHideRail(!hideRail) : setActivityOpen(true)}>Activity</button>
         <Link to="/app/chats" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"><History size={18} aria-hidden className="sm:hidden"/><span className="max-sm:sr-only">Recent chats</span></Link>
       </div>
       {/* Top-right 3-dot menu for active conversation */}

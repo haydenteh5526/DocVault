@@ -35,7 +35,7 @@ export function useDocBotActivity(fetchActivity = true) {
     : documents.isError || details.isError
       ? 'Bill status unavailable'
       : !fetchActivity && (!documents.data || (documents.data.some(d => d.processing_status === 'complete') && !details.data))
-        ? 'Open DocBot for activity'
+        ? 'Ready'
       : documents.isPending || details.isFetching
         ? 'Checking bills'
         : 'All caught up'

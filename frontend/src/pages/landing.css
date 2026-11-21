@@ -579,3 +579,7 @@
     }
   }
 }
+.question-marquee:focus-visible,
+.terminal-card:focus-visible {
+  outline-offset: -2px;
+}

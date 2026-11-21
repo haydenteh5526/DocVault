@@ -123,6 +123,13 @@ it('has the five section headings and the DocBot section anchor', () => {
   expect(screen.getByRole('link', { name: 'Read the setup' })).toHaveAttribute('href', expect.stringContaining('#quick-start'))
 })
 
+it('lets the keyboard reach the scrolling setup card and the question group', () => {
+  open()
+  const card = screen.getByRole('region', { name: 'Setup commands' })
+  expect(card.getAttribute('tabindex')).toBe('0')
+  expect(screen.getByRole('group', { name: 'Questions DocBot can answer' }).getAttribute('tabindex')).toBe('0')
+})
+
 it('keeps the stats, the closing line and the one-line footer', () => {
   const { container } = open()
   const stats = container.querySelector('.docbot-stats')!
@@ -131,7 +138,7 @@ it('keeps the stats, the closing line and the one-line footer', () => {
   expect(stats).toHaveTextContent('€0')
   const footer = within(screen.getByRole('contentinfo'))
   expect(footer.getByText('© 2026 DocVault · final-year project')).toBeVisible()
-  for (const name of ['GitHub', 'Privacy', 'Evaluation']) expect(footer.getByRole('link', { name })).toBeVisible()
+  for (const name of ['GitHub', 'Architecture', 'Evaluation']) expect(footer.getByRole('link', { name })).toBeVisible()
 })
 
 it('has no testimonials and keeps the earlier banned claims out', () => {

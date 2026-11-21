@@ -1,11 +1,4 @@
-import { useSyncExternalStore } from 'react'
-
-const query = '(prefers-reduced-motion: reduce)'
-function subscribe(update: () => void) {
-  const media = window.matchMedia?.(query)
-  media?.addEventListener('change', update)
-  return () => media?.removeEventListener('change', update)
-}
+import { useReducedMotion } from '@/lib/useReducedMotion'
 
 type State = 'idle' | 'working' | 'needs-approval' | 'done'
 const INK = '#14171F'
@@ -78,7 +71,7 @@ export function DocBotMark({
   state?: State
   size?: number
 }) {
-  const reduced = useSyncExternalStore(subscribe, () => window.matchMedia?.(query).matches ?? true)
+  const reduced = useReducedMotion()
   const full = variant === 'full'
   const waving = full && state === 'done'
   return (

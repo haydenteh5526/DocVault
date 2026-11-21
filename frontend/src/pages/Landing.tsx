@@ -161,7 +161,7 @@ export default function Landing() {
         </section>
 
         <section className="feature-block feature-block-reverse">
-          <div className="terminal-card">
+          <div className="terminal-card" role="region" aria-label="Setup commands" tabIndex={0}>
             <pre>
               <code>
                 <span className="term-line">{`$ git clone ${repo}`}</span>
@@ -204,7 +204,7 @@ export default function Landing() {
         <p>© 2026 DocVault · final-year project</p>
         <nav aria-label="Project">
           <a href={repo}>GitHub</a>
-          <a href={`${repo}#architecture`}>Privacy</a>
+          <a href={`${repo}#architecture`}>Architecture</a>
           <a href={`${repo}/tree/main/evaluation`}>Evaluation</a>
         </nav>
       </footer>

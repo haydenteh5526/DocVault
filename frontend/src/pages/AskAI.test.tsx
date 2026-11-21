@@ -206,6 +206,17 @@ describe('DocBot home', () => {
     expect(within(panel).queryByRole('heading', { name: 'Requires approval' })).not.toBeInTheDocument()
   })
 
+  it('announces whether the panel is shown, and hides it from the Activity button', async () => {
+    const user = userEvent.setup()
+    home(true)
+    await screen.findByRole('complementary', { name: 'Activity' })
+    const toggle = screen.getByRole('button', { name: 'Activity' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    await user.click(toggle)
+    expect(screen.queryByRole('complementary', { name: 'Activity' })).not.toBeInTheDocument()
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('opens the same groups from the Activity button below 1280 px', async () => {
     const user = userEvent.setup()
     home(false)
