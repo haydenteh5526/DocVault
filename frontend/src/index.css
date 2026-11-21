@@ -128,3 +128,5 @@
 .docbot-activity article { background:var(--card); border:1px solid var(--border); padding:1rem; border-radius:14px }
 .docbot-activity p { font-size:.85rem; color:var(--muted-foreground); margin:.4rem 0 }
 .docbot-activity a { display:inline-block; text-decoration:underline; text-underline-offset:3px; font-size:.85rem; margin-right:.5rem }
+.docbot-bob { animation: docbotBob 1.6s ease-in-out infinite; }
+@keyframes docbotBob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(2px) } }

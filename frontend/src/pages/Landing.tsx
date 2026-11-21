@@ -138,7 +138,7 @@ export default function Landing() {
         </section>
         <section id="meet-docbot" className="meet-docbot">
           <h2>
-            Meet <DocBotMark size={60} /> {docbot}, who keeps your paperwork moving.
+            Meet <DocBotMark variant="full" state="done" size={72} /> {docbot}, who keeps your paperwork moving.
           </h2>
           <figure
             role="img"

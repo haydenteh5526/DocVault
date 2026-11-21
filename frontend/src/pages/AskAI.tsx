@@ -174,7 +174,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
     <div className="flex h-full min-w-0">
     <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden relative">
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 border-b px-4 py-2 pr-12 sm:px-8 sm:pr-14">
-        <DocBotMark state={loading ? 'working' : activity.pending.length ? 'needs-you' : 'idle'}/>
+        <DocBotMark size={28} state={loading ? 'working' : activity.pending.length ? 'needs-approval' : 'idle'}/>
         <div className="mr-auto"><h1 className="font-semibold">{ASSISTANT_NAME}</h1><small className="text-muted-foreground">{loading ? 'Working' : activity.status}</small></div>
         <button className="rounded-full border px-3 py-1.5 text-sm" onClick={() => wide && hasActivity ? setHideRail(!hideRail) : setActivityOpen(true)}>Activity</button>
         <Link to="/app/chats" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"><History size={18} aria-hidden className="sm:hidden"/><span className="max-sm:sr-only">Recent chats</span></Link>
@@ -250,7 +250,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
         {messages.length === 0 && historyStatus === 'ready' && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="mb-5 grid size-12 place-items-center rounded-lg border bg-card text-muted-foreground">
-              <DocBotMark size={44}/>
+              <DocBotMark variant="full" size={72}/>
             </div>
 
             <h2 className="font-semibold text-xl tracking-tight text-foreground">Ask anything about your documents</h2>
@@ -264,7 +264,7 @@ export default function AskAI({home = false}: {home?: boolean}) {
         {messages.map((msg, i) => (
           // Keyed by conversation as well as position, so a card's edits never carry into another conversation.
           <div key={`${conversationId ?? 'new'}:${i}`} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && <DocBotMark size={27}/>}
+            {msg.role === 'assistant' && <DocBotMark size={20}/>}
             <div className="min-w-0 max-w-[85%] break-words">
               <div className={`rounded-lg px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
