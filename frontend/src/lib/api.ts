@@ -252,6 +252,16 @@ export async function registerUser(email: string, password: string, displayName?
   return res.json()
 }
 
+/** A refused account call. `status` lets a page tell, say, an unverified sign-in (403) or a used reset link (400) from other failures. */
+export class AuthError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'AuthError'
+    this.status = status
+  }
+}
+
 function safeJson(text: string): { detail?: unknown } | undefined {
   try {
     return JSON.parse(text)
@@ -284,10 +294,11 @@ export function detailMessage(detail: unknown, fallback: string, listFallback = 
 // The verification token is single use, so each token is redeemed once per page
 // load. React StrictMode runs effects twice in development; both runs share
 // this promise instead of sending a second request that the server would reject.
-const verifications = new Map<string, Promise<{ ok: boolean; message: string }>>()
+type VerifyResult = { ok: true; message: string } | { ok: false; message: string; status: number }
+const verifications = new Map<string, Promise<VerifyResult>>()
 
 /** Redeem an email verification token. Public call: no session is needed. */
-export function verifyEmail(token: string): Promise<{ ok: boolean; message: string }> {
+export function verifyEmail(token: string): Promise<VerifyResult> {
   let pending = verifications.get(token)
   if (!pending) {
     pending = (async () => {
@@ -303,7 +314,7 @@ export function verifyEmail(token: string): Promise<{ ok: boolean; message: stri
       if (res.ok) {
         return { ok: true, message: typeof data.message === 'string' ? data.message : 'Email verified' }
       }
-      return { ok: false, message: detailMessage(data.detail, 'Verification failed') }
+      return { ok: false, message: detailMessage(data.detail, 'Verification failed'), status: res.status }
     })()
     verifications.set(token, pending)
     // A network failure is not a verdict on the token, so let a retry run.
@@ -320,7 +331,8 @@ export async function loginUser(email: string, password: string, rememberMe = fa
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Login failed') : 'Server unavailable')
+    if (!text) throw new Error('Server unavailable')
+    throw new AuthError(detailMessage(safeJson(text)?.detail, 'Login failed'), res.status)
   }
   return res.json()
 }
@@ -381,7 +393,23 @@ export async function resetPassword(token: string, newPassword: string): Promise
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text ? detailMessage(safeJson(text)?.detail, 'Reset failed') : 'Server unavailable')
+    if (!text) throw new Error('Server unavailable')
+    throw new AuthError(detailMessage(safeJson(text)?.detail, 'Reset failed'), res.status)
+  }
+  return res.json()
+}
+
+/** Ask for a new verification link. Public call: the reply is the same whether or not the account exists. */
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  const res = await fetch(`${BASE}/auth/resend-verification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    if (!text) throw new Error('Server unavailable')
+    throw new AuthError(detailMessage(safeJson(text)?.detail, 'Request failed'), res.status)
   }
   return res.json()
 }

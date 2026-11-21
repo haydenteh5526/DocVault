@@ -30,6 +30,9 @@ class User(Base):
     cognito_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     is_verified: Mapped[bool] = mapped_column(default=False)
     verification_token: Mapped[str | None] = mapped_column(String(255))
+    verification_sent_at: Mapped[datetime | None] = mapped_column()
+    # Every token carries this as `ver`; a password reset bumps it, which signs out every session.
+    token_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     totp_secret: Mapped[str | None] = mapped_column(String(255))
     totp_pending_secret: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
