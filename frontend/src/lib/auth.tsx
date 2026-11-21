@@ -61,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Stored now, not only by the effect after the next render: a sign-in may run in a transition that
     // holds the render while the app loads, and the session must already be saved when the URL changes.
     localStorage.setItem('token', accessToken)
+    // And compare storage events against it from now on, so another tab signing out in the meantime is followed.
+    tokenRef.current = accessToken
     setToken(accessToken)
   }
 

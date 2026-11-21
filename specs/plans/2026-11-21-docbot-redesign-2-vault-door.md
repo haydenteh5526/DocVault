@@ -24,6 +24,10 @@ After previewing the first build (`dvvault`: a small door above the card on the 
 
 Deviation approved earlier and still in force: the session is stored when the door finishes or is skipped, because `App.tsx` redirects `/login` to `/app` as soon as a session exists.
 
+Accepted by the owner after the first `reviewer-deep` run (findings L3 and L4):
+- **Focus order on `/forgot-password` gains one stop.** The DocVault wordmark in the door's top bezel is now a link to `/`, so the order is DocVault, "Back to sign in", then the form. This amends "Focus order is unchanged" for that page only.
+- **After registering, the door face's links are out of reach.** Once the door has opened, the face (with its home link and "Sign in") is `inert` and then hidden, so "Go to sign in" in the interior is the only way on. Focus falls to the page body, as it did before this PR.
+
 ## Revision R2 (21 November 2026): a heavy physical safe
 
 After previewing R1, the owner asked for physical depth. R2 amends R1 items 1 and 3; items 2 and 4 stand.

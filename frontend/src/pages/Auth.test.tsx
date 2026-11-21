@@ -117,9 +117,10 @@ const settle = (ms = 0) => act(async () => { await vi.advanceTimersByTimeAsync(m
 
 async function reachPassword(user: ReturnType<typeof userEvent.setup>, mode: 'login' | 'register' = 'login') {
   vi.mocked(getAuthProviders).mockResolvedValue({ google: false })
-  render(<MemoryRouter><AuthPage mode={mode} /></MemoryRouter>)
+  const view = render(<MemoryRouter><AuthPage mode={mode} /></MemoryRouter>)
   await user.type(screen.getByLabelText('Email address'), 'someone@example.com')
   await user.click(screen.getByRole('button', { name: /continue with email/i }))
+  return view
 }
 
 describe('the vault door on the sign-in page', () => {
@@ -301,6 +302,97 @@ describe('the vault door on the sign-in page', () => {
     await reachPassword(user)
     expect(screen.queryByText('Synthetic Example Energy bill')).not.toBeInTheDocument()
     expect(document.querySelector('aside')).toBeNull()
+  })
+
+  // Review finding H1: /login and /register share one AuthPage, so state left by a registration must not leak into sign-in.
+  it('after registering, "Go to sign in" gives a working Sign in button', async () => {
+    const user = setup()
+    const view = await reachPassword(user, 'register')
+    vi.mocked(registerUser).mockResolvedValueOnce({} as never)
+    await user.type(password(), 'Password123!')
+    await submit('Create account')
+    await settle(700)
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+    view.rerender(<MemoryRouter><AuthPage mode="login" /></MemoryRouter>)
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
+    await settle()
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    expect(door()).toHaveClass('vault-closed')
+  })
+
+  it('a registration that settles leaves nothing loading', async () => {
+    const user = setup()
+    await reachPassword(user, 'register')
+    vi.mocked(registerUser).mockResolvedValueOnce({} as never)
+    await user.type(password(), 'Password123!')
+    await submit('Create account')
+    const createButton = () => document.querySelector('.safe-door form button[type="submit"]') as HTMLButtonElement
+    // Disabled while the door opens, so a second click cannot send a second request...
+    expect(createButton()).toBeDisabled()
+    await settle(700)
+    // ...and released once the door has settled.
+    expect(createButton()).toBeEnabled()
+  })
+
+  // Review finding M1: a shake timer from an earlier failure must not undo a later success.
+  it('a quick resubmit after a failure opens the door and leaves no skip listener behind', async () => {
+    const user = setup()
+    await reachPassword(user)
+    vi.mocked(loginUser)
+      .mockRejectedValueOnce(new Error('Server unavailable'))
+      .mockResolvedValueOnce({ access_token: 'a', refresh_token: 'r' } as never)
+    await user.type(password(), 'Password123!')
+    await submit('Sign in')
+    expect(door()).toHaveClass('vault-error')
+    await settle(100)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await settle()
+    expect(door()).toHaveClass('vault-open')
+    // The old shake timer would have fired at 400 ms.
+    await settle(350)
+    expect(door()).toHaveClass('vault-open')
+    await settle(700)
+    expect(navigateMock).toHaveBeenCalledTimes(1)
+    expect(loginMock).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.pointerDown(document.body)
+    expect(navigateMock).toHaveBeenCalledTimes(1)
+    expect(loginMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a wrong two-factor code shakes the door and returns it to the second-factor state', async () => {
+    const user = setup()
+    await reachPassword(user)
+    vi.mocked(loginUser).mockResolvedValueOnce({ requires_2fa: true } as never)
+    await user.type(password(), 'Password123!')
+    await submit('Sign in')
+    vi.mocked(verify2FA).mockRejectedValueOnce(new Error('Invalid code'))
+    vi.useRealTimers()
+    await user.click(screen.getAllByRole('textbox')[0])
+    await user.keyboard('123456')
+    await submit('Verify')
+    expect(screen.getByText('Invalid code')).toBeVisible()
+    expect(door()).toHaveClass('vault-error')
+    await settle(400)
+    expect(door()).toHaveClass('vault-unlocking')
+    expect(screen.getByRole('button', { name: 'Verify' })).toBeEnabled()
+    expect(loginMock).not.toHaveBeenCalled()
+  })
+
+  it('leaving the page while the door is open cancels the wait and its skip listeners', async () => {
+    const user = setup()
+    const view = await reachPassword(user)
+    vi.mocked(loginUser).mockResolvedValueOnce({ access_token: 'a', refresh_token: 'r' } as never)
+    await user.type(password(), 'Password123!')
+    await submit('Sign in')
+    expect(door()).toHaveClass('vault-open')
+    view.unmount()
+    await settle(1000)
+    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.pointerDown(document.body)
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(loginMock).not.toHaveBeenCalled()
   })
 })
 

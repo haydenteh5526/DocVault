@@ -45,34 +45,48 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   // Leaving the page cancels any door timer or skip listener.
   useEffect(() => () => cancelWait.current?.(), [])
 
+  // At most one door wait (the open door's timer and skip listeners, or a shake's timer) is live at a time.
+  // Starting a new one, submitting again, switching page or leaving cancels the old one first.
+  function cancelDoorWait() {
+    cancelWait.current?.()
+  }
+
   // Run the action once the door has been open for DOOR_OPEN_MS, at once on a key or click,
   // and at once under reduced motion.
   function afterDoorOpens(action: () => void) {
+    cancelDoorWait()
     if (reducedMotion) { action(); return }
     let done = false
+    const cleanup = () => {
+      done = true
+      window.clearTimeout(timer)
+      window.removeEventListener('keydown', run)
+      window.removeEventListener('pointerdown', run)
+      if (cancelWait.current === cleanup) cancelWait.current = null
+    }
     const run = () => {
       if (done) return
-      cancelWait.current?.()
+      // Its own cleanup, never whatever the ref holds now.
+      cleanup()
       action()
     }
     const timer = window.setTimeout(run, DOOR_OPEN_MS)
     window.addEventListener('keydown', run)
     window.addEventListener('pointerdown', run)
-    cancelWait.current = () => {
-      done = true
-      window.clearTimeout(timer)
-      window.removeEventListener('keydown', run)
-      window.removeEventListener('pointerdown', run)
-      cancelWait.current = null
-    }
+    cancelWait.current = cleanup
   }
 
   // Shake after the server says no, then settle on `rest`.
   function shake(rest: VaultState) {
+    cancelDoorWait()
     setDoor('error')
     if (reducedMotion) { setDoor(rest); return }
-    const timer = window.setTimeout(() => { cancelWait.current = null; setDoor(rest) }, DOOR_ERROR_MS)
-    cancelWait.current = () => { window.clearTimeout(timer); cancelWait.current = null }
+    const cleanup = () => {
+      window.clearTimeout(timer)
+      if (cancelWait.current === cleanup) cancelWait.current = null
+    }
+    const timer = window.setTimeout(() => { cleanup(); setDoor(rest) }, DOOR_ERROR_MS)
+    cancelWait.current = cleanup
   }
 
   // The server accepted the sign-in: open the door, then store the session and go to the app.
@@ -105,8 +119,11 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     return () => { active = false }
   }, [])
 
-  // Reset state when switching between login/register
+  // Reset state when switching between login/register. /login and /register share this component,
+  // so a registration's open door, its timers and its loading state must not carry over.
   useEffect(() => {
+    cancelWait.current?.()
+    setLoading(false)
     setStep('email')
     setError('')
     setPassword('')
@@ -125,6 +142,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    cancelDoorWait()
     setError('')
     setLoading(true)
     // The request starts now; the door only starts turning and learns nothing until the server answers.
@@ -137,7 +155,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         opening = true
         setDoor('open')
         setConfirmed(true)
-        afterDoorOpens(() => setSettled(true))
+        afterDoorOpens(() => { setSettled(true); setLoading(false) })
       } else {
         const data = await loginUser(email, password, rememberMe)
         if (data.requires_2fa) {
@@ -192,6 +210,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
               <p className="text-sm text-muted-foreground mt-2">Enter the 6-digit code from your authenticator app.</p>
               <form onSubmit={async (e) => {
                 e.preventDefault()
+                cancelDoorWait()
                 setError('')
                 setLoading(true)
                 let opening = false
