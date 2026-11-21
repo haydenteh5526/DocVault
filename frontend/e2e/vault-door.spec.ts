@@ -109,8 +109,32 @@ test.describe('signing in with the vault door', () => {
     await page.getByPlaceholder('Password').fill(password!);
     const response = await submitSignIn(page);
     expect(response.status()).toBe(200);
+    // Mid-swing, with the room scaled forward, nothing scrolls sideways.
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-open/);
+    await page.waitForTimeout(350);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/app$/);
+    // The workspace rises out of the chamber, and the flag is gone from history so a reload does not replay it.
+    await expect(page.locator('.vault-entrance')).toHaveCount(1);
+    expect(await page.evaluate(() => (history.state as { usr?: unknown } | null)?.usr ?? null)).toBeNull();
+  });
+
+  test('under reduced motion, signing in neither moves nor waits, and the app has no entrance', async ({ page }) => {
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
+    test.skip(!email || !password, 'CI seed credentials are required for this integration test');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => localStorage.setItem('docvault-onboarding-done', '1'));
+    await page.goto('/login');
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-still/);
+    await toPasswordStep(page, email!);
+    await page.getByPlaceholder('Password').fill(password!);
+    const response = await submitSignIn(page);
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveURL(/\/app$/, { timeout: 2_000 });
+    await expect(page.getByRole('heading', { name: 'DocBot', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.vault-entrance')).toHaveCount(0);
   });
 });
 
@@ -152,7 +176,7 @@ test.describe('recording the vault door', () => {
       await submitSignIn(page);
       await expect(page.locator('.vault-door')).toHaveClass(/vault-open/);
       // About 300 ms in: the bolts are in and the door is part-way round its left hinge.
-      await page.waitForTimeout(430);
+      await page.waitForTimeout(420);
       await page.screenshot({ path: path.join(OUT_DIR, `vault-swing-${size.name}.png`), animations: 'allow' });
       await page.waitForTimeout(500);
       await shot('open');

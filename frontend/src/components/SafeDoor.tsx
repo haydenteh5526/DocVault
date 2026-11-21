@@ -78,10 +78,12 @@ export function SafeDoor({
   return (
     <div className={`safe-stage safe-${state}${still ? ' safe-still' : ''}${settled ? ' safe-settled' : ''}`}>
       <p role="status" className="sr-only">{announcement}</p>
+      {/* Everything that moves when you step inside. The stage clips it, so the scale never scrolls the page. */}
+      <div className="safe-world">
       <div className="safe-frame" aria-hidden="true">
         {BOLTS.map(n => <span key={n} data-part="socket" className={`safe-socket safe-socket-${n}`} />)}
       </div>
-      <div className="safe-glow" aria-hidden="true" />
+      <div className="safe-chamber" aria-hidden="true" />
       {interior && <div className="safe-interior">{interior}</div>}
       <span data-part="hinge" className="safe-hinge safe-hinge-top" aria-hidden="true" />
       <span data-part="hinge" className="safe-hinge safe-hinge-bottom" aria-hidden="true" />
@@ -100,13 +102,14 @@ export function SafeDoor({
               <StatusLed led={led} />
               <span data-part="status-label" className="safe-status-label">{label}</span>
             </div>
-            <div className="safe-hardware">
+            <div data-part="hardware-bay" className="safe-hardware">
               <VaultDoor state={state} progress={progress} badge={badge} />
               <Handle />
             </div>
             {children}
           </div>
         </main>
+      </div>
       </div>
     </div>
   )

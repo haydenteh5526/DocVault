@@ -27,6 +27,16 @@ describe('accountIdFromToken', () => {
 })
 
 describe('AuthProvider', () => {
+  it('stores the session the moment login() is called, before any render', () => {
+    let auth!: ReturnType<typeof useAuth>
+    function Probe() { auth = useAuth(); return null }
+    render(<QueryClientProvider client={queryClient}><AuthProvider><Probe /></AuthProvider></QueryClientProvider>)
+    // Called outside act(), so no render or effect has run when the storage is read.
+    auth.login(token('s1'), 'refresh-s1')
+    expect(localStorage.getItem('token')).toBe(token('s1'))
+    expect(localStorage.getItem('refresh_token')).toBe('refresh-s1')
+  })
+
   it('signing in and signing out drop every cached query', () => {
     let auth!: ReturnType<typeof useAuth>
     function Probe() {

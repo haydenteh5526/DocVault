@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, startTransition } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
 
-/** The open phase: the handle turns (0-150 ms), the bolts pull out of the frame (100-250 ms), the door swings (250-700 ms). Any key or click skips it. */
+/** The open phase: beat 1 (0-180 ms) the handle turns and the bolts pull out; beat 2 (180-700 ms) the door swings and the room scales forward. Any key or click skips it. */
 const DOOR_OPEN_MS = 700
 /** How long the shake shows before the door settles again. */
 const DOOR_ERROR_MS = 400
@@ -82,8 +82,13 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     setDoor('open')
     setAnnouncement('Signed in')
     afterDoorOpens(() => {
-      login(accessToken, refreshToken)
-      navigate('/app')
+      // One transition, so the session and the move to /app commit together. React Router applies
+      // navigation in a transition; a plain login() would render first, and App's /login guard would
+      // redirect to /app without the state that tells the app shell to play its entrance.
+      startTransition(() => {
+        login(accessToken, refreshToken)
+        navigate('/app', { state: { fromVault: true } })
+      })
     })
   }
 

@@ -180,7 +180,7 @@ describe('the vault door on the sign-in page', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     await settle(1)
     expect(loginMock).toHaveBeenCalledWith('a', 'r')
-    expect(navigateMock).toHaveBeenCalledWith('/app')
+    expect(navigateMock).toHaveBeenCalledWith('/app', { state: { fromVault: true } })
   })
 
   it('goes at once, with the session stored first, when a key is pressed during the wait', async () => {
@@ -206,7 +206,7 @@ describe('the vault door on the sign-in page', () => {
     await submit('Sign in')
     await settle()
     fireEvent.pointerDown(document.body)
-    expect(navigateMock).toHaveBeenCalledWith('/app')
+    expect(navigateMock).toHaveBeenCalledWith('/app', { state: { fromVault: true } })
   })
 
   it('does not wait under reduced motion', async () => {
@@ -219,7 +219,7 @@ describe('the vault door on the sign-in page', () => {
     await settle()
     expect(door()).toHaveClass('vault-still')
     expect(loginMock).toHaveBeenCalledWith('a', 'r')
-    expect(navigateMock).toHaveBeenCalledWith('/app')
+    expect(navigateMock).toHaveBeenCalledWith('/app', { state: { fromVault: true } })
   })
 
   it('shakes on failure with the existing message, then closes after 400 ms', async () => {
@@ -259,7 +259,7 @@ describe('the vault door on the sign-in page', () => {
     expect(door()).toHaveClass('vault-open')
     await settle(700)
     expect(loginMock).toHaveBeenCalledWith('a2', 'r2')
-    expect(navigateMock).toHaveBeenCalledWith('/app')
+    expect(navigateMock).toHaveBeenCalledWith('/app', { state: { fromVault: true } })
   })
 
   it('shows "Check your email" in the interior behind the open door when registering, with no navigation', async () => {

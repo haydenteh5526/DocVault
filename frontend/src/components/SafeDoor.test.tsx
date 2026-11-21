@@ -89,6 +89,26 @@ describe('SafeDoor', () => {
     expect(plate.querySelector('.vault-door')).not.toBeNull()
   })
 
+  it('seats the dial and handle in a hardware bay above a divider, before the heading', () => {
+    mockMotion(false)
+    const { container } = renderDoor()
+    const bay = container.querySelector('[data-part="hardware-bay"]') as HTMLElement
+    expect(bay.querySelector('.vault-door')).not.toBeNull()
+    expect(bay.querySelector('[data-part="handle"]')).not.toBeNull()
+    expect(bay.compareDocumentPosition(screen.getByRole('heading'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('moves the frame, interior and slab together in one world layer, so the step-inside scale cannot scroll the page', () => {
+    mockMotion(false)
+    const { container } = renderDoor({ state: 'open' })
+    const stage = container.querySelector('.safe-stage') as HTMLElement
+    const world = stage.querySelector('.safe-world') as HTMLElement
+    expect(world.parentElement).toBe(stage)
+    for (const part of ['.safe-frame', '.safe-chamber', '.safe-door']) expect(world).toContainElement(container.querySelector(part) as HTMLElement)
+    // The live region stays outside the moving layer.
+    expect(world).not.toContainElement(screen.getByRole('status', { hidden: true }))
+  })
+
   it('renders the form inside the console, with the dial ring above it', () => {
     mockMotion(false)
     const { container } = renderDoor({ progress: 3, badge: 'key' })
@@ -115,6 +135,7 @@ describe('SafeDoor', () => {
     mockMotion(false)
     const { container, rerender } = renderDoor({ state: 'closed' })
     expect(container.querySelector('.safe-interior')).toBeNull()
+    expect(container.querySelector('.safe-chamber')).not.toBeNull()
     rerender(
       <MemoryRouter>
         <SafeDoor state="open" settled interior={<h2>Check your email</h2>}>
