@@ -1,6 +1,6 @@
 # Auth: complete the SafeDoor screens and harden tokens — Implementation Plan
 
-**Status:** proposed on 21 November 2026 and approved by the owner the same day with decisions D1 to D5 as written below. Phase 1 is in progress on `feature/auth-complete-safedoor`.
+**Status:** proposed on 21 November 2026 and approved by the owner the same day with decisions D1 to D5 as written below. Phase 1 (`ced80a5`) and Phase 2 are built on `feature/auth-complete-safedoor`; review, hosted CI and the owner's real-email pass are next. Phase 2 adds one change agreed in the build: the register confirmation's resend starts with its countdown running, because registration has just sent a link and the server would otherwise drop an early click.
 
 **Evidence that led here:** a live real-email run on the local `dvauth` stack on 21 November 2026 (Resend, the owner's student inbox). Sign-up, verification, sign-in through the SafeDoor, forgot password and reset all worked. The audit and the run found these gaps:
 - no way to resend a verification email, and the 403 on sign-in offers no way forward

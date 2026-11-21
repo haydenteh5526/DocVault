@@ -1,67 +1,90 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { RecessedBadge } from '@/components/RecessedBadge'
+import { ResendVerification } from '@/components/ResendVerification'
+import { SafeDoor } from '@/components/SafeDoor'
 import { verifyEmail } from '@/lib/api'
+
+type Outcome =
+  | { kind: 'loading' }
+  | { kind: 'verified' }
+  | { kind: 'link'; message: string; expired: boolean }
+  | { kind: 'failed'; message: string }
 
 export default function VerifyEmail() {
   const [params] = useSearchParams()
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState('')
+  const token = params.get('token')
+  const [outcome, setOutcome] = useState<Outcome>(
+    token ? { kind: 'loading' } : { kind: 'link', message: 'This link is missing its token.', expired: false },
+  )
+  const [email, setEmail] = useState('')
 
   useEffect(() => {
-    const token = params.get('token')
-    if (!token) { setStatus('error'); setMessage('Invalid verification link.'); return }
-
+    if (!token) return
     let current = true
     verifyEmail(token)
       .then(result => {
         if (!current) return
-        setStatus(result.ok ? 'success' : 'error')
-        setMessage(result.message)
+        if (result.ok) setOutcome({ kind: 'verified' })
+        else setOutcome({ kind: 'link', message: result.message, expired: /has expired/i.test(result.message) })
       })
       .catch(() => {
-        if (!current) return
-        setStatus('error')
-        setMessage('Server unavailable')
+        if (current) setOutcome({ kind: 'failed', message: 'Server unavailable' })
       })
     return () => { current = false }
-  }, [params])
+  }, [token])
+
+  const door =
+    outcome.kind === 'loading' ? { state: 'unlocking' as const, status: undefined }
+    : outcome.kind === 'verified' ? { state: 'unlocking' as const, status: { label: 'VERIFIED', led: 'unlocked' as const } }
+    : outcome.kind === 'link' ? { state: 'error' as const, status: { label: outcome.expired ? 'EXPIRED' : 'INVALID', led: 'invalid' as const } }
+    : { state: 'error' as const, status: { label: 'OFFLINE', led: 'invalid' as const } }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="text-center max-w-sm">
-        {status === 'loading' && (
-          <>
-            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
-            <p className="mt-4 text-sm text-muted-foreground">Verifying your email...</p>
-          </>
-        )}
-        {status === 'success' && (
-          <>
-            <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-5">
-              <CheckCircle className="h-7 w-7 text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold">Email verified!</h1>
-            <p className="text-sm text-muted-foreground mt-2">{message}</p>
-            <Button className="mt-6 bg-primary border-0 text-primary-foreground" asChild>
-              <Link to="/login">Sign in to your account</Link>
-            </Button>
-          </>
-        )}
-        {status === 'error' && (
-          <>
-            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
-              <XCircle className="h-7 w-7 text-red-600" />
-            </div>
-            <h1 className="text-2xl font-bold">Verification failed</h1>
-            <p className="text-sm text-muted-foreground mt-2">{message}</p>
-            <Button variant="outline" className="mt-6" asChild>
-              <Link to="/register">Try again</Link>
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
+    <SafeDoor state={door.state} status={door.status} announcement={outcome.kind === 'verified' ? 'Email verified' : ''}>
+      {outcome.kind === 'loading' && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Verifying your email</h1>
+          <p className="text-sm text-muted-foreground mt-2">Checking your verification link…</p>
+        </div>
+      )}
+      {outcome.kind === 'verified' && (
+        <div>
+          <RecessedBadge tone="success"><CheckCircle /></RecessedBadge>
+          <h1 className="text-2xl font-bold tracking-tight">Email verified</h1>
+          <p className="text-sm text-muted-foreground mt-2">Your account is active. You can sign in now.</p>
+          <Button className="w-full h-11 mt-8 bg-primary border-0 text-primary-foreground" asChild>
+            <Link to="/login">Sign in</Link>
+          </Button>
+        </div>
+      )}
+      {outcome.kind === 'link' && (
+        <div>
+          <RecessedBadge tone="danger"><XCircle /></RecessedBadge>
+          <h1 className="text-2xl font-bold tracking-tight">This link no longer works</h1>
+          <p className="text-sm text-muted-foreground mt-2">{outcome.message}</p>
+          <p className="text-sm text-muted-foreground mt-2">Enter the email you signed up with and we'll send a new link. Only the newest link works.</p>
+          <div className="mt-6 space-y-3">
+            <label htmlFor="verify-email" className="block text-sm font-medium">Email address</label>
+            <Input id="verify-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="h-11" />
+            <ResendVerification email={email.trim()} label="Send a new link" primary />
+          </div>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Already verified? <Link to="/login" className="link-draw text-primary">Go to sign in</Link>
+          </p>
+        </div>
+      )}
+      {outcome.kind === 'failed' && (
+        <div>
+          <RecessedBadge tone="danger"><AlertCircle /></RecessedBadge>
+          <h1 className="text-2xl font-bold tracking-tight">Verification failed</h1>
+          <p className="text-sm text-muted-foreground mt-2">{outcome.message}</p>
+          <p className="text-sm text-muted-foreground mt-2">Your link was not used. Try opening it again in a moment.</p>
+        </div>
+      )}
+    </SafeDoor>
   )
 }

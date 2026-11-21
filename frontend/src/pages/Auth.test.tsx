@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest'
 import { render, screen, cleanup, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
+import { AuthError, getAuthProviders, loginUser, registerUser, resendVerification, verify2FA } from '@/lib/api'
 import AuthPage from './Auth'
 
 const { navigateMock, loginMock } = vi.hoisted(() => ({ navigateMock: vi.fn(), loginMock: vi.fn() }))
@@ -18,6 +18,7 @@ vi.mock('@/lib/api', async importOriginal => {
     loginUser: vi.fn(actual.loginUser),
     registerUser: vi.fn(actual.registerUser),
     verify2FA: vi.fn(actual.verify2FA),
+    resendVerification: vi.fn(),
   }
 })
 
@@ -424,3 +425,125 @@ describe('the vault door on the sign-in page', () => {
   })
 })
 
+describe('recovery and verification from the sign-in page', () => {
+  beforeEach(() => {
+    stubMotion(true)
+    vi.mocked(getAuthProviders).mockResolvedValue({ google: false })
+  })
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+  const password = () => screen.getByLabelText('Password', { exact: true })
+
+  it('offers "Forgot password?" on the email step of sign-in, and not on register', () => {
+    const view = render(<MemoryRouter><AuthPage mode="login" /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute('href', '/forgot-password')
+    view.rerender(<MemoryRouter><AuthPage mode="register" /></MemoryRouter>)
+    expect(screen.queryByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument()
+  })
+
+  it('an unverified sign-in (403) offers to resend the verification email, then counts down 60 seconds', async () => {
+    const user = userEvent.setup({ delay: null })
+    await reachPassword(user)
+    vi.mocked(loginUser).mockRejectedValueOnce(new AuthError('Please verify your email before signing in', 403))
+    vi.mocked(resendVerification).mockResolvedValueOnce({ message: "If that account still needs verifying, we've sent a new link." })
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Please verify your email before signing in')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Resend verification email' }))
+    expect(resendVerification).toHaveBeenCalledWith('someone@example.com')
+    expect(await screen.findByText("If that account still needs verifying, we've sent a new link.")).toBeVisible()
+    expect(screen.getByRole('button', { name: /Resend verification email in 60s/ })).toBeDisabled()
+  })
+
+  it('a wrong password (401) offers no resend', async () => {
+    const user = userEvent.setup({ delay: null })
+    await reachPassword(user)
+    vi.mocked(loginUser).mockRejectedValueOnce(new AuthError('Invalid email or password', 401))
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText('Invalid email or password')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Resend verification email/ })).not.toBeInTheDocument()
+  })
+
+  it('the registration confirmation uses the recessed badge and can resend the email', async () => {
+    const user = userEvent.setup({ delay: null })
+    await reachPassword(user, 'register')
+    vi.mocked(registerUser).mockResolvedValueOnce({ message: 'sent' })
+    vi.mocked(resendVerification).mockResolvedValueOnce({ message: "If that account still needs verifying, we've sent a new link." })
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible()
+    expect(document.querySelector('.safe-badge-success')).not.toBeNull()
+    expect(document.querySelector('.bg-green-50')).toBeNull()
+    // Registration has just sent a link, so the server's 60-second cooldown is already running.
+    expect(screen.getByRole('button', { name: /Resend email in 60s/ })).toBeDisabled()
+    // Move the clock past the cooldown; the countdown's own interval notices within a quarter second.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 60_000)
+    await act(async () => { await new Promise(r => setTimeout(r, 600)) })
+    await user.click(screen.getByRole('button', { name: 'Resend email' }))
+    expect(resendVerification).toHaveBeenCalledWith('someone@example.com')
+    expect(screen.getByRole('button', { name: /Resend email in 60s/ })).toBeDisabled()
+  })
+})
+
+// L-pre-1 (recorded in PR #44): a request still in flight must not finish on the other page.
+describe('switching between sign-in and register while a request is in flight', () => {
+  beforeEach(() => {
+    stubMotion(true)
+    vi.mocked(getAuthProviders).mockResolvedValue({ google: false })
+  })
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+  const password = () => screen.getByLabelText('Password', { exact: true })
+
+  it('a sign-in that succeeds after the switch never enters /app from /register', async () => {
+    const user = userEvent.setup({ delay: null })
+    const view = await reachPassword(user)
+    let release!: (v: unknown) => void
+    vi.mocked(loginUser).mockReturnValueOnce(new Promise(r => { release = r }) as never)
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    view.rerender(<MemoryRouter><AuthPage mode="register" /></MemoryRouter>)
+    await act(async () => { release({ access_token: 'a', refresh_token: 'r' }) })
+    expect(loginMock).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Create an account' })).toBeVisible()
+  })
+
+  it('a registration that succeeds after the switch never shows "Check your email" on /login', async () => {
+    const user = userEvent.setup({ delay: null })
+    const view = await reachPassword(user, 'register')
+    let release!: (v: unknown) => void
+    vi.mocked(registerUser).mockReturnValueOnce(new Promise(r => { release = r }) as never)
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    view.rerender(<MemoryRouter><AuthPage mode="login" /></MemoryRouter>)
+    await act(async () => { release({ message: 'sent' }) })
+    expect(screen.queryByRole('heading', { name: 'Check your email' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
+  })
+
+  it('a failure after the switch neither shakes the door nor shows its error on the other page', async () => {
+    stubMotion(false)
+    const user = userEvent.setup({ delay: null })
+    const view = await reachPassword(user)
+    let fail!: (e: Error) => void
+    vi.mocked(loginUser).mockReturnValueOnce(new Promise((_, reject) => { fail = reject }) as never)
+    await user.type(password(), 'Password123!')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    view.rerender(<MemoryRouter><AuthPage mode="register" /></MemoryRouter>)
+    await act(async () => { fail(new AuthError('Invalid email or password', 401)) })
+    expect(door()).toHaveClass('vault-closed')
+    expect(screen.queryByText('INVALID')).not.toBeInTheDocument()
+    expect(screen.getByText('LOCKED')).toBeVisible()
+    expect(screen.queryByText('Invalid email or password')).not.toBeInTheDocument()
+  })
+})

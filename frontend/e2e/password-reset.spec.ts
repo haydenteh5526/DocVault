@@ -62,14 +62,29 @@ test('verification and password reset arrive in the local inbox and allow sign-i
     const verification = await request.get(`/api/v1/auth/verify${new URL(verificationLink).search}`);
     expect(verification.status()).toBe(200);
 
+    // A session from before the reset, to show the reset signs it out.
+    const before = await signIn(request, email, originalPassword);
+    expect(before.status()).toBe(200);
+    const oldSession = (await before.json()).access_token as string;
+
     await page.goto('/forgot-password');
     await page.getByPlaceholder('name@example.com').fill(email);
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
-    await page.goto(await emailLink('Reset your DocVault password', '/reset-password?token='));
+    await expect(page.locator('[data-part="status-label"]')).toHaveText('CHECK EMAIL');
+    const resetLink = await emailLink('Reset your DocVault password', '/reset-password?token=');
+    await page.goto(resetLink);
     await page.getByPlaceholder('New password').fill(newPassword);
     await page.getByRole('button', { name: 'Reset password', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Password reset', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Password updated', exact: true })).toBeVisible();
+    await expect(page.locator('[data-part="status-label"]')).toHaveText('UPDATED');
+
+    const revoked = await request.get('/api/v1/auth/me', { headers: { Authorization: `Bearer ${oldSession}` } });
+    expect(revoked.status()).toBe(401);
+    const reused = await request.post('/api/v1/auth/reset-password', { data: { token: new URL(resetLink).searchParams.get('token'), new_password: 'Another123456!' } });
+    expect(reused.status()).toBe(400);
+
+    await page.getByRole('link', { name: 'Sign in', exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     await page.getByPlaceholder('name@example.com').fill(email);

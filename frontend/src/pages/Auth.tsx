@@ -5,12 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import './landing.css'
 import { PasswordStrength } from '@/components/PasswordStrength'
+import { PasswordRules } from '@/components/PasswordRules'
 import { PinInput } from '@/components/PinInput'
+import { RecessedBadge } from '@/components/RecessedBadge'
+import { ResendVerification } from '@/components/ResendVerification'
 import { SafeDoor } from '@/components/SafeDoor'
 import type { VaultState } from '@/components/VaultDoor'
 import { useAuth } from '@/lib/auth'
 import { useReducedMotion } from '@/lib/useReducedMotion'
-import { getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
+import { AuthError, getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
 
 /** The open phase: beat 1 (0-180 ms) the handle turns and the bolts pull out; beat 2 (180-700 ms) the door swings and the room scales forward. Any key or click skips it. */
 const DOOR_OPEN_MS = 700
@@ -29,6 +32,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   const [name, setName] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [error, setError] = useState('')
+  // The server refused sign-in because the email is not verified yet (403): offer a new link.
+  const [unverified, setUnverified] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
@@ -41,6 +46,9 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   const navigate = useNavigate()
   const reducedMotion = useReducedMotion()
   const cancelWait = useRef<(() => void) | null>(null)
+  // Bumped on every switch between /login and /register. A response that arrives after a switch
+  // belongs to the other page, so it is ignored (L-pre-1).
+  const requestId = useRef(0)
 
   // Leaving the page cancels any door timer or skip listener.
   useEffect(() => () => cancelWait.current?.(), [])
@@ -122,10 +130,12 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   // Reset state when switching between login/register. /login and /register share this component,
   // so a registration's open door, its timers and its loading state must not carry over.
   useEffect(() => {
+    requestId.current += 1
     cancelWait.current?.()
     setLoading(false)
     setStep('email')
     setError('')
+    setUnverified(false)
     setPassword('')
     setName('')
     setDoor('closed')
@@ -142,8 +152,11 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const id = requestId.current
+    const current = () => id === requestId.current
     cancelDoorWait()
     setError('')
+    setUnverified(false)
     setLoading(true)
     // The request starts now; the door only starts turning and learns nothing until the server answers.
     setDoor('unlocking')
@@ -152,12 +165,14 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     try {
       if (isRegister) {
         await registerUser(email, password, name || undefined)
+        if (!current()) return
         opening = true
         setDoor('open')
         setConfirmed(true)
         afterDoorOpens(() => { setSettled(true); setLoading(false) })
       } else {
         const data = await loginUser(email, password, rememberMe)
+        if (!current()) return
         if (data.requires_2fa) {
           setStep('2fa')
         } else if (data.access_token) {
@@ -166,10 +181,12 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         }
       }
     } catch (err) {
+      if (!current()) return
       setError(err instanceof Error ? err.message : 'Something went wrong')
+      setUnverified(err instanceof AuthError && err.status === 403)
       shake('closed')
     } finally {
-      if (!opening) setLoading(false)
+      if (!opening && current()) setLoading(false)
     }
   }
 
@@ -183,9 +200,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
       topRight={<Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Sign in' : 'Create account'}</Link>}
       interior={confirmed ? (
         <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle className="h-7 w-7 text-success" />
-          </div>
+          <RecessedBadge tone="success" className="mx-auto"><CheckCircle /></RecessedBadge>
           <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
             We sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
@@ -197,6 +212,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
             <p className="text-xs text-muted-foreground">
               Didn't receive it? Check your spam folder.
             </p>
+            <ResendVerification email={email} label="Resend email" justSent />
           </div>
         </div>
       ) : undefined}
@@ -210,6 +226,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
               <p className="text-sm text-muted-foreground mt-2">Enter the 6-digit code from your authenticator app.</p>
               <form onSubmit={async (e) => {
                 e.preventDefault()
+                const id = requestId.current
                 cancelDoorWait()
                 // Back to VERIFYING at once, so a quick second code is never checked under a stale INVALID.
                 setDoor('unlocking')
@@ -218,12 +235,14 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                 let opening = false
                 try {
                   const data = await verify2FA(email, password, totpCode, rememberMe)
+                  if (id !== requestId.current) return
                   opening = true
                   enterApp(data.access_token, data.refresh_token)
                 } catch (err) {
+                  if (id !== requestId.current) return
                   setError(err instanceof Error ? err.message : 'Invalid code')
                   shake('unlocking')
-                } finally { if (!opening) setLoading(false) }
+                } finally { if (!opening && id === requestId.current) setLoading(false) }
               }} className="mt-6 space-y-4">
                 <PinInput value={totpCode} onChange={setTotpCode} autoFocus />
                 {error && <p className="text-sm text-destructive">{error}</p>}
@@ -265,6 +284,11 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                       </Button>
                     </>
                   )}
+                  {!isRegister && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      <Link to="/forgot-password" className="link-draw text-primary">Forgot password?</Link>
+                    </p>
+                  )}
                 </form>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -281,7 +305,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   <div>
                     <label htmlFor="auth-password" className="mb-1 block text-sm font-medium">Password</label>
                     <div className="relative">
-                      <Input id="auth-password" autoComplete={isRegister ? "new-password" : "current-password"} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => changePassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
+                      <Input id="auth-password" autoComplete={isRegister ? "new-password" : "current-password"} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => changePassword(e.target.value)} placeholder="Password" required minLength={8} maxLength={isRegister ? 128 : undefined} autoFocus className="h-11 pr-10" />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -289,18 +313,13 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                     {isRegister && (
                       <>
                         <div className="mt-2"><PasswordStrength password={password} /></div>
-                        <ul className="mt-2 space-y-0.5 text-[11px]">
-                          <PasswordReq met={password.length >= 8}>Minimum 8 characters</PasswordReq>
-                          <PasswordReq met={/[A-Z]/.test(password)}>One uppercase letter</PasswordReq>
-                          <PasswordReq met={/[a-z]/.test(password)}>One lowercase letter</PasswordReq>
-                          <PasswordReq met={/\d/.test(password)}>One number</PasswordReq>
-                          <PasswordReq met={/[^A-Za-z0-9]/.test(password)}>One special character</PasswordReq>
-                        </ul>
+                        <PasswordRules password={password} />
                       </>
                     )}
                   </div>
 
                   {error && <p className="text-sm text-destructive">{error}</p>}
+                  {unverified && <ResendVerification email={email} />}
 
                   {!isRegister && (
                     <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
@@ -332,17 +351,5 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
             </>
           )}
     </SafeDoor>
-  )
-}
-
-/** Password requirement line with animated check transition */
-function PasswordReq({ met, children }: { met: boolean; children: React.ReactNode }) {
-  return (
-    <li className={`flex items-center gap-1.5 transition-all duration-300 ${met ? 'text-success' : 'text-muted-foreground'}`}>
-      <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full transition-all duration-300 ${met ? 'bg-success scale-100' : 'bg-transparent scale-90 border border-border'}`}>
-        {met && <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-      </span>
-      {children}
-    </li>
   )
 }

@@ -157,4 +157,12 @@ describe('SafeDoor', () => {
     const moving = renderDoor({ state: 'open' })
     expect(moving.container.querySelector('.safe-stage')).not.toHaveClass('safe-still')
   })
+
+  it('shows a page-specific status in place of the default label, with its own light', () => {
+    renderDoor({ state: 'closed', status: { label: 'CHECK EMAIL', led: 'sent' } })
+    expect(screen.getByText('CHECK EMAIL')).toBeVisible()
+    expect(screen.queryByText('LOCKED')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-part="status-led"]')).toHaveAttribute('data-led', 'sent')
+    expect(document.querySelector('[data-part="lcd"]')).toHaveAttribute('data-led', 'sent')
+  })
 })

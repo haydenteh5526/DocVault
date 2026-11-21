@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { RecessedBadge } from '@/components/RecessedBadge'
+import { SafeDoor } from '@/components/SafeDoor'
 import { useAuth } from '@/lib/auth'
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -39,30 +42,28 @@ export default function OAuthCallback() {
     }
   }, [login, navigate])
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
-        <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
-          <AlertCircle className="h-7 w-7 text-destructive" />
-        </div>
-        <h1 className="text-xl font-semibold tracking-tight">Sign-in failed</h1>
-        <p className="text-sm text-muted-foreground mt-2 text-center max-w-xs">
-          {ERROR_MESSAGES[error] || 'Something went wrong during sign-in.'}
-        </p>
-        <button
-          onClick={() => navigate('/login', { replace: true })}
-          className="mt-6 h-10 px-6 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-all duration-200"
-        >
-          Back to sign in
-        </button>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground mt-4">Completing sign-in…</p>
-    </div>
+    <SafeDoor
+      state={error ? 'error' : 'unlocking'}
+      status={error ? undefined : { label: 'SIGNING IN', led: 'verifying' }}
+    >
+      {error ? (
+        <div>
+          <RecessedBadge tone="danger"><AlertCircle /></RecessedBadge>
+          <h1 className="text-2xl font-bold tracking-tight">Sign-in failed</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            {ERROR_MESSAGES[error] || 'Something went wrong during sign-in.'}
+          </p>
+          <Button variant="outline" className="w-full h-10 mt-8" asChild>
+            <Link to="/login" replace>Back to sign in</Link>
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Completing sign-in</h1>
+          <p className="text-sm text-muted-foreground mt-2">Finishing your Google sign-in…</p>
+        </div>
+      )}
+    </SafeDoor>
   )
 }

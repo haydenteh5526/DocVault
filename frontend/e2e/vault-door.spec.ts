@@ -54,9 +54,33 @@ test.describe('the vault door at 390 px', () => {
     await expectNoWcagViolations(page);
   });
 
+  test('reset password, email verification and the Google callback sit in the door with no WCAG A/AA violations', async ({ page }) => {
+    await page.goto('/reset-password?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'Set a new password' })).toBeVisible();
+    await page.getByPlaceholder('New password').fill('abcdefgh');
+    await expect(page.locator('.vault-door')).toHaveClass(/vault-entering/);
+    await expectNoWcagViolations(page);
+
+    // A made-up token is refused, so the page offers a new link.
+    await page.getByPlaceholder('New password').fill('NewPass789!');
+    await page.getByRole('button', { name: 'Reset password', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'This reset link no longer works' })).toBeVisible();
+    await expect(page.locator('[data-part="status-label"]')).toHaveText('INVALID');
+    await expectNoWcagViolations(page);
+
+    await page.goto('/verify?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send a new link' })).toBeVisible();
+    await expectNoWcagViolations(page);
+
+    await page.goto('/auth/callback#error=oauth_denied');
+    await expect(page.getByRole('heading', { name: 'Sign-in failed' })).toBeVisible();
+    await expectNoWcagViolations(page);
+  });
+
   test('every door page fits the screen without a sideways scroll', async ({ page }) => {
     const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    for (const route of ['/login', '/register', '/forgot-password']) {
+    for (const route of ['/login', '/register', '/forgot-password', '/reset-password?token=x', '/verify', '/auth/callback#error=oauth_denied']) {
       await page.goto(route);
       await expect(page.locator('.safe-stage')).toBeVisible();
       expect(await overflow(), route).toBeLessThanOrEqual(0);

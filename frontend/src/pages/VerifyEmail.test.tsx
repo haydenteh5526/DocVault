@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import VerifyEmail from './VerifyEmail'
 
@@ -10,37 +11,80 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+
+function open(token: string | null, strict = false) {
+  const tree = (
+    <MemoryRouter initialEntries={[token ? `/verify?token=${token}` : '/verify']}>
+      <VerifyEmail />
+    </MemoryRouter>
+  )
+  return render(strict ? <StrictMode>{tree}</StrictMode> : tree)
+}
+
 describe('VerifyEmail', () => {
-  it('verifies a token once under StrictMode and shows success', async () => {
+  it('verifies a token once under StrictMode and shows VERIFIED inside the safe door', async () => {
     // The backend token is single use: a second call would answer 400.
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Email verified' }), { status: 200 }))
-      .mockResolvedValue(new Response(JSON.stringify({ detail: 'Invalid or expired token' }), { status: 400 }))
+      .mockResolvedValueOnce(json({ message: 'Email verified successfully. You can now sign in.' }, 200))
+      .mockResolvedValue(json({ detail: 'Invalid or expired verification link' }, 400))
     vi.stubGlobal('fetch', fetchMock)
+    open('strict-tok', true)
 
-    render(
-      <StrictMode>
-        <MemoryRouter initialEntries={['/verify?token=strict-tok']}>
-          <VerifyEmail />
-        </MemoryRouter>
-      </StrictMode>,
-    )
-
-    expect(await screen.findByText('Email verified!')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Email verified' })).toBeVisible()
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('Verification failed')).toBeNull()
+    expect(document.querySelector('.safe-stage')).not.toBeNull()
+    expect(screen.getByText('VERIFIED')).toBeVisible()
+    expect(document.querySelector('.safe-badge-success')).not.toBeNull()
+    expect(document.querySelector('.bg-green-50')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
   })
 
-  it('shows the failure for a rejected token', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ detail: 'Invalid or expired token' }), { status: 400 }),
-    ))
-    render(
-      <MemoryRouter initialEntries={['/verify?token=bad-tok']}>
-        <VerifyEmail />
-      </MemoryRouter>,
-    )
-    expect(await screen.findByText('Verification failed')).toBeTruthy()
-    expect(screen.getByText('Invalid or expired token')).toBeTruthy()
+  it('shows VERIFYING while the token is checked', () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+    open('slow-tok')
+    expect(screen.getByText('VERIFYING')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Verifying your email' })).toBeVisible()
+  })
+
+  it('an expired link says EXPIRED and offers a new link for an email address', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ detail: 'This verification link has expired. Request a new one.' }, 400))
+      .mockResolvedValueOnce(json({ message: "If that account still needs verifying, we've sent a new link." }, 200))
+    vi.stubGlobal('fetch', fetchMock)
+    open('old-tok')
+
+    expect(await screen.findByRole('heading', { name: 'This link no longer works' })).toBeVisible()
+    expect(screen.getByText('EXPIRED')).toBeVisible()
+    expect(screen.getByText('This verification link has expired. Request a new one.')).toBeVisible()
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'someone@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send a new link' }))
+
+    expect(await screen.findByText("If that account still needs verifying, we've sent a new link.")).toBeVisible()
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('/auth/resend-verification'), expect.objectContaining({ method: 'POST' }))
+    expect(screen.getByRole('button', { name: /Send a new link in 60s/ })).toBeDisabled()
+  })
+
+  it('a rejected token says INVALID', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: 'Invalid or expired verification link' }, 400)))
+    open('bad-tok')
+    expect(await screen.findByRole('heading', { name: 'This link no longer works' })).toBeVisible()
+    expect(screen.getByText('INVALID')).toBeVisible()
+    expect(document.querySelector('.safe-badge-danger')).not.toBeNull()
+  })
+
+  it('a link without a token says INVALID without calling the server', () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    open(null)
+    expect(screen.getByRole('heading', { name: 'This link no longer works' })).toBeVisible()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('a server failure is not reported as a bad link', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad gateway', { status: 502 })))
+    open('net-tok')
+    expect(await screen.findByRole('heading', { name: 'Verification failed' })).toBeVisible()
+    expect(screen.getByText('Server unavailable')).toBeVisible()
   })
 })
