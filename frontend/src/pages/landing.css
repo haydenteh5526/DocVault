@@ -1,7 +1,8 @@
 .docbot-site {
   background: var(--background);
   color: var(--foreground);
-  font-family: Geist, system-ui, sans-serif;
+  /* The t3.codes stack: SF Pro on Apple devices, Inter elsewhere. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
   overflow-x: clip;
 }
 .docbot-site :is(main, footer) {
@@ -21,8 +22,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* Over pure white this composites to about #474747: --foreground nav text stays about 8:1.
-     Keep nav text on --foreground; the muted colour would drop below 4.5:1 here. */
+  /* Over pure white this composites to about #474747: the #C4C4CA nav links stay about 5.3:1 and
+     --foreground about 8:1. Never use the muted colour here; it would drop below 4.5:1. */
   background-color: color-mix(in srgb, var(--background) 75%, transparent);
   border-bottom: 1px solid transparent;
   transition: border-color 300ms;
@@ -44,7 +45,35 @@
 .docbot-site [id] {
   scroll-margin-top: 76px;
 }
-.poster-nav nav a,
+/* Header links, as on t3.codes: quiet text that brightens on hover, no pill.
+   #C4C4CA keeps about 5:1 even over a white button under the tinted bar. */
+.poster-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.poster-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px;
+  color: #c4c4ca;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: color 180ms;
+}
+.poster-nav-link:hover,
+.poster-nav-link:focus-visible {
+  color: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .poster-nav-link {
+    transition: none;
+  }
+}
 .hero-links a,
 .closing-button {
   border-radius: 999px;
@@ -69,8 +98,11 @@
   -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
   opacity: 0.55;
 }
+.h1-line {
+  display: inline-block;
+}
 .landing-hero h1 {
-  font-weight: 800;
+  font-weight: 600;
   font-size: clamp(2.6rem, 6.5vw, 5rem);
   letter-spacing: -0.03em;
   line-height: 1.04;
@@ -134,63 +166,52 @@
 
 /* Floating tiles */
 .floating-tiles {
+  --px: 0px;
+  --py: 0px;
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-.float-tile {
+/* Tiles laid out and animated as on t3.codes. The mark is positioned and follows the cursor by
+   --px/--py times its --depth; the tile inside carries the tilt and the entrance. */
+.float-mark {
   position: absolute;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--card);
+  left: calc(50% + var(--x));
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  margin-left: calc(var(--s) / -2);
+  translate: calc(var(--px) * var(--depth, 1)) calc(var(--py) * var(--depth, 1));
+  transition: translate 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.float-tile {
+  --tile-color: var(--muted-foreground);
+  width: 100%;
+  height: 100%;
+  border-radius: 25%;
+  border: 1px solid color-mix(in srgb, var(--tile-color) 28%, var(--border));
+  background: color-mix(in srgb, var(--tile-color) 9%, var(--card));
   display: grid;
   place-items: center;
-  color: var(--muted-foreground);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  color: var(--tile-color);
+  box-shadow: 0 12px 32px -16px rgb(0 0 0 / 0.65);
+  transform: rotate(var(--rot));
 }
-.float-tile > span {
-  display: grid;
-  place-items: center;
+.float-tile > svg {
+  width: 50%;
+  height: 50%;
 }
-.float-tile-receipt {
-  left: 4%;
-  top: 22%;
-}
-.float-tile-file {
-  left: 13%;
-  top: 60%;
-}
-.float-tile-docbot {
-  left: 25%;
-  top: 6%;
-}
-.float-tile-manual {
-  right: 4%;
-  top: 26%;
-}
-.float-tile-warranty {
-  right: 14%;
-  top: 62%;
-}
-.float-tile-shopping {
-  right: 26%;
-  top: 4%;
-}
-.docbot-drift {
-  animation: docbotDrift 7s ease-in-out infinite;
-}
-@keyframes docbotDrift {
-  0%,
-  100% {
-    transform: translateY(-2px);
-  }
-  50% {
-    transform: translateY(2px);
+/* t3's exact spread needs a wide hero. Up to 1100 px the small pair would touch the headline and the
+   lower pair would fall behind the picture, so only the large outer pair stays; below 900 px none do. */
+@media (max-width: 1100px) {
+  .float-mark-docbot,
+  .float-mark-shopping,
+  .float-mark-file,
+  .float-mark-warranty {
+    display: none;
   }
 }
-@media (max-width: 639px) {
+@media (max-width: 899px) {
   .floating-tiles {
     display: none;
   }
@@ -385,7 +406,7 @@
   padding-block: clamp(48px, 7vw, 96px);
 }
 .docbot-site h2 {
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.08;
   font-size: clamp(1.9rem, 3.6vw, 3rem);
@@ -554,7 +575,7 @@
   border: 0;
 }
 .docbot-stats dt {
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.04;
   font-size: clamp(36px, 5vw, 64px);
@@ -583,6 +604,11 @@
   padding: 24px 0 36px;
   font-size: 13px;
   color: var(--muted-foreground);
+}
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .landing-footer nav {
   display: flex;
@@ -637,26 +663,43 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .docbot-drift,
   .marquee-track {
     animation: none;
+  }
+  .float-mark {
+    translate: none;
+    transition: none;
   }
   .text-link-strong > span {
     transition: none;
   }
 }
+/* Load-in, as on t3.codes: the headline lines, lead, buttons and picture rise in turn, and the
+   tiles fly in from outside with a spin. Only under html.motion-ok, so content shows without it. */
 @media (prefers-reduced-motion: no-preference) {
-  html.motion-ok .poster .hero-lead {
-    animation: landingLead 350ms ease-out both;
-  }
-  @keyframes landingLead {
+  html.motion-ok .poster .h1-line { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) both; }
+  html.motion-ok .poster .hero-lead { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 300ms both; }
+  html.motion-ok .poster .hero-links { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 400ms both; }
+  html.motion-ok .poster .product-picture { animation: landingRise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 520ms both; }
+  html.motion-ok .poster .float-tile { animation: tileIn 1s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s) both; }
+  @keyframes landingRise {
     from {
-      transform: translateY(5px);
-      opacity: 0.65;
+      opacity: 0;
+      transform: translateY(16px);
     }
     to {
-      transform: none;
       opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes tileIn {
+    from {
+      opacity: 0;
+      transform: translate(var(--fx), var(--fy)) rotate(calc(var(--rot) + 24deg)) scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: rotate(var(--rot));
     }
   }
 }

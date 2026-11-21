@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom'
 import { Wordmark } from './Wordmark'
 import { GithubMark } from './GithubMark'
 import { REPO_URL } from '@/lib/project'
-import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 
 /** Past this many pixels the sticky bar shows its bottom border. */
 const SCROLLED_AFTER = 16
@@ -27,11 +25,12 @@ export default function Navbar() {
   return <header className="poster-nav" data-scrolled={scrolled ? 'true' : 'false'}>
     <a href="#content" className="skip-link">Skip to content</a>
     <Link className="poster-brand" to="/"><Wordmark /></Link>
-    <nav aria-label="Site" className="flex items-center gap-1">
-      <Link className={cn(buttonVariants({ variant: 'ghost' }), 'h-9 px-3 text-sm')} to="/login">Sign in</Link>
-      <a className={cn(buttonVariants({ variant: 'ghost' }), 'h-9 gap-2 px-3 text-sm')} href={REPO_URL}>
+    <nav aria-label="Site" className="poster-nav-links">
+      <Link className="poster-nav-link" to="/login">Sign in</Link>
+      <a className="poster-nav-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
         <GithubMark />
-        GitHub
+        GitHub{' '}
+        <span className="sr-only">(opens in a new tab)</span>
       </a>
     </nav>
   </header>
