@@ -111,7 +111,6 @@ export default function Landing() {
       <main id="content" tabIndex={-1}>
         <section className="landing-hero" aria-labelledby="hero-title">
           <FloatingTiles />
-          <p className="hero-eyebrow">DocVault · personal AI document assistant</p>
           <h1 id="hero-title">
             <span className="h1-line">Ask your documents</span> <br />
             <span className="h1-line" style={{ '--d': '90ms' } as CSSProperties}>
@@ -119,9 +118,8 @@ export default function Landing() {
             </span>
           </h1>
           <p className="hero-lead">
-            Upload photos or PDFs of your paperwork and ask about them in your own words. {docbot} points to the line
-            each answer came from, says so when your documents don't, and asks before it saves anything. It all runs on
-            your own computer.
+            Your personal AI document assistant. Upload photos or PDFs, ask in your own words, and get answers that cite
+            their source line.
           </p>
           <div className="hero-links">
             <Link to="/register">Get started</Link>

@@ -41,11 +41,9 @@ it('has one headline, the lead, and no form fields', () => {
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   const h1 = screen.getByRole('heading', { level: 1 })
   expect(h1).toHaveTextContent('Ask your documents anything.')
-  expect(screen.getByText("Upload photos or PDFs of your paperwork and ask about them in your own words. DocBot points to the line each answer came from, says so when your documents don't, and asks before it saves anything. It all runs on your own computer.")).toBeVisible()
-  const eyebrow = screen.getByText('DocVault · personal AI document assistant')
-  expect(eyebrow).toBeVisible()
-  expect(eyebrow.tagName).toBe('P')
-  expect(eyebrow.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.getByText("Your personal AI document assistant. Upload photos or PDFs, ask in your own words, and get answers that cite their source line.")).toBeVisible()
+  expect(document.querySelector('.hero-eyebrow')).toBeNull()
+  expect(screen.queryByText('DocVault · personal AI document assistant')).toBeNull()
   expect(document.querySelector('input, textarea, select')).toBeNull()
 })
 
@@ -98,8 +96,8 @@ it('spreads the tiles in three mirrored pairs, as on t3.codes', () => {
     ['min(300px, 19vw)', '20px', '64px'],
     ['max(-560px, -38vw)', '128px', '96px'],
     ['min(560px, 38vw)', '128px', '96px'],
-    ['max(-440px, -30vw)', '440px', '80px'],
-    ['min(440px, 30vw)', '440px', '80px'],
+    ['max(-440px, -30vw)', '350px', '80px'],
+    ['min(440px, 30vw)', '350px', '80px'],
   ])
 })
 
