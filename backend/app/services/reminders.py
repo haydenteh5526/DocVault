@@ -180,7 +180,7 @@ async def propose_reminder(
     doc: Document,
     user_id: uuid.UUID,
     request: ReminderProposalRequest,
-    source: Literal["owner", "assistant"],
+    source: Literal["owner", "assistant", "routine"],
 ) -> ReminderProposalOut:
     locked = await _lock_document(db, doc)
 

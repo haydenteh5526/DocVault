@@ -11,6 +11,7 @@ import {
   type BillSplitRequest,
   type BillSplitSave,
   type Housemate,
+  type HouseholdPreferences,
 } from '@/lib/api'
 
 const MAX_LABEL_LENGTH = 40
@@ -46,13 +47,15 @@ interface Blocked {
 }
 
 export function BillSplitPanel({
-  confirmed, split, housemates, housematesFailed,
+  confirmed, split, housemates, housematesFailed, preferences,
   onAddHousemate, onRemoveHousemate, onPreview, onSave, onRefresh,
 }: {
   confirmed: BillRevision | null
   split: BillSplit | null
   housemates: Housemate[] | undefined
   housematesFailed: boolean
+  /** The household's saved preferences, once loaded. Only a saved days-at-home rule changes where a split starts. */
+  preferences?: HouseholdPreferences
   onAddHousemate: (label: string) => Promise<void>
   onRemoveHousemate: (id: string) => Promise<void>
   onPreview: (body: BillSplitRequest) => Promise<BillSplitPreview>
@@ -125,7 +128,7 @@ export function BillSplitPanel({
       amount: confirmed.amount_due,
       periodStart: confirmed.billing_period_start,
       periodEnd: confirmed.billing_period_end,
-      rule: 'equal',
+      rule: preferences?.saved && preferences.default_split_rule === 'days_home' ? 'days_home' : 'equal',
       days: {},
       baseSplit: displayed?.split_number ?? 0,
       step: 'people',

@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { getDocuments, getDocument, searchDocuments, renameDocument, type Document } from '@/lib/api'
+import { ApiError, bulkDeleteDocuments, checkBillsNow, deleteDocument, getDocuments, getDocument, getWarranties, searchDocuments, renameDocument, type Document, type Warranty } from '@/lib/api'
 import { ToastProvider } from '@/components/Toast'
 import Dashboard from './Dashboard'
 
 vi.mock('@/lib/api', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
-  return { ...actual, getDocuments: vi.fn(), getDocument: vi.fn(async () => doc()), searchDocuments: vi.fn(async () => ({results:[]})), getCategories: vi.fn(async () => []), renameDocument: vi.fn() }
+  return { ...actual, getDocuments: vi.fn(), getDocument: vi.fn(async () => doc()), searchDocuments: vi.fn(async () => ({results:[]})), getCategories: vi.fn(async () => []), renameDocument: vi.fn(), deleteDocument: vi.fn(async () => undefined), bulkDeleteDocuments: vi.fn(async () => undefined), getWarranties: vi.fn(async () => []), checkBillsNow: vi.fn() }
 })
 
 const fallbackSummary = JSON.stringify({
@@ -243,5 +243,250 @@ describe('the page head (plan 0R-4, R13)', () => {
     renderDashboard()
     await screen.findByText('October electricity bill')
     expect(screen.queryByRole('combobox', { name: 'Document type' })).not.toBeInTheDocument()
+  })
+})
+
+describe("DocBot's check", () => {
+  const nothing = { proposed: [], skipped: [], warranties_ending: [] }
+  const proposed = (n: number) => ({
+    ...nothing,
+    proposed: Array.from({ length: n }, (_, i) => ({
+      document_id: 'd' + i, title: 'Bill ' + i, proposal_number: 1, remind_on: '2026-11-20',
+    })),
+  })
+  const live = () => document.querySelector('p[aria-live="polite"]')
+  const checkNow = async () => userEvent.click(await screen.findByRole('button', { name: 'Check now' }))
+
+  it('says one reminder was proposed, in a toast and the live region, and refreshes the lists', async () => {
+    vi.mocked(checkBillsNow).mockResolvedValue(proposed(1))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+
+    await checkNow()
+
+    const message = 'DocBot checked your bills: 1 reminder proposed.'
+    expect((await screen.findAllByText(message)).length).toBeGreaterThan(0)
+    expect(live()).toHaveTextContent(message)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['documents'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document-list-status'] })
+    // A bill page opened earlier is cached for 30 s and would still say "No reminder yet".
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['document'] })
+  })
+
+  it('counts several proposals', async () => {
+    vi.mocked(checkBillsNow).mockResolvedValue(proposed(2))
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: 2 reminders proposed.'))
+  })
+
+  it('says when there is nothing new', async () => {
+    vi.mocked(checkBillsNow).mockResolvedValue(nothing)
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
+  })
+
+  it("shows the server's message when the daily check is switched off", async () => {
+    vi.mocked(checkBillsNow).mockRejectedValue(
+      new ApiError(409, "DocBot's daily check is switched off in Settings.", 'routines_off'),
+    )
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent("DocBot's daily check is switched off in Settings."))
+  })
+
+  it('says so when the check failed for another reason', async () => {
+    vi.mocked(checkBillsNow).mockRejectedValue(new ApiError(500, 'Server error'))
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot could not check your bills. Try again.'))
+  })
+
+  it('says so, without "try again", when the hourly limit is reached', async () => {
+    vi.mocked(checkBillsNow).mockRejectedValue(new ApiError(429, 'Too many requests.', 'RATE_LIMITED'))
+    renderDashboard()
+
+    await checkNow()
+
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot has checked several times this hour. Try again later.'))
+  })
+
+  it('announces an identical result again: the region is emptied while the next check runs', async () => {
+    vi.mocked(checkBillsNow).mockResolvedValueOnce(nothing)
+    renderDashboard()
+    await checkNow()
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
+
+    let finish!: () => void
+    vi.mocked(checkBillsNow).mockReturnValueOnce(new Promise(resolve => { finish = () => resolve(nothing) }))
+    await checkNow()
+    // A screen reader only speaks a live region whose text changes, so the old text must go first.
+    expect(live()).toHaveTextContent(/^$/)
+    finish()
+    await waitFor(() => expect(live()).toHaveTextContent('DocBot checked your bills: nothing new.'))
+  })
+
+  it('runs once however often it is pressed while it is working', async () => {
+    let finish!: () => void
+    vi.mocked(checkBillsNow).mockReturnValue(new Promise(resolve => { finish = () => resolve(nothing) }))
+    renderDashboard()
+
+    const button = await screen.findByRole('button', { name: 'Check now' })
+    await userEvent.click(button)
+    await userEvent.click(button)
+
+    expect(checkBillsNow).toHaveBeenCalledTimes(1)
+    expect(button).toBeDisabled()
+    finish()
+    await waitFor(() => expect(button).toBeEnabled())
+  })
+})
+
+describe('a warranty row follows its document', () => {
+  const warrantiesRefreshed = (invalidate: ReturnType<typeof vi.spyOn>) =>
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['warranties'] })
+
+  it('is refreshed after a delete, once the delay for Undo has passed', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for October electricity bill' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+
+    await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith('d1'), { timeout: 8000 })
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
+  }, 15_000)
+
+  it('is not refreshed when the delete is undone, because nothing was deleted', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for October electricity bill' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['warranties'] })
+  })
+
+  it('is refreshed after a bulk delete', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select October electricity bill' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete selected' }))
+
+    await waitFor(() => expect(bulkDeleteDocuments).toHaveBeenCalledWith(['d1']))
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
+  })
+
+  it('is refreshed after a rename', async () => {
+    localStorage.setItem('docvault-view', 'grid')
+    vi.mocked(renameDocument).mockResolvedValue(doc({ title: 'Renamed' }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    clientRender(client)
+    await userEvent.dblClick(await screen.findByText('October electricity bill'))
+    const input = screen.getByDisplayValue('October electricity bill')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Renamed')
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => expect(renameDocument).toHaveBeenCalledWith('d1', 'Renamed'))
+
+    await waitFor(() => warrantiesRefreshed(invalidate))
+  })
+})
+
+describe('warranties in Needs attention', () => {
+  function warranty(id: string, title: string, expiry: string | null): Warranty {
+    return { id: 'w-' + id, document_id: 'wd-' + id, document_title: title, purchase_date: null, expiry_date: expiry, notes: null }
+  }
+
+  beforeEach(() => {
+    // Earlier tests leave their own implementations behind; start from a plain document and no warranties.
+    vi.mocked(getDocument).mockResolvedValue(doc())
+    vi.mocked(getWarranties).mockResolvedValue([])
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-10T12:00:00'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('lists the two warranties ending soonest within 30 days, after the bill rows, and leaves the rest out', async () => {
+    vi.mocked(getDocument).mockResolvedValue(doc({ bill_review: { amount_due: { value: '123.47', sources: [] }, due_date: { value: null, sources: [] }, billing_period: { value: null, sources: [] } } }))
+    vi.mocked(getWarranties).mockResolvedValue([
+      warranty('kettle', 'Kettle', '2026-12-01'),
+      warranty('fridge', 'Fridge', '2026-11-12'),
+      warranty('washer', 'Washing machine', '2026-11-25'),
+      warranty('toaster', 'Old toaster', '2026-11-09'),
+      warranty('sofa', 'New sofa', '2026-12-11'),
+      warranty('none', 'No date', null),
+    ])
+    renderDashboard()
+
+    const section = (await screen.findByRole('heading', { name: 'Needs attention' })).closest('section')!
+    expect(await within(section).findByText('Fridge')).toBeVisible()
+    expect(within(section).getByText('Warranty ends 12 November 2026')).toBeVisible()
+    expect(within(section).getByText('Washing machine')).toBeVisible()
+    expect(within(section).getByText('Warranty ends 25 November 2026')).toBeVisible()
+    for (const left of ['Kettle', 'Old toaster', 'New sofa', 'No date']) {
+      expect(within(section).queryByText(left)).not.toBeInTheDocument()
+    }
+    const rows = within(section).getAllByRole('listitem').map(row => row.textContent ?? '')
+    expect(rows[0]).toContain('October electricity bill')
+    expect(rows.slice(1).map(row => row.slice(0, 5))).toEqual(['Fridg', 'Washi'])
+    expect(within(section).getAllByRole('link', { name: 'Open' }).map(link => link.getAttribute('href'))).toEqual([
+      '/app/documents/wd-fridge', '/app/documents/wd-washer',
+    ])
+  })
+
+  it('counts a warranty that ends today and one that ends in 30 days', async () => {
+    vi.mocked(getWarranties).mockResolvedValue([
+      warranty('later', 'Fridge', '2026-12-10'),
+      warranty('today', 'Kettle', '2026-11-10'),
+    ])
+    renderDashboard()
+
+    expect(await screen.findByText('Warranty ends 10 November 2026')).toBeVisible()
+    expect(screen.getByText('Warranty ends 10 December 2026')).toBeVisible()
+  })
+
+  it('does not say nothing needs attention when only a warranty does', async () => {
+    vi.mocked(getWarranties).mockResolvedValue([warranty('kettle', 'Kettle', '2026-11-20')])
+    renderDashboard()
+
+    expect(await screen.findByText('Kettle')).toBeVisible()
+    expect(screen.queryByText('Nothing needs your attention.')).not.toBeInTheDocument()
+  })
+
+  it('does not offer warranty rows as Status filter options', async () => {
+    vi.mocked(getWarranties).mockResolvedValue([warranty('kettle', 'Kettle', '2026-11-20')])
+    renderDashboard()
+    await screen.findByText('Warranty ends 20 November 2026')
+
+    await userEvent.click(screen.getByRole('button', { name: /^Filter by status/ }))
+
+    const options = screen.getAllByRole('menuitemcheckbox').map(option => option.textContent ?? '')
+    expect(options.length).toBeGreaterThan(0)
+    expect(options.some(option => /warrant/i.test(option))).toBe(false)
+  })
+
+  it('leaves the bill rows alone when the warranties cannot be loaded', async () => {
+    vi.mocked(getWarranties).mockRejectedValue(new Error('network'))
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: 'Needs attention' })).toBeVisible()
+    expect(await screen.findByText('Nothing needs your attention.')).toBeVisible()
   })
 })

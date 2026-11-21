@@ -16,6 +16,7 @@ vi.mock('@/lib/api', async importOriginal => {
     ...actual,
     getDocuments: vi.fn(),
     getDocument: vi.fn(),
+    getWarranties: vi.fn(async () => []),
     searchDocuments: vi.fn(async () => ({ results: [] })),
     getCategories: vi.fn(async () => []),
     deleteDocument: vi.fn(async () => undefined),

@@ -18,6 +18,7 @@ import { refreshBillData, storeHousemates, storeSavedSplit } from '@/lib/billSpl
 import { useAuth } from '@/lib/auth'
 import { isGeneratedSummary } from '@/lib/summary'
 import { useHousemates } from '@/lib/housemates'
+import { useHouseholdPreferences } from '@/lib/householdPreferences'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 
 /**
@@ -58,6 +59,7 @@ export default function DocumentDetail() {
   const doc = docQuery.data ?? null
   const { accountId } = useAuth()
   const housemates = useHousemates(!!(doc?.bill_review || doc?.confirmed_bill))
+  const preferences = useHouseholdPreferences(!!(doc?.bill_review || doc?.confirmed_bill))
   // A failed reload keeps the document already loaded; only a document that never loaded is "not found".
   const notFound = docQuery.isError && !docQuery.data
   // Cache-backed setter so existing optimistic `setDoc({...doc, ...})` calls
@@ -297,6 +299,7 @@ export default function DocumentDetail() {
               split={doc.bill_split ?? null}
               housemates={housemates.data}
               housematesFailed={housemates.isError}
+              preferences={preferences.data}
               onAddHousemate={async label => {
                 const created = await addHousemate(label)
                 storeHousemates(queryClient, accountId, list => [...list, created])
