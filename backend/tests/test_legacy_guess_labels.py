@@ -83,6 +83,24 @@ async def test_a_laptop_receipt_with_a_billing_address_keeps_its_warranty(monkey
     assert len(warranties) == 1 and warranties[0].expiry_date == date(2028, 1, 8)
 
 
+# The reviewer's probe: "Billing" is not the word "bill", so the label rule does not fire.
+RECEIPT_WITH_AMOUNT_PAYABLE = (
+    "Sales receipt\nBilling address: 1 Main St\nAmount payable: EUR 899.00\nWarranty expires: 8 January 2028"
+)
+
+
+def test_a_receipt_with_billing_and_amount_payable_stays_a_receipt():
+    assert categorisation_service._fallback_categorise(RECEIPT_WITH_AMOUNT_PAYABLE).document_type == "Receipt"
+
+
+async def test_a_receipt_with_billing_and_amount_payable_keeps_its_warranty(monkeypatch):
+    metadata = categorisation_service._fallback_categorise(RECEIPT_WITH_AMOUNT_PAYABLE)
+    document = _document("receipt.pdf")
+    database = await _process(monkeypatch, document, RECEIPT_WITH_AMOUNT_PAYABLE, metadata)
+    warranties = [item for item in database.added if isinstance(item, Warranty)]
+    assert len(warranties) == 1 and warranties[0].expiry_date == date(2028, 1, 8)
+
+
 def test_the_gas_bill_is_still_a_bill():
     assert categorisation_service._fallback_categorise(GAS_BILL).document_type == "Bill"
 

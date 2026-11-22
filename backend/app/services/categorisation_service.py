@@ -228,7 +228,13 @@ def _categorise_mistral(text: str) -> DocumentMetadata:
         return _fallback_categorise(text)
 
 
-def _has_bill_label_line(text: str) -> bool:
+def _reads_as_a_bill(text: str) -> bool:
+    """The bill review's own test: the whole word bill, invoice or statement and a labelled bill line.
+
+    "Billing address" on a receipt is not the word "bill", so a receipt stays a receipt (R4-b).
+    """
+    if not re.search(r"\b(?:bill|invoice|statement)\b", text, re.I):
+        return False
     return any(label.match(line) for line in text.splitlines() for label in BILL_LABELS)
 
 
@@ -249,10 +255,9 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
         return re.search(pattern, text_lower) is not None
 
     # A bill first: a bill may mention insurance or a "premium" plan without being a policy.
-    # A line the bill review reads (amount, due date or billing period) also makes it a bill, so a keyless
-    # bill and its review agree (R3-d).
-    if has(r"bill|statement|invoice") and (
-        has(r"amount due|total due|due date|payment due") or _has_bill_label_line(text)
+    # Text the bill review reads as a bill is a bill too, so a keyless bill and its review agree (R3-d, R4-b).
+    if (has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due")) or _reads_as_a_bill(
+        text
     ):
         kind = "Bill"
     elif (has(r"insurance") and has(r"policy|renewal|premium|sum insured|cover")) or has(
