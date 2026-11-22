@@ -117,7 +117,7 @@ test('record the redesign screens', async ({ page }) => {
 
   // The list checks each document's status after it loads, so wait for that before taking the picture.
   const listSettled = async () => {
-    await expect(page.getByRole('link', { name: /\.png$/ }).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('link', { name: OCTOBER_BILL }).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('Checking status')).toHaveCount(0, { timeout: 60_000 });
   };
   await shoot(page, 'home', '/app', async () => { await expect(page.getByRole('heading', {name:'DocBot', exact:true})).toBeVisible(); });

@@ -124,13 +124,15 @@ async def test_process_document_completes_full_pipeline(monkeypatch):
     metadata = SimpleNamespace(
         brand="Dreo",
         model="DR-1",
-        document_type="User Manual",
+        document_type="Manual",
         title="Dreo DR-1 Manual",
+        summary=None,
     )
     monkeypatch.setattr(document_processor, "async_session", lambda: _SessionContext(database))
     monkeypatch.setattr(document_processor.asyncio, "to_thread", _inline_to_thread)
     monkeypatch.setattr(document_processor.storage_service, "download_file", lambda key: (b"file", "image/png"))
     monkeypatch.setattr(document_processor, "_run_ocr_and_metadata", lambda *args: ("manual text", metadata))
+    monkeypatch.setattr(settings, "MISTRAL_API_KEY", "key")
     monkeypatch.setattr(document_processor, "_generate_summary", lambda text: "summary")
     monkeypatch.setattr(
         document_processor.chunking_service,
@@ -154,7 +156,7 @@ async def test_process_document_completes_full_pipeline(monkeypatch):
         "Dreo DR-1 Manual",
         "Dreo",
         "DR-1",
-        "User Manual",
+        "Manual",
     )
     assert document.raw_text == "manual text"
     assert document.summary == "summary"
@@ -177,7 +179,7 @@ async def test_process_document_preserves_title_and_existing_warranty(monkeypatc
         processing_status="pending",
     )
     database = _Database(_Result(scalar=document), _Result(rows=[]), _Result(scalar=object()))
-    metadata = SimpleNamespace(brand=None, model=None, document_type=None, title="Generated")
+    metadata = SimpleNamespace(brand=None, model=None, document_type=None, title="Generated", summary=None)
     monkeypatch.setattr(document_processor, "async_session", lambda: _SessionContext(database))
     monkeypatch.setattr(document_processor.asyncio, "to_thread", _inline_to_thread)
     monkeypatch.setattr(document_processor.storage_service, "download_file", lambda key: (b"pdf", "application/pdf"))
@@ -256,3 +258,134 @@ def test_generate_summary_returns_none_on_invalid_provider_response(monkeypatch)
     monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: Response())
     monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
     assert document_processor._generate_summary("manual") is None
+
+
+# --- Titles (Task 2) ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        (None, True),
+        ("", True),
+        ("   ", True),
+        ("Untitled", True),
+        ("synthetic-broadband-bill.pdf", True),
+        ("Scan.JPG", True),
+        ("photo.jpeg", True),
+        ("receipt.png", True),
+        ("receipt.WEBP", True),
+        ("My broadband", False),
+        ("Linkline Broadband bill — November 2026", False),
+        ("notes.txt", False),
+    ],
+)
+def test_looks_like_upload_name(title, expected):
+    assert document_processor.looks_like_upload_name(title) is expected
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("synthetic-broadband-bill.pdf", "Synthetic broadband bill"),
+        ("Example Energy — October 2026.png", "Example Energy — October 2026"),
+        ("my_scan_2026.jpeg", "My scan 2026"),
+        ("--.pdf", None),
+        (".png", None),
+    ],
+)
+def test_tidy_filename(title, expected):
+    assert document_processor.tidy_filename(title) == expected
+
+
+def _document(title, **extra):
+    values = dict(
+        id=uuid.uuid4(),
+        s3_key_original="users/u/doc.pdf",
+        title=title,
+        raw_text=None,
+        brand=None,
+        model=None,
+        document_type=None,
+        summary=None,
+        processing_status="pending",
+    )
+    values.update(extra)
+    return SimpleNamespace(**values)
+
+
+async def _process(monkeypatch, document, text, metadata, *, existing_warranty=None):
+    database = _Database(_Result(scalar=document), _Result(rows=[]), _Result(scalar=existing_warranty))
+    monkeypatch.setattr(document_processor, "async_session", lambda: _SessionContext(database))
+    monkeypatch.setattr(document_processor.asyncio, "to_thread", _inline_to_thread)
+    monkeypatch.setattr(document_processor.storage_service, "download_file", lambda key: (b"file", "application/pdf"))
+    monkeypatch.setattr(document_processor, "_run_ocr_and_metadata", lambda *args: (text, metadata))
+    monkeypatch.setattr(
+        document_processor.chunking_service,
+        "chunk_text",
+        lambda value: [{"text": "chunk", "section_title": None}] if value else [],
+    )
+    monkeypatch.setattr(document_processor.embedding_service, "get_embeddings", lambda texts: [[0.1] for _ in texts])
+    await document_processor.process_document(document.id)
+    return database
+
+
+def _metadata(**extra):
+    values = dict(brand=None, model=None, document_type="Bill", title=None, summary=None)
+    values.update(extra)
+    return SimpleNamespace(**values)
+
+
+async def test_an_upload_name_becomes_the_suggested_title(monkeypatch):
+    document = _document("synthetic-broadband-bill.pdf")
+    await _process(
+        monkeypatch, document, "LINKLINE BROADBAND bill",
+        _metadata(title="Linkline Broadband bill — November 2026"),
+    )
+    assert document.title == "Linkline Broadband bill — November 2026"
+
+
+async def test_without_a_provider_the_filename_is_tidied(monkeypatch):
+    document = _document("synthetic-broadband-bill.pdf")
+    await _process(monkeypatch, document, "LINKLINE BROADBAND bill", _metadata(title=None))
+    assert document.title == "Synthetic broadband bill"
+
+
+async def test_a_suggested_title_with_an_extension_is_cleaned(monkeypatch):
+    document = _document("scan.pdf")
+    await _process(monkeypatch, document, "text", _metadata(title="Fernhill receipt.pdf"))
+    assert document.title == "Fernhill receipt"
+
+
+async def test_a_renamed_title_is_kept_even_when_a_suggestion_exists(monkeypatch):
+    document = _document("My broadband")
+    await _process(monkeypatch, document, "text", _metadata(title="Linkline Broadband bill"))
+    assert document.title == "My broadband"
+
+
+async def test_an_image_with_no_text_keeps_its_uploaded_title(monkeypatch):
+    document = _document("Row height check.png")
+    await _process(monkeypatch, document, "", _metadata(title="Anything"))
+    assert document.title == "Row height check.png"
+
+
+async def test_an_owner_title_that_ends_in_pdf_is_treated_as_an_upload_name(monkeypatch):
+    # Known edge, accepted in the plan.
+    document = _document("My broadband.pdf")
+    await _process(monkeypatch, document, "text", _metadata(title="Linkline Broadband bill"))
+    assert document.title == "Linkline Broadband bill"
+
+
+async def test_reprocessing_keeps_a_set_kind_brand_and_model(monkeypatch):
+    document = _document("My doc", document_type="Manual", brand="Owner brand", model="Owner model")
+    await _process(
+        monkeypatch, document, "text",
+        _metadata(document_type="Bill", brand="Model brand", model="M1"),
+    )
+    assert (document.document_type, document.brand, document.model) == ("Manual", "Owner brand", "Owner model")
+
+
+async def test_reprocessing_replaces_a_legacy_free_text_kind(monkeypatch):
+    document = _document("My doc", document_type="Sales Receipt")
+    await _process(monkeypatch, document, "text", _metadata(document_type="Receipt"))
+    assert document.document_type == "Receipt"

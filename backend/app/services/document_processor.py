@@ -4,6 +4,7 @@ Shared by the synchronous inline fallback (in the request) and the ARQ worker.
 Opens its own DB session so it is safe to run outside a request context.
 """
 import asyncio
+import re
 import uuid
 
 from sqlalchemy import select
@@ -22,6 +23,48 @@ from app.services import (
 )
 
 logger = get_logger("processor")
+
+_UPLOAD_EXTENSION = re.compile(r"\.(?:pdf|jpe?g|png|webp)$", re.IGNORECASE)
+
+
+def looks_like_upload_name(title: str | None) -> bool:
+    """True for a title nobody chose: blank, "Untitled", or a file name with an upload extension."""
+    if title is None or not title.strip() or title.strip() == "Untitled":
+        return True
+    return bool(_UPLOAD_EXTENSION.search(title.strip()))
+
+
+def tidy_filename(title: str) -> str | None:
+    """Turn an uploaded file name into a readable title, or None if nothing readable is left."""
+    name = _UPLOAD_EXTENSION.sub("", (title or "").strip())
+    if " " not in name:
+        name = name.replace("-", " ").replace("_", " ")
+    name = re.sub(r"\s+", " ", name).strip()
+    if len(re.findall(r"[^\W_]", name)) < 2:
+        return None
+    return name[0].upper() + name[1:]
+
+
+def _apply_details(doc: Document, raw_text: str, metadata) -> None:
+    """Apply extracted details without overwriting anything the owner set.
+
+    The title changes only while it still looks like an upload name. A kind already set
+    to one of the seven kinds is kept; brand and model are filled only when empty.
+    """
+    if raw_text and looks_like_upload_name(doc.title):
+        doc.title = (
+            categorisation_service.sanitise_title(metadata.title)
+            or tidy_filename(doc.title or "")
+            or doc.title
+        )
+    if not doc.document_type or doc.document_type not in categorisation_service.KINDS:
+        new_kind = metadata.document_type or categorisation_service.normalise_kind(doc.document_type)
+        if new_kind:
+            doc.document_type = new_kind
+    if not doc.brand and metadata.brand:
+        doc.brand = metadata.brand
+    if not doc.model and metadata.model:
+        doc.model = metadata.model
 
 
 def _run_ocr_and_metadata(file_bytes: bytes, content_type: str) -> tuple[str, object]:
@@ -55,11 +98,7 @@ async def process_document(document_id: str | uuid.UUID) -> None:
             # Don't auto-assign category — keep document at root.
             # The detected document_type is stored as metadata for the user to see.
             doc.raw_text = raw_text or None
-            doc.brand = metadata.brand
-            doc.model = metadata.model
-            doc.document_type = metadata.document_type
-            if (not doc.title or doc.title == "Untitled") and metadata.title:
-                doc.title = metadata.title
+            _apply_details(doc, raw_text, metadata)
 
             # Generate a short AI summary
             if raw_text:

@@ -141,7 +141,8 @@ test.describe("DocBot's daily check", () => {
       await review.getByRole('button', { name: 'Confirm and save' }).click();
       await expect(review).toContainText('Confirmed · revision 1');
       await expect(review.getByText(due, { exact: true })).toBeVisible();
-      const title = ((await page.getByRole('heading', { name: fileName }).first().textContent()) ?? '').trim();
+      // Processing turns the file name into a title without its extension, e.g. "Playwright docbot 1763...".
+      const title = ((await page.getByRole('heading', { name: /playwright[- ]docbot[- ]\d+/i }).first().textContent()) ?? '').trim();
       expect(title).not.toBe('');
 
       // 2. Save a preference of 2 days.
