@@ -512,6 +512,8 @@ async def oauth_google_callback(
     email = info.get("email")
     if not email or not info.get("email_verified", True):
         return fail("email_unverified")
+    # Cut Google's name to the column's 100 characters so a long one cannot fail the sign-in.
+    name = (info.get("name") or "")[:100] or None
 
     # Find existing account by email (links Google to an existing password
     # account) or create a new, already-verified account. The row is locked so a
@@ -522,7 +524,7 @@ async def oauth_google_callback(
         user = User(
             email=email,
             hashed_password=hash_password(secrets.token_urlsafe(32)),
-            display_name=info.get("name"),
+            display_name=name,
             is_verified=True,
         )
         db.add(user)
@@ -539,7 +541,7 @@ async def oauth_google_callback(
         user.verification_token = None
         user.verification_sent_at = None
         user.totp_pending_secret = None
-        user.display_name = info.get("name") or None
+        user.display_name = name
         await db.commit()
         await db.refresh(user)
 

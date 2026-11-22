@@ -326,6 +326,7 @@ class _FakeGoogle:
     """Stands in for httpx.AsyncClient in the OAuth callback: a token, then the profile."""
 
     email = ""
+    name = "Test"
 
     def __init__(self, *args, **kwargs):
         pass
@@ -340,7 +341,7 @@ class _FakeGoogle:
         return _GoogleReply({"access_token": "google-access"})
 
     async def get(self, *args, **kwargs):
-        return _GoogleReply({"email": _FakeGoogle.email, "email_verified": True, "name": "Test"})
+        return _GoogleReply({"email": _FakeGoogle.email, "email_verified": True, "name": _FakeGoogle.name})
 
 
 async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanup):
@@ -427,3 +428,30 @@ async def test_two_factor_sign_in_without_two_factor_is_refused_not_a_crash(clea
         )
     assert res.status_code == 401
     assert res.json()["detail"] == "Invalid 2FA code"
+
+
+@pytest.mark.parametrize("existing", [False, True], ids=["new account", "unverified account"])
+async def test_google_sign_in_accepts_a_name_longer_than_the_column(monkeypatch, cleanup, existing):
+    """A Google name past the 100-character column is cut to fit rather than failing the sign-in."""
+    import httpx
+
+    if existing:
+        user_id, email = await _make_user(verified=False)
+        cleanup.append(user_id)
+    else:
+        email = f"auth-hardening-{uuid.uuid4()}@example.com"
+    _FakeGoogle.email = email
+    monkeypatch.setattr(_FakeGoogle, "name", "N" * 150)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
+        )
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+    if not existing:
+        cleanup.append(user.id)
+    assert res.status_code in (302, 307)
+    assert "access_token=" in res.headers["location"]
+    assert user.is_verified is True
+    assert user.display_name == "N" * 100
