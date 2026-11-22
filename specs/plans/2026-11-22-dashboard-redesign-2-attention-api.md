@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026. Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
-**Issue:** `Part of #<n>` (the series issue).
+**Issue:** `Part of #48` (the series issue).
 
 **Start condition:** PR 1 has merged (this PR relies on the seven kinds in `document_type`).
 
@@ -129,7 +129,7 @@ class OverviewOut(BaseModel):
 - [ ] Gates: backend Ruff + pytest with coverage and the migration round trip (unchanged, as a regression check). Frontend gates as a regression check (no frontend change).
 - [ ] Manual check on a disposable stack: the four live-run documents, `curl` the overview with a disposable account token (never printed into the record), and record the attention and upcoming items in `Repo_Current_State.md`.
 - [ ] Reviewer: **`reviewer-deep`** (new owner-scoped aggregate over bills, proposals and splits).
-- [ ] PR `feature/dashboard-redesign-2-attention-api`, `Part of #<n>`.
+- [ ] PR `feature/dashboard-redesign-2-attention-api`, `Part of #48`.
 
 ## Acceptance checks
 

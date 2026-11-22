@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026 (architecture, the six-PR breakdown, decisions D1–D7 and four adjustments). Nothing in it is implemented.
 
-**Issue:** to be opened as "Redesign /app as an Overview dashboard and fix document extraction". Every PR in this series says `Part of #<n>`; only PR 6 or the last to merge may say `Closes #<n>` if every acceptance check of the series holds.
+**Issue:** #48, "Redesign /app as an Overview dashboard and fix document extraction". Every PR in this series says `Part of #48`; only PR 6 or the last to merge may say `Closes #48` if every acceptance check of the series holds.
 
 **Sequence:** PR 1 (this file) → PR 2 (`-2-attention-api`) → PR 3 (`-3-one-source`) → PR 4 (`-4-overview-home`) → PR 5 (`-5-documents-density`). PR 6 (`-6-upload-dedupe`) is independent and may be built at any time.
 
@@ -147,7 +147,7 @@ The live run on 21 November had Gemini active (`GEMINI_API_KEY` set; the Type co
 - [ ] Gates: backend Ruff + pytest with coverage; frontend `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`; Playwright `app.spec.ts` and `redesign-screens.spec.ts` against a disposable stack (no provider key, as in CI).
 - [ ] **Live check with Gemini** (owner's local `.env` synced into the worktree without printing values; disposable account): upload the four live-run documents (`synthetic-electricity-bill.pdf` from `evaluation/demo-1/`, plus a laptop receipt, home insurance renewal and broadband bill generated from synthetic text). Record each title, kind, summary presence and the laptop warranty dates in `Repo_Current_State.md`. Kinds and warranty must match; titles must contain no file extension.
 - [ ] Reviewer: `reviewer` (no migration; ownership unchanged except the new owner-scoped route, which the reviewer checks).
-- [ ] PR `feature/dashboard-redesign-1-extraction`, `Part of #<n>`.
+- [ ] PR `feature/dashboard-redesign-1-extraction`, `Part of #48`.
 
 ## Acceptance checks
 

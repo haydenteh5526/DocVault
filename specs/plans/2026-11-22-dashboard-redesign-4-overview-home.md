@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026, including adjustment 4 (action targets, the return path and the calm state). Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
-**Issue:** `Part of #<n>`.
+**Issue:** `Part of #48`.
 
 **Start condition:** PR 3 has merged (`useOverview`, `attention.ts`).
 
@@ -132,7 +132,7 @@ One `h1`; every section an `h2` with `aria-labelledby`; lists are `ul`; navigati
 - [ ] **Owner look before the PR opens:** show the owner the six screenshots and the live page in the Browser pane; apply only the changes the owner asks for.
 - [ ] Gates: frontend `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`, full Playwright suite on a disposable stack; backend tests as a regression check.
 - [ ] Reviewer: `reviewer`.
-- [ ] PR `feature/dashboard-redesign-4-overview-home`, `Part of #<n>`. Record in `Repo_Current_State.md` that decision 5 of the DocBot redesign plan is superseded by D1.
+- [ ] PR `feature/dashboard-redesign-4-overview-home`, `Part of #48`. Record in `Repo_Current_State.md` that decision 5 of the DocBot redesign plan is superseded by D1.
 
 ## Acceptance checks
 

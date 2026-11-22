@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026. Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
-**Issue:** `Part of #<n>`.
+**Issue:** `Part of #48`.
 
 **Start condition:** PR 2 has merged (`GET /api/v1/overview`).
 
@@ -78,7 +78,7 @@ Frontend only.
 - [ ] Gates: `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`; Playwright `app.spec.ts`, `docbot.spec.ts`, `accessibility.spec.ts`, `redesign-screens.spec.ts` against a disposable stack; backend tests as a regression check.
 - [ ] Manual check (Browser pane, disposable account): upload the four live-run documents; the nav status, the Documents panel and the bell badge show the same number; record it with screenshots `after-pr3-*.png` in the untracked folder.
 - [ ] Reviewer: `reviewer`.
-- [ ] PR `feature/dashboard-redesign-3-one-source`, `Part of #<n>`.
+- [ ] PR `feature/dashboard-redesign-3-one-source`, `Part of #48`.
 
 ## Acceptance checks
 

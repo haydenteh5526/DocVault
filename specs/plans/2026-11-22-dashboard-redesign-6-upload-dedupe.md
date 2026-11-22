@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026 (D6: queue-level dedupe only). Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
-**Issue:** `Part of #<n>`.
+**Issue:** `Part of #48`.
 
 **Start condition:** none. This PR is independent of PRs 1–5 and may be built in parallel with any of them (it touches only `Upload.tsx` and a new test).
 
@@ -31,7 +31,7 @@ Frontend only. Vault-level duplicate detection (the same file uploaded on anothe
 
 - [ ] Gates: frontend `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`; Playwright `app.spec.ts` (upload scenarios) on a disposable stack.
 - [ ] Reviewer: `reviewer`.
-- [ ] PR `feature/dashboard-redesign-6-upload-dedupe`, `Part of #<n>`.
+- [ ] PR `feature/dashboard-redesign-6-upload-dedupe`, `Part of #48`.
 
 ## Acceptance checks
 

@@ -2,7 +2,7 @@
 
 **Status:** approved by the owner on 22 November 2026. Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
-**Issue:** `Part of #<n>`.
+**Issue:** `Part of #48`.
 
 **Start condition:** PR 4 has merged (the Overview owns attention and "Check now").
 
@@ -53,7 +53,7 @@ Frontend only.
 - [ ] Headless Playwright script saves `after-empty-documents-1366.png`, `after-empty-documents-390.png`, `after-populated-documents-1366.png`, `after-populated-documents-390.png` to the untracked `C:\DocVault\evaluation\dashboard-redesign\`. Not committed. Show them to the owner before the PR opens.
 - [ ] Gates: frontend `npx tsc -b`, `npm run lint`, `npm test`, `npm run build`; Playwright full suite on a disposable stack.
 - [ ] Reviewer: `reviewer`.
-- [ ] PR `feature/dashboard-redesign-5-documents-density`, `Part of #<n>`.
+- [ ] PR `feature/dashboard-redesign-5-documents-density`, `Part of #48`.
 
 ## Acceptance checks
 
