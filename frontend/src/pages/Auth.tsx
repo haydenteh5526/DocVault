@@ -11,6 +11,7 @@ import { ResendVerification } from '@/components/ResendVerification'
 import { SafeDoor } from '@/components/SafeDoor'
 import type { VaultState } from '@/components/VaultDoor'
 import { useAuth } from '@/lib/auth'
+import { noteLinkSent } from '@/lib/useCooldown'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { AuthError, getAuthProviders, loginUser, registerUser, verify2FA } from '@/lib/api'
 
@@ -164,6 +165,8 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
     try {
       if (isRegister) {
         await registerUser(email, password, name || undefined)
+        // Registration sent a link, so any resend for this address waits out the server's minute.
+        noteLinkSent('verify', email)
         if (!current()) return
         opening = true
         setDoor('open')
@@ -210,7 +213,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
             <p className="text-xs text-muted-foreground">
               Didn't receive it? Check your spam folder.
             </p>
-            <ResendVerification email={email} label="Resend email" justSent />
+            <ResendVerification email={email} label="Resend email" />
           </div>
         </div>
       ) : undefined}

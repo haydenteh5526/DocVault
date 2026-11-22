@@ -20,10 +20,18 @@
 - The Google callback's failure label is FAILED.
 - Every door page fits 1366 x 768 without a page scroll (the register password step excepted, as on `main`).
 
+## Review fixes (owner-approved 22 November 2026, after reviewer-deep on `fc5a73a`)
+
+- M1: the resend countdown is shared per email address across the tab (sessionStorage), started by registration, resends and forgot-password, so no page offers a click the server would drop; the generic reply now reads "If that account still needs verifying, a new link is on its way. We send at most one a minute."
+- L1: resend locks the account row, so two requests at once send one link. L2: the verification email goes out as a background task after the reply.
+- L3: the migration backfills `timezone('utc', now())`. L4: tests for the Google callback's version, a deleted account and a reset token used as a bearer.
+- Nits: plan and evidence wording, per-IP limit wording, password length in code points, and the register confirmation's scroll and button.
+- Not taken (owner decision): a keyword-only `version` argument. The three issues already on `main` go to a separate session.
+
 ## Decisions (approved 21 November 2026)
 
 - **D1, revocation:** every request checks the token's `ver` claim against `users.token_version`. Every token-issuing path passes `user.token_version` explicitly: login, 2FA login, Google callback, refresh and the forgot-password reset token.
-- **D2, verification:** links expire after 24 hours. Resend has a 60-second cooldown on the server and the same 60 seconds in the UI, so a success message never hides a dropped email. The forgot-password resend uses the same 60-second countdown (its server limit is 5 requests a minute per address).
+- **D2, verification:** links expire after 24 hours. Resend has a 60-second cooldown on the server and the same 60 seconds in the UI, so a success message never hides a dropped email. The forgot-password resend uses the same 60-second countdown (its server limit is 5 requests a minute per IP address).
 - **D3, structure:** one PR on `feature/auth-complete-safedoor`, built in two phases (backend first, then the UI). The owner accepts that it exceeds the 250-line guideline. `reviewer-deep` reviews the whole PR before merge.
 - **D4:** the unused `COGNITO_*` settings stay for a later clean-up.
 - **D5:** the Resend sender stays `onboarding@resend.dev`.
@@ -76,11 +84,11 @@
 
 ## Phase 2: SafeDoor screens
 
-- **`SafeDoor.tsx`:** optional `status={ label, led }` replaces the default label; new amber `sent` light in `SafeDoor.css`.
-- **`RecessedBadge.tsx` (new):** a dark recessed square with a translucent emerald, red or amber fill and border. It replaces every `bg-green-50` and `bg-red-50` square on the auth screens, including the register confirmation.
+- **`SafeDoor.tsx`:** optional `status={ label, led }` replaces the default label; new blue `sent` light in `SafeDoor.css`.
+- **`RecessedBadge.tsx` (new; removed again in the owner polish pass):** a dark recessed square with a translucent emerald, red or amber fill and border. It replaces every `bg-green-50` and `bg-red-50` square on the auth screens, including the register confirmation.
 - **`PasswordRules.tsx` (new):** the checklist moved out of `Auth.tsx`, matching `check_password_rules` (8 to 128 characters, upper, lower, number, special). Password fields get `maxLength={128}`.
 - **`Auth.tsx`:** "Forgot password?" on the email step of `/login`; a 403 shows "Resend verification email"; the register confirmation gets "Resend email" with a 60-second countdown; L-pre-1 fixed with a `requestId` ref bumped on every mode change, so a stale sign-in, registration or 2FA response, and its `finally`, are ignored.
-- **`ForgotPassword.tsx`:** after submit the LCD shows an amber light and CHECK EMAIL, with the copy still "If an account exists…"; below "Back to sign in", "Resend link" (60-second countdown) and "Try a different email".
+- **`ForgotPassword.tsx`:** after submit the LCD shows a blue light and CHECK EMAIL, with the copy still "If an account exists…"; below "Back to sign in", "Resend link" (60-second countdown) and "Try a different email".
 - **`ResetPassword.tsx`:** inside SafeDoor; label outside the positioned wrapper and the eye icon centred on the input; typing turns the dial, submit shows UPDATING, an error shakes INVALID, success shows UPDATED with the emerald badge and a Sign in button (no automatic redirect); a 400 shows an invalid, expired or already-used panel with "Request a new reset link".
 - **`VerifyEmail.tsx`:** VERIFYING, then VERIFIED or EXPIRED/INVALID; an expired or invalid link offers an email field and "Send a new link" with the 60-second countdown.
 - **`OAuthCallback.tsx`:** SIGNING IN while it works; errors inside SafeDoor with the recessed badge.

@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { resendVerification } from '@/lib/api'
-import { RESEND_COOLDOWN_S, useCooldown } from '@/lib/useCooldown'
+import { useLinkCooldown } from '@/lib/useCooldown'
 
 /**
  * Asks for a new verification link for `email`, then waits out the server's cooldown before allowing another.
- * The server's reply is the same whatever the account's state, and it is shown as given.
+ * The countdown is shared per email address across this tab (registration starts it too), so the button is never
+ * enabled while the server would drop the request. The server's reply is shown as given.
  */
-export function ResendVerification({ email, label = 'Resend verification email', justSent = false, primary = false }: {
+export function ResendVerification({ email, label = 'Resend verification email', primary = false }: {
   email: string
   label?: string
   /** Draw a full-width button, for a page where resending is the main action. */
   primary?: boolean
-  /** A link went out a moment ago (registration), so the server's cooldown is already running. */
-  justSent?: boolean
 }) {
-  const [remaining, startCooldown] = useCooldown(RESEND_COOLDOWN_S, justSent)
+  const [remaining, markSent] = useLinkCooldown('verify', email)
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -25,7 +24,7 @@ export function ResendVerification({ email, label = 'Resend verification email',
     try {
       const res = await resendVerification(email)
       setMessage(res.message)
-      startCooldown()
+      markSent()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not send. Try again.')
     } finally {

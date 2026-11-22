@@ -39,6 +39,19 @@ test.describe('the vault door at 1366 x 768', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
     expect(overflow).toBeLessThanOrEqual(0);
   });
+
+  test('the registration confirmation behind the open door fits without a vertical scroll', async ({ page }) => {
+    // The confirmation only needs a 201; nothing is created and no email is sent.
+    await page.route('**/api/v1/auth/register', route => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ message: 'sent', requires_verification: true }) }));
+    await page.goto('/register');
+    await toPasswordStep(page, 'someone@example.com');
+    await page.getByPlaceholder('Password').fill('Password123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-settled/);
+    const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
 });
 
 test.describe('the vault door at 390 px', () => {

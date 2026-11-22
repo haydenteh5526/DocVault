@@ -1,6 +1,7 @@
 /** The password rules, exactly as the server's `check_password_rules` enforces them for a new password. */
 export const PASSWORD_RULES: { label: string; test: (password: string) => boolean }[] = [
-  { label: '8 to 128 characters', test: p => p.length >= 8 && p.length <= 128 },
+  // Counted in characters (code points), as Python's len() does, not UTF-16 units: an emoji counts once.
+  { label: '8 to 128 characters', test: p => [...p].length >= 8 && [...p].length <= 128 },
   { label: 'One uppercase letter', test: p => /[A-Z]/.test(p) },
   { label: 'One lowercase letter', test: p => /[a-z]/.test(p) },
   { label: 'One number', test: p => /[0-9]/.test(p) },

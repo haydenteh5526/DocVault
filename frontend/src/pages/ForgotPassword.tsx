@@ -5,7 +5,7 @@ import { ArrowLeft, Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { forgotPassword } from '@/lib/api'
-import { RESEND_COOLDOWN_S, useCooldown } from '@/lib/useCooldown'
+import { useLinkCooldown } from '@/lib/useCooldown'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -13,8 +13,9 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [resendNote, setResendNote] = useState('')
-  // The server allows a few reset requests a minute per address; the button waits a full minute between sends.
-  const [remaining, startCooldown] = useCooldown(RESEND_COOLDOWN_S)
+  // The server allows 5 reset requests a minute per IP address; the button waits a full minute per email,
+  // shared across this tab, so going back with the same address keeps the countdown.
+  const [remaining, markSent] = useLinkCooldown('reset', email)
 
   async function send() {
     setError('')
@@ -22,7 +23,7 @@ export default function ForgotPassword() {
     try {
       await forgotPassword(email)
       setSent(true)
-      startCooldown()
+      markSent()
       return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')

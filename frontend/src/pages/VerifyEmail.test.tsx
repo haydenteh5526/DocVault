@@ -9,6 +9,7 @@ import VerifyEmail from './VerifyEmail'
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  sessionStorage.clear()
 })
 
 const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -50,7 +51,7 @@ describe('VerifyEmail', () => {
   it('an expired link says EXPIRED and offers a new link for an email address', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(json({ detail: 'This verification link has expired. Request a new one.' }, 400))
-      .mockResolvedValueOnce(json({ message: "If that account still needs verifying, we've sent a new link." }, 200))
+      .mockResolvedValueOnce(json({ message: "If that account still needs verifying, a new link is on its way. We send at most one a minute." }, 200))
     vi.stubGlobal('fetch', fetchMock)
     open('old-tok')
 
@@ -61,8 +62,18 @@ describe('VerifyEmail', () => {
     expect(screen.getByRole('button', { name: 'Send a new link' })).toHaveClass('safe-primary')
     fireEvent.click(screen.getByRole('button', { name: 'Send a new link' }))
 
-    expect(await screen.findByText("If that account still needs verifying, we've sent a new link.")).toBeVisible()
+    expect(await screen.findByText("If that account still needs verifying, a new link is on its way. We send at most one a minute.")).toBeVisible()
     expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('/auth/resend-verification'), expect.objectContaining({ method: 'POST' }))
+    expect(screen.getByRole('button', { name: /Send a new link in [0-9]+s/ })).toBeDisabled()
+  })
+
+  // Review finding M1 (c): a link was sent from another page a moment ago, so this page waits too.
+  it('waits out a countdown started on another page for the same address', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: 'Invalid or expired verification link' }, 400)))
+    sessionStorage.setItem('docvault.linkSent.verify:someone@example.com', String(Date.now() + 45_000))
+    open('replaced-tok')
+    await screen.findByRole('heading', { name: 'This link no longer works' })
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'Someone@Example.com' } })
     expect(screen.getByRole('button', { name: /Send a new link in [0-9]+s/ })).toBeDisabled()
   })
 

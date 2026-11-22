@@ -1,4 +1,5 @@
 """Verification links expire and can be resent; reset links work once and sign out every session."""
+import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -14,12 +15,17 @@ from app.main import app
 from app.models.base import User
 from app.rate_limit import limiter
 from app.services import email_service
-from app.services.auth_service import create_password_reset_token, hash_password
+from app.services.auth_service import (
+    create_access_token,
+    create_oauth_state,
+    create_password_reset_token,
+    hash_password,
+)
 
 BASE = "http://test"
 PASSWORD = "Pass123456!"
 NEW_PASSWORD = "NewPass789!"
-GENERIC_RESEND = "If that account still needs verifying, we've sent a new link."
+GENERIC_RESEND = "If that account still needs verifying, a new link is on its way. We send at most one a minute."
 
 
 @pytest.fixture(autouse=True)
@@ -259,3 +265,101 @@ async def test_a_short_new_password_is_still_refused(cleanup):
         )
     assert res.status_code == 422
     assert (await _user(user_id)).token_version == 0
+
+
+async def test_a_resend_waits_for_the_account_row_lock_so_two_at_once_send_one_link(sent, cleanup):
+    """Hold the row lock as a concurrent resend would, then commit a fresh link: the waiting request must
+    see it and send nothing. Without the lock the request would pass the cooldown on stale data."""
+    from tests.accounts import wait_until_blocked
+
+    old = _now() - timedelta(seconds=settings.VERIFICATION_RESEND_COOLDOWN_S + 5)
+    user_id, email = await _make_user(verified=False, token="first-token", sent_at=old)
+    cleanup.append(user_id)
+    async with _client() as client:
+        async with async_session() as locker:
+            await locker.execute(select(User).where(User.id == user_id).with_for_update())
+            request = asyncio.create_task(client.post("/api/v1/auth/resend-verification", json={"email": email}))
+            assert await wait_until_blocked(request, locker)
+            await locker.execute(
+                update(User).where(User.id == user_id).values(verification_token="other-token", verification_sent_at=_now())
+            )
+            await locker.commit()
+        res = await request
+    assert res.status_code == 200
+    assert sent["verification"] == []
+    assert (await _user(user_id)).verification_token == "other-token"
+
+
+async def test_an_access_token_for_a_deleted_account_is_refused():
+    user_id, _ = await _make_user(verified=True)
+    token = create_access_token(user_id, 0)
+    async with async_session() as db:
+        await db.delete(await db.get(User, user_id))
+        await db.commit()
+    async with _client() as client:
+        res = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 401
+
+
+async def test_a_reset_token_is_not_a_sign_in_token(cleanup):
+    user_id, _ = await _make_user(verified=True)
+    cleanup.append(user_id)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {create_password_reset_token(user_id, 0)}"}
+        )
+    assert res.status_code == 401
+
+
+class _GoogleReply:
+    def __init__(self, body):
+        self.status_code = 200
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+class _FakeGoogle:
+    """Stands in for httpx.AsyncClient in the OAuth callback: a token, then the profile."""
+
+    email = ""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def post(self, *args, **kwargs):
+        return _GoogleReply({"access_token": "google-access"})
+
+    async def get(self, *args, **kwargs):
+        return _GoogleReply({"email": _FakeGoogle.email, "email_verified": True, "name": "Test"})
+
+
+async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanup):
+    from urllib.parse import parse_qs, urlparse
+
+    import httpx
+
+    user_id, email = await _make_user(verified=True)
+    cleanup.append(user_id)
+    async with async_session() as db:
+        await db.execute(update(User).where(User.id == user_id).values(token_version=2))
+        await db.commit()
+    _FakeGoogle.email = email
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
+        )
+        assert res.status_code in (302, 307)
+        fragment = parse_qs(urlparse(res.headers["location"]).fragment)
+        access, refresh = fragment["access_token"][0], fragment["refresh_token"][0]
+        assert _ver(access) == 2 and _ver(refresh) == 2
+        me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
+    assert me.status_code == 200

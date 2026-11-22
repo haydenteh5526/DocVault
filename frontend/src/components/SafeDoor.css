@@ -115,6 +115,8 @@
 }
 .safe-open .safe-door { transform: rotateY(-85deg); opacity: 0; }
 .safe-settled .safe-door { visibility: hidden; transition: none; }
+/* Once taken away, the slab must not hold the page open: a tall form behind it would otherwise scroll the interior. */
+.safe-settled .safe-door { height: calc(100vh - 2 * var(--f)); height: calc(100dvh - 2 * var(--f)); min-height: 0; overflow: hidden; }
 
 /* Machined rivets at the slab's corners. */
 .safe-rivet {
@@ -230,7 +232,7 @@
 }
 
 /* The submit button, and every forward action (\`.safe-primary\`): a machined brushed-platinum key. Its text and accessible name are unchanged. */
-.safe-console button[type="submit"], .safe-console .safe-primary {
+.safe-console button[type="submit"], .safe-stage .safe-primary {
   color: #0A0A0B; border: 1px solid #8C8C93; border-radius: 9px; font-weight: 650; letter-spacing: .05em;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 1px, rgba(0, 0, 0, .025) 1px 2px, transparent 2px 4px),
@@ -238,12 +240,12 @@
   box-shadow: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 rgba(0, 0, 0, .18), 0 1px 0 #000, 0 2px 0 #3A3A40, 0 6px 12px rgba(0, 0, 0, .55);
   transition: transform .05s ease-out, box-shadow .05s ease-out;
 }
-.safe-console button[type="submit"]:hover:not(:disabled), .safe-console .safe-primary:hover:not(:disabled) { filter: brightness(1.04); }
-.safe-console button[type="submit"]:active:not(:disabled), .safe-console .safe-primary:active:not(:disabled) {
+.safe-console button[type="submit"]:hover:not(:disabled), .safe-stage .safe-primary:hover:not(:disabled) { filter: brightness(1.04); }
+.safe-console button[type="submit"]:active:not(:disabled), .safe-stage .safe-primary:active:not(:disabled) {
   transform: translateY(1px);
   box-shadow: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 rgba(0, 0, 0, .18), 0 0 0 #000, 0 1px 0 #3A3A40, 0 3px 6px rgba(0, 0, 0, .55);
 }
-.safe-console button[type="submit"]:disabled, .safe-console .safe-primary:disabled { opacity: .75; }
+.safe-console button[type="submit"]:disabled, .safe-stage .safe-primary:disabled { opacity: .75; }
 
 /* Wrong credentials: a heavy, damped shake of the slab inside its frame. */
 .safe-error .safe-door { animation: safeShake .4s ease-out; }

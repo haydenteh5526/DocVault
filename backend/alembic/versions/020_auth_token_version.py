@@ -18,8 +18,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("users", sa.Column("token_version", sa.Integer(), nullable=False, server_default="0"))
     op.add_column("users", sa.Column("verification_sent_at", sa.DateTime(), nullable=True))
-    # Links already sent keep working for the full expiry window from now.
-    op.execute("UPDATE users SET verification_sent_at = now() WHERE verification_token IS NOT NULL")
+    # Links already sent keep working for the full expiry window from now. The column holds naive UTC,
+    # like the app's comparisons, so store UTC whatever the database server's time zone is.
+    op.execute("UPDATE users SET verification_sent_at = timezone('utc', now()) WHERE verification_token IS NOT NULL")
 
 
 def downgrade() -> None:

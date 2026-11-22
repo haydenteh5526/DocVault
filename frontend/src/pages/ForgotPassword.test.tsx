@@ -15,6 +15,7 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.clearAllMocks()
+  sessionStorage.clear()
 })
 
 const settle = (ms = 0) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
@@ -73,4 +74,12 @@ it('"Try a different email" returns to the form with the email ready to edit', a
   expect(screen.getByRole('heading', { name: 'Forgot your password?' })).toBeVisible()
   expect(screen.getByLabelText('Email address')).toHaveValue('someone@example.com')
   expect(screen.getByText('LOCKED')).toBeVisible()
+})
+
+it('going back with the same address keeps the countdown', async () => {
+  await sendLink()
+  fireEvent.click(screen.getByRole('button', { name: 'Try a different email' }))
+  fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }))
+  await settle()
+  expect(screen.getByRole('button', { name: /Resend link in/ })).toBeDisabled()
 })

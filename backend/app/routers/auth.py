@@ -2,7 +2,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -144,15 +144,29 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     return {"message": "Email verified successfully. You can now sign in."}
 
 
-RESEND_VERIFICATION_MESSAGE = "If that account still needs verifying, we've sent a new link."
+# True whether or not a link went out: the server sends at most one a minute per account.
+RESEND_VERIFICATION_MESSAGE = (
+    "If that account still needs verifying, a new link is on its way. We send at most one a minute."
+)
 
 
 @router.post("/resend-verification")
 @limiter.limit("3/minute")
-async def resend_verification(request: Request, req: ResendVerificationRequest, db: AsyncSession = Depends(get_db)):
+async def resend_verification(
+    request: Request,
+    req: ResendVerificationRequest,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     """Send a new verification link. The reply is the same whatever the account's state,
-    so the endpoint cannot be used to learn which emails are registered or verified."""
-    user = (await db.execute(select(User).where(User.email == req.email))).scalar_one_or_none()
+    so the endpoint cannot be used to learn which emails are registered or verified.
+
+    The row is locked so two requests at once cannot both pass the cooldown and send two
+    links, and the email goes out after the reply so its timing reveals nothing.
+    """
+    user = (
+        await db.execute(select(User).where(User.email == req.email).with_for_update())
+    ).scalar_one_or_none()
     generic = {"message": RESEND_VERIFICATION_MESSAGE}
     if not user or user.is_verified:
         return generic
@@ -166,7 +180,7 @@ async def resend_verification(request: Request, req: ResendVerificationRequest, 
     await db.commit()
 
     from app.services.email_service import send_verification_email
-    send_verification_email(user.email, user.verification_token)
+    background.add_task(send_verification_email, user.email, user.verification_token)
     return generic
 
 
