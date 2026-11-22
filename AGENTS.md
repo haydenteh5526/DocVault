@@ -52,7 +52,11 @@ Check `/health/ready` first, and use disposable `DATABASE_URL` and storage setti
   - Use a headless Playwright script against a disposable local stack: `chromium.launch({ headless: true })` from `@playwright/test`. Never `channel: 'chrome'`, never `headless: false`, never the Playwright MCP plugin, never the owner's Chrome.
   - Cover every modified screen, flow and key state (for example default, active, toast, error, empty and populated) at desktop `1366×768` and mobile `390×844`.
 - **Inspect, then show:** view every image first and fix any layout, overflow or contrast defect. Then show the screenshots in the chat with a short table of what each one proves.
+- **Proof table:** each row gives the screenshot's local path, its viewport and what it proves.
+  - Put the table in the drafted PR description, and pass it to the Reviewer as part of the hand-off.
+  - Keep it in the PR description once the PR is open.
 - **Repo hygiene:**
-  - Save verification screenshots under `evaluation/visual-proof/<branch>/`, which is ignored by Git, or in another untracked folder the plan names.
+  - Save verification screenshots under `evaluation/visual-proof/<branch>/`, which is ignored by Git.
+  - A plan may name another folder only if it also adds that folder to `.gitignore`.
   - Commit screenshots only when the plan explicitly lists them as tracked evaluation assets.
-- **Review gate:** for a UI change, the Reviewer reports missing or unshown visual proof as a finding.
+- **Review gate:** for a UI change, the Reviewer checks the proof table against the diff and confirms each listed file exists on disk. It reports a missing table, a missing file or an uncovered screen or state as a finding.

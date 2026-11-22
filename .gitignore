@@ -46,3 +46,4 @@ terraform.tfvars
 
 # Verification screenshots (AGENTS.md, UI/UX visual proof)
 evaluation/visual-proof/
+evaluation/dashboard-redesign/
