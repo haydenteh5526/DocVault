@@ -10,6 +10,16 @@ from app.services.categorisation_service import KINDS
 KeyDateKind = Literal["renewal", "contract_end"]
 
 SCAN_LIMIT = 20_000
+SCANNED_KINDS = frozenset({"Bill", "Insurance", "Contract"})
+
+
+def scans_text(document_type: str | None) -> bool:
+    """Whether a document's text may be read for bill fields and dates.
+
+    Manuals, receipts, warranties and other documents are never scanned. Unclassified documents and
+    legacy free-text kinds are, since they may be bills, policies or contracts.
+    """
+    return document_type in SCANNED_KINDS or not document_type or document_type not in KINDS
 
 _DATE_TEXT = r"(?P<date>\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4})"
 _END = r"\s*\.?\s*$"

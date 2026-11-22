@@ -28,6 +28,7 @@ from app.services import (
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import BillReviewConflict, latest_revision, save_revision
 from app.services.bill_split import BillSplitConflict, BillSplitInputError, latest_split, preview_split, save_split
+from app.services.key_dates import scans_text
 from app.services.reminders import (
     ReminderConflict,
     ReminderNotFound,
@@ -243,7 +244,9 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     from datetime import datetime
     doc.updated_at = datetime.utcnow()
     await db.commit()
-    review = extract_bill_review(doc.raw_text) if doc.processing_status == "complete" else None
+    # The same scope as the overview, so the two agree on which documents are bills to confirm.
+    scanned = doc.processing_status == "complete" and scans_text(doc.document_type)
+    review = extract_bill_review(doc.raw_text) if scanned else None
     confirmed = await latest_revision(db, doc.id)
     split = await latest_split(db, doc.id)
     proposals = await list_proposals(db, doc.id)
