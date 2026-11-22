@@ -12,8 +12,8 @@
 | Role | Where | Does | Must not |
 | --- | --- | --- | --- |
 | Architect | Root checkout. Ephemeral session (Opus, medium effort; high only for complex architecture), archived once you approve the plan. | Turns an issue's acceptance checks into one plan in `specs/plans/`: files, names, signatures, exact copy, tests, owner decisions. Keeps each plan to one PR (about 250 lines max) and splits large redesigns into sequenced plans. Commits the plan on the feature branch and waits for approval. | Change application code, commit to `main`, or start Build sessions. |
-| Build / Issue / Redesign | Its own top-level worktree, cut from the branch holding the approved plan (Sonnet, medium effort). | Builds test first and runs the local gates. Calls `reviewer`, or `reviewer-deep` for auth or ownership, reminder-approval safety and DB migrations. Shows the owner the full report, applies only approved fixes, opens the PR. After the owner approves, merges only under the merge rule below, then archives the worktree. | Add scope, change the plan's decisions, filter the report, or merge unapproved. |
-| Reviewer | Read-only subagent (`reviewer` or `reviewer-deep`) with fresh context. | Checks the diff against the plan, the issue's acceptance checks and `gh pr checks`. Reports findings by severity with file, line and failure scenario, then `APPROVE` or `CHANGES_REQUESTED`. | Edit code, push, comment, merge, or re-run full local suites. |
+| Build / Issue / Redesign | Its own top-level worktree, cut from the branch holding the approved plan (Sonnet, medium effort). | Builds test first and runs the local gates. For a UI change, captures and shows the [visual proof](#uiux-visual-proof). Calls `reviewer`, or `reviewer-deep` for auth or ownership, reminder-approval safety and DB migrations. Shows the owner the full report, applies only approved fixes, opens the PR. After the owner approves, merges only under the merge rule below, then archives the worktree. | Add scope, change the plan's decisions, filter the report, or merge unapproved. |
+| Reviewer | Read-only subagent (`reviewer` or `reviewer-deep`) with fresh context. | Checks the diff against the plan, the issue's acceptance checks, `gh pr checks` and, for a UI change, the visual proof. Reports findings by severity with file, line and failure scenario, then `APPROVE` or `CHANGES_REQUESTED`. | Edit code, push, comment, merge, or re-run full local suites. |
 
 - The owner approves the plan, decides which findings to fix and approves the merge.
 - Merge rule: merge with a merge commit pinned to the reviewed head SHA (`gh pr merge <n> --merge --match-head-commit <sha>`) only when all hold:
@@ -44,3 +44,19 @@ The [CI workflow](.github/workflows/ci.yml) is the full gate (audits, migration 
 | `mobile/` | `npm ci`, `npm run typecheck`, `npm run doctor` |
 
 Check `/health/ready` first, and use disposable `DATABASE_URL` and storage settings. Browser checks use `E2E_BASE_URL`, `E2E_EMAIL`, `E2E_PASSWORD` (plus `E2E_EMAIL_2`, `E2E_PASSWORD_2`) and `E2E_MAILPIT_URL` (default <http://localhost:8025>). Smoke test: `docker compose exec -T api python scripts/e2e_smoke.py`. For devices set `EXPO_PUBLIC_API_URL`. Record commit, environment and results. See [evaluation/README.md](evaluation/README.md) and the [Demo 1 walkthrough](evaluation/demo-1/README.md).
+
+## UI/UX visual proof
+
+- **When:** any change to visible frontend UI, layout, copy, navigation, interactive flows or visual states.
+- **Capture before asking to push or open a PR:**
+  - Use a headless Playwright script against a disposable local stack: `chromium.launch({ headless: true })` from `@playwright/test`. Never `channel: 'chrome'`, never `headless: false`, never the Playwright MCP plugin, never the owner's Chrome.
+  - Cover every modified screen, flow and key state (for example default, active, toast, error, empty and populated) at desktop `1366×768` and mobile `390×844`.
+- **Inspect, then show:** view every image first and fix any layout, overflow or contrast defect. Then show the screenshots in the chat with a short table of what each one proves.
+- **Proof table:** each row gives the screenshot's local path, its viewport and what it proves.
+  - Put the table in the drafted PR description, and pass it to the Reviewer as part of the hand-off.
+  - Keep it in the PR description once the PR is open.
+- **Repo hygiene:**
+  - Save verification screenshots under `evaluation/visual-proof/<branch>/`, which is ignored by Git.
+  - A plan may name another folder only if it also adds that folder to `.gitignore`.
+  - Commit screenshots only when the plan explicitly lists them as tracked evaluation assets.
+- **Review gate:** for a UI change, the Reviewer checks the proof table against the diff and confirms each listed file exists on disk. It reports a missing table, a missing file or an uncovered screen or state as a finding.
