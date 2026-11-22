@@ -263,9 +263,12 @@ async def login_2fa(request: Request, req: Verify2FARequest, db: AsyncSession = 
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(401, "Invalid credentials")
 
+    if not user.is_verified:
+        raise HTTPException(403, "Please verify your email before signing in")
+
+    # An account without 2FA gets the same refusal as a wrong code, not a 500.
     import pyotp
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(req.code, valid_window=1):
+    if not user.totp_secret or not pyotp.TOTP(user.totp_secret).verify(req.code, valid_window=1):
         raise HTTPException(401, "Invalid 2FA code")
 
     return TokenResponse(
@@ -509,25 +512,38 @@ async def oauth_google_callback(
     email = info.get("email")
     if not email or not info.get("email_verified", True):
         return fail("email_unverified")
+    # Cut Google's name to the column's 100 characters so a long one cannot fail the sign-in.
+    name = (info.get("name") or "")[:100] or None
 
     # Find existing account by email (links Google to an existing password
-    # account) or create a new, already-verified account.
-    result = await db.execute(select(User).where(User.email == email))
+    # account) or create a new, already-verified account. The row is locked so a
+    # concurrent password reset cannot interleave with the takeover lock-out below.
+    result = await db.execute(select(User).where(User.email == email).with_for_update())
     user = result.scalar_one_or_none()
     if not user:
         user = User(
             email=email,
             hashed_password=hash_password(secrets.token_urlsafe(32)),
-            display_name=info.get("name"),
+            display_name=name,
             is_verified=True,
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
     elif not user.is_verified:
-        # Google verified the email, so we can trust it
+        # Google proved who owns the email, but not who chose the password: anyone
+        # could have registered this address first. Replace that password and
+        # revoke any earlier session so only the Google sign-in holds the account.
+        # Also drop everything else the first registrant chose or started.
         user.is_verified = True
+        user.hashed_password = hash_password(secrets.token_urlsafe(32))
+        user.token_version += 1
+        user.verification_token = None
+        user.verification_sent_at = None
+        user.totp_pending_secret = None
+        user.display_name = name
         await db.commit()
+        await db.refresh(user)
 
     access = create_access_token(user.id, user.token_version)
     refresh = create_refresh_token(user.id, remember_me=True, version=user.token_version)

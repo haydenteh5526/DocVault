@@ -326,6 +326,7 @@ class _FakeGoogle:
     """Stands in for httpx.AsyncClient in the OAuth callback: a token, then the profile."""
 
     email = ""
+    name = "Test"
 
     def __init__(self, *args, **kwargs):
         pass
@@ -340,7 +341,7 @@ class _FakeGoogle:
         return _GoogleReply({"access_token": "google-access"})
 
     async def get(self, *args, **kwargs):
-        return _GoogleReply({"email": _FakeGoogle.email, "email_verified": True, "name": "Test"})
+        return _GoogleReply({"email": _FakeGoogle.email, "email_verified": True, "name": _FakeGoogle.name})
 
 
 async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanup):
@@ -365,3 +366,92 @@ async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanu
         assert _ver(access) == 2 and _ver(refresh) == 2
         me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
     assert me.status_code == 200
+
+
+async def test_google_sign_in_locks_out_a_pre_registered_password(monkeypatch, cleanup):
+    """Someone who registered the victim's email first must lose their password once Google proves the owner."""
+    from urllib.parse import parse_qs, urlparse
+
+    import httpx
+
+    user_id, email = await _make_user(verified=False, token="squatter-link", sent_at=_now())
+    cleanup.append(user_id)
+    async with async_session() as db:
+        await db.execute(
+            update(User).where(User.id == user_id).values(display_name="Squatter", totp_pending_secret=pyotp.random_base32())
+        )
+        await db.commit()
+    old_token = create_access_token(user_id, (await _user(user_id)).token_version)
+    _FakeGoogle.email = email
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
+        )
+        assert res.status_code in (302, 307)
+        fragment = parse_qs(urlparse(res.headers["location"]).fragment)
+        access, refresh = fragment["access_token"][0], fragment["refresh_token"][0]
+        assert _ver(access) == 1 and _ver(refresh) == 1
+        owner_me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
+        login = await _login(client, email)
+        me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+
+    assert owner_me.status_code == 200
+    assert login.status_code == 401
+    assert me.status_code == 401
+    user = await _user(user_id)
+    assert user.is_verified is True
+    assert user.verification_token is None and user.verification_sent_at is None
+    assert user.display_name == "Test"
+    assert user.totp_pending_secret is None
+
+
+async def test_two_factor_sign_in_refuses_an_unverified_account(cleanup):
+    secret = pyotp.random_base32()
+    user_id, email = await _make_user(verified=False, totp=secret)
+    cleanup.append(user_id)
+    async with _client() as client:
+        res = await client.post(
+            "/api/v1/auth/login/2fa",
+            json={"email": email, "password": PASSWORD, "code": pyotp.TOTP(secret).now()},
+        )
+    assert res.status_code == 403
+    assert res.json()["detail"] == "Please verify your email before signing in"
+
+
+async def test_two_factor_sign_in_without_two_factor_is_refused_not_a_crash(cleanup):
+    user_id, email = await _make_user(verified=True)
+    cleanup.append(user_id)
+    async with _client() as client:
+        res = await client.post(
+            "/api/v1/auth/login/2fa", json={"email": email, "password": PASSWORD, "code": "123456"}
+        )
+    assert res.status_code == 401
+    assert res.json()["detail"] == "Invalid 2FA code"
+
+
+@pytest.mark.parametrize("existing", [False, True], ids=["new account", "unverified account"])
+async def test_google_sign_in_accepts_a_name_longer_than_the_column(monkeypatch, cleanup, existing):
+    """A Google name past the 100-character column is cut to fit rather than failing the sign-in."""
+    import httpx
+
+    if existing:
+        user_id, email = await _make_user(verified=False)
+        cleanup.append(user_id)
+    else:
+        email = f"auth-hardening-{uuid.uuid4()}@example.com"
+    _FakeGoogle.email = email
+    monkeypatch.setattr(_FakeGoogle, "name", "N" * 150)
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
+        )
+    async with async_session() as db:
+        user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+    if not existing:
+        cleanup.append(user.id)
+    assert res.status_code in (302, 307)
+    assert "access_token=" in res.headers["location"]
+    assert user.is_verified is True
+    assert user.display_name == "N" * 100
