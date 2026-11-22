@@ -452,6 +452,13 @@ export async function retryDocumentProcessing(id: string): Promise<void> {
   if (!res.ok) throw new Error('Could not retry processing. Try again.')
 }
 
+/** Read a completed document's title, kind, summary and warranty again, keeping everything the owner set. */
+export async function refreshDocumentDetails(id: string): Promise<Document> {
+  const res = await authorizedFetch(`${BASE}/documents/${id}/refresh-details`, { method: 'POST' })
+  if (!res.ok) throw await apiErrorFrom(res, 'Could not read the details again. Try again.')
+  return res.json()
+}
+
 export async function getDocument(id: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${id}`)
   if (!res.ok) throw await apiErrorFrom(res, 'Could not load document')

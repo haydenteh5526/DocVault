@@ -493,3 +493,213 @@ async def test_with_no_key_the_summary_is_none(monkeypatch):
     await _process(monkeypatch, document, "Electricity bill. Amount due EUR 5", metadata)
     assert document.summary is None
     assert document.document_type == "Bill"
+
+
+# --- Read details again (Task 5), against the database -----------------------------------------
+
+
+_LAPTOP_TEXT = (
+    "FERNHILL STORE\nReceipt: Fernhill FL14 laptop, EUR 899.00\nDate: 8 January 2026\n"
+    "2-year manufacturer warranty included.\nWarranty expires: 8 January 2028\n"
+    "Text corrected by the owner."
+)
+
+
+def _suggestion(**extra):
+    from app.services.categorisation_service import DocumentMetadata
+
+    values = dict(
+        brand="Suggested brand",
+        model="Suggested model",
+        document_type="Bill",
+        title="Suggested title",
+        summary="A suggested summary of the document.",
+    )
+    values.update(extra)
+    return DocumentMetadata(**values)
+
+
+async def _owner_with_document(**document_fields):
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import create_users_and_document
+
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=_LAPTOP_TEXT)
+    async with async_session() as db:
+        document = await db.get(Document, document_id)
+        for key, value in document_fields.items():
+            setattr(document, key, value)
+        await db.commit()
+    return owner_id, other_id, document_id
+
+
+async def _counts(document_id):
+    from sqlalchemy import func, select
+
+    from app.dependencies import async_session
+    from app.models.base import BillRevision, BillSplit, Reminder, ReminderProposal
+
+    async with async_session() as db:
+        return {
+            model.__tablename__: (
+                await db.execute(select(func.count()).select_from(model).where(model.document_id == document_id))
+            ).scalar_one()
+            for model in (BillRevision, BillSplit, ReminderProposal, Reminder)
+        }
+
+
+async def test_refresh_details_keeps_everything_the_owner_set(monkeypatch):
+    from datetime import date
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.dependencies import async_session
+    from app.models.base import (
+        BillRevision,
+        BillSplit,
+        Category,
+        Document,
+        Reminder,
+        ReminderProposal,
+        Tag,
+    )
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(settings, "MISTRAL_API_KEY", "")
+    monkeypatch.setattr(document_processor.categorisation_service, "categorise_document", lambda text: _suggestion())
+    owner_id, other_id, document_id = await _owner_with_document(
+        title="My laptop", document_type="Receipt", brand="Fernhill", model="FL14",
+        summary="Old summary", is_favourite=True,
+    )
+    try:
+        async with async_session() as db:
+            category = Category(user_id=owner_id, name="Electronics")
+            tag = Tag(user_id=owner_id, name="keep")
+            db.add_all([category, tag])
+            await db.flush()
+            document = (await db.execute(
+                select(Document).where(Document.id == document_id).options(selectinload(Document.tags))
+            )).scalar_one()
+            document.category_id = category.id
+            document.tags.append(tag)
+            revision = BillRevision(
+                document_id=document_id, revision_number=1, amount_due_cents=89900,
+                due_date=date(2026, 2, 1), billing_period_start=date(2026, 1, 1),
+                billing_period_end=date(2026, 1, 31), evidence={},
+            )
+            db.add(revision)
+            await db.flush()
+            split = BillSplit(
+                document_id=document_id, bill_revision_id=revision.id, split_number=1,
+                rule="equal", total_cents=89900, shares=[],
+            )
+            db.add(split)
+            await db.flush()
+            pending = ReminderProposal(
+                document_id=document_id, user_id=owner_id, proposal_number=1, action="bill_reminder",
+                source="bill_panel", bill_revision_id=revision.id, details={}, status="pending",
+            )
+            approved = ReminderProposal(
+                document_id=document_id, user_id=owner_id, proposal_number=2, action="bill_reminder",
+                source="bill_panel", bill_revision_id=revision.id, details={}, status="approved",
+            )
+            db.add_all([pending, approved])
+            await db.flush()
+            db.add(Reminder(
+                user_id=owner_id, document_id=document_id, proposal_id=approved.id,
+                remind_on=date(2026, 1, 30), details={},
+            ))
+            db.add(Warranty(
+                document_id=document_id, purchase_date=None,
+                expiry_date=date(2027, 5, 1), notes="Owner set the end date",
+            ))
+            await db.commit()
+            category_id, tag_id = category.id, tag.id
+
+        before = await _counts(document_id)
+        await document_processor.refresh_details(document_id)
+
+        async with async_session() as db:
+            document = (await db.execute(
+                select(Document).where(Document.id == document_id).options(selectinload(Document.tags))
+            )).scalar_one()
+            warranty = (await db.execute(select(Warranty).where(Warranty.document_id == document_id))).scalar_one()
+            assert document.title == "My laptop"
+            assert document.document_type == "Receipt"
+            assert (document.brand, document.model) == ("Fernhill", "FL14")
+            assert document.summary == "A suggested summary of the document."
+            assert document.category_id == category_id
+            assert document.is_favourite is True
+            assert [t.id for t in document.tags] == [tag_id]
+            assert document.raw_text == _LAPTOP_TEXT
+            assert warranty.expiry_date == date(2027, 5, 1)
+            assert warranty.purchase_date == date(2026, 1, 8)  # an empty date is filled
+            assert warranty.notes == "Owner set the end date"
+        assert await _counts(document_id) == before
+        assert before == {"bill_revisions": 1, "bill_splits": 1, "reminder_proposals": 2, "reminders": 1}
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+async def test_refresh_details_fills_what_is_still_machine_owned(monkeypatch):
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(settings, "MISTRAL_API_KEY", "")
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document",
+        lambda text: _suggestion(document_type="Receipt", title="Fernhill FL14 laptop receipt"),
+    )
+    owner_id, other_id, document_id = await _owner_with_document(
+        title="laptop-receipt.pdf", document_type="Sales Receipt", brand=None, model=None,
+    )
+    try:
+        await document_processor.refresh_details(document_id)
+        async with async_session() as db:
+            document = await db.get(Document, document_id)
+            warranty = (await db.execute(select(Warranty).where(Warranty.document_id == document_id))).scalar_one()
+            assert document.title == "Fernhill FL14 laptop receipt"
+            assert document.document_type == "Receipt"
+            assert (document.brand, document.model) == ("Suggested brand", "Suggested model")
+            assert (warranty.purchase_date, warranty.expiry_date) == (date(2026, 1, 8), date(2028, 1, 8))
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+async def test_refresh_details_keeps_a_set_kind(monkeypatch):
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(document_processor.categorisation_service, "categorise_document", lambda text: _suggestion())
+    owner_id, other_id, document_id = await _owner_with_document(document_type="Manual")
+    try:
+        await document_processor.refresh_details(document_id)
+        async with async_session() as db:
+            assert (await db.get(Document, document_id)).document_type == "Manual"
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+async def test_refresh_details_keeps_an_existing_summary_when_none_is_returned(monkeypatch):
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(settings, "MISTRAL_API_KEY", "")
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document", lambda text: _suggestion(summary=None),
+    )
+    owner_id, other_id, document_id = await _owner_with_document(summary="Earlier summary")
+    try:
+        await document_processor.refresh_details(document_id)
+        async with async_session() as db:
+            assert (await db.get(Document, document_id)).summary == "Earlier summary"
+    finally:
+        await delete_users(owner_id, other_id)

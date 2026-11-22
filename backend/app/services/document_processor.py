@@ -171,6 +171,39 @@ async def process_document(document_id: str | uuid.UUID) -> None:
             raise
 
 
+async def refresh_details(document_id: uuid.UUID) -> None:
+    """Read a completed document's details again from its stored text.
+
+    Re-runs only classification, title, summary and warranty extraction. OCR is not run and
+    raw_text, chunks, embeddings and versions are never touched, so text the owner corrected
+    stays. Title, kind, brand, model and warranty dates follow the same preservation rules as
+    processing; folders, stars, tags and every bill, split and reminder record are never read
+    or written. A summary is replaced only when a new one is available.
+    """
+    doc_id = uuid.UUID(str(document_id))
+    async with async_session() as db:
+        raw_text = (await db.execute(select(Document.raw_text).where(Document.id == doc_id))).scalar_one_or_none()
+    if not raw_text:
+        return
+
+    # The model call happens before the row is locked, so an owner's edit is never held up by it.
+    metadata = await asyncio.to_thread(categorisation_service.categorise_document, raw_text)
+    summary = await _summary_for(raw_text, metadata)
+
+    async with async_session() as db:
+        doc = (await db.execute(
+            select(Document).where(Document.id == doc_id).with_for_update()
+        )).scalar_one_or_none()
+        if not doc or not doc.raw_text:
+            return
+        _apply_details(doc, doc.raw_text, metadata)
+        if summary:
+            doc.summary = summary
+        await _apply_warranty(db, doc, doc.raw_text)
+        await db.commit()
+    logger.info("Refreshed details for document %s", doc_id)
+
+
 def _generate_summary(raw_text: str) -> str | None:
     """Generate a structured summary with Mistral, or None when no summary can be written."""
     import json
