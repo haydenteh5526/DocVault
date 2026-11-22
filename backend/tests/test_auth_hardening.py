@@ -171,7 +171,7 @@ async def test_a_reset_link_works_once(sent, cleanup):
         await client.post("/api/v1/auth/forgot-password", json={"email": email})
         [(_, token)] = sent["reset"]
         first = await client.post("/api/v1/auth/reset-password", json={"token": token, "new_password": NEW_PASSWORD})
-        second = await client.post("/api/v1/auth/reset-password", json={"token": token, "new_password": "Another123!"})
+        second = await client.post("/api/v1/auth/reset-password", json={"token": token, "new_password": PASSWORD})
     assert first.status_code == 200
     assert second.status_code == 400
     assert second.json()["detail"] == "Invalid or expired reset link"
@@ -261,7 +261,8 @@ async def test_a_short_new_password_is_still_refused(cleanup):
     async with _client() as client:
         res = await client.post(
             "/api/v1/auth/reset-password",
-            json={"token": create_password_reset_token(user_id, 0), "new_password": "Ab1!"},
+            # Four characters of a valid password: too short for the rules.
+            json={"token": create_password_reset_token(user_id, 0), "new_password": NEW_PASSWORD[:4]},
         )
     assert res.status_code == 422
     assert (await _user(user_id)).token_version == 0
