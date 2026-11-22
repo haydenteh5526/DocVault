@@ -263,9 +263,9 @@ async def login_2fa(request: Request, req: Verify2FARequest, db: AsyncSession = 
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(401, "Invalid credentials")
 
+    # An account without 2FA gets the same refusal as a wrong code, not a 500.
     import pyotp
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(req.code, valid_window=1):
+    if not user.totp_secret or not pyotp.TOTP(user.totp_secret).verify(req.code, valid_window=1):
         raise HTTPException(401, "Invalid 2FA code")
 
     return TokenResponse(
@@ -525,9 +525,14 @@ async def oauth_google_callback(
         await db.commit()
         await db.refresh(user)
     elif not user.is_verified:
-        # Google verified the email, so we can trust it
+        # Google proved who owns the email, but not who chose the password: anyone
+        # could have registered this address first. Replace that password and
+        # revoke any earlier session so only the Google sign-in holds the account.
         user.is_verified = True
+        user.hashed_password = hash_password(secrets.token_urlsafe(32))
+        user.token_version += 1
         await db.commit()
+        await db.refresh(user)
 
     access = create_access_token(user.id, user.token_version)
     refresh = create_refresh_token(user.id, remember_me=True, version=user.token_version)

@@ -365,3 +365,37 @@ async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanu
         assert _ver(access) == 2 and _ver(refresh) == 2
         me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
     assert me.status_code == 200
+
+
+async def test_google_sign_in_locks_out_a_pre_registered_password(monkeypatch, cleanup):
+    """Someone who registered the victim's email first must lose their password once Google proves the owner."""
+    import httpx
+
+    user_id, email = await _make_user(verified=False)
+    cleanup.append(user_id)
+    old_token = create_access_token(user_id, (await _user(user_id)).token_version)
+    _FakeGoogle.email = email
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
+    async with _client() as client:
+        res = await client.get(
+            "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
+        )
+        assert res.status_code in (302, 307)
+        assert "access_token=" in res.headers["location"]
+        login = await _login(client, email)
+        me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+
+    assert login.status_code == 401
+    assert me.status_code == 401
+    assert (await _user(user_id)).is_verified is True
+
+
+async def test_two_factor_sign_in_without_two_factor_is_refused_not_a_crash(cleanup):
+    user_id, email = await _make_user(verified=True)
+    cleanup.append(user_id)
+    async with _client() as client:
+        res = await client.post(
+            "/api/v1/auth/login/2fa", json={"email": email, "password": PASSWORD, "code": "123456"}
+        )
+    assert res.status_code == 401
+    assert res.json()["detail"] == "Invalid 2FA code"
