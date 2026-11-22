@@ -1,6 +1,6 @@
 # Dashboard Redesign, PR 2 of 6: One Server Answer for Attention, Coming Up and Document Status
 
-**Status:** approved by the owner on 22 November 2026, with Revisions 1–3. Being built on `feature/dashboard-redesign-2-attention-api` (not yet merged or verified in CI). Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
+**Status:** approved by the owner on 22 November 2026, with Revisions 1–4. Being built on `feature/dashboard-redesign-2-attention-api` (not yet merged or verified in CI). Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
 **Issue:** `Part of #48` (the series issue).
 
@@ -9,6 +9,24 @@
 **Goal:** `GET /api/v1/overview` is the single source of truth for what needs the owner, what is coming up in the next 60 days, recent documents, counts and each document's status. Bill review covers any utility bill (D2). Insurance renewals and contract ends are read with their source line (D4). Text is scanned only for kinds that can carry dates (adjustment 2). No migration.
 
 Backend only.
+
+## Revision 4: rulings on the `reviewer-deep` review of `9c1e051` (APPROVE with lows)
+
+These amend Revision 3. Each fix needs a test that fails first.
+
+- **R4-a (L-1):** on "Read details again" or reprocess, a `fallback` kind replaces a `LEGACY_GUESS_LABELS` value only when it is `Bill`, `Receipt`, `Insurance` or `Contract`. Otherwise the legacy label stays and is still treated as unclassified (R3-a). A `model` kind replaces it as before (R1-b).
+  - Test: a bill stored as "User Manual", refreshed with no provider key, stays reviewable.
+- **R4-b (L-2, a regression from R3-d):** the fallback's label-based Bill rule must not fire on a receipt. Check the `Receipt` signal first when `receipt` appears and no line matches `_AMOUNT_LABEL` or `_DATE_LABEL`.
+  - Tests: a laptop receipt with "Billing address" stays `Receipt` and keeps its warranty; the R3-d gas bill is still `Bill`.
+- **R4-c (L-3):** a labelled key-date remainder that starts with a digit **or a month name** and fails to parse counts as unreadable.
+  - Test: "Renewal date: 15 January 2027" plus "Renewal date: January 15, 2027" returns no renewal.
+- **R4-d (a regression from R3-c):** contract term phrases that read before R3-c read again.
+  - Test: "Tenancy to run from 1 September 2026 to 31 August 2027" gives `contract_end` 2027-08-31, alongside the Task 2 `Term:` case.
+- **R4-e (L-4):** `counts` keys and `recent[].kind` treat a `LEGACY_GUESS_LABELS` value as unclassified (no kind key; `kind` is null), matching R3-a, instead of normalising it to `Manual` or `Warranty`.
+- **Wording:** fix the `specs/Repo_Current_State.md` sentence the reviewer flagged. Revision 3's wording bullet is corrected here: the row must describe the cross-account isolation *test* accurately, not claim a manual check was run.
+- **Known limits for the PR description** (both fail safe):
+  - A date on a legacy "Warranty Card" can show as a renewal.
+  - A non-date such as "12 months after renewal" on a labelled line can hide a real date.
 
 ## Revision 3: rulings on the `reviewer-deep` review of `da91138`
 
