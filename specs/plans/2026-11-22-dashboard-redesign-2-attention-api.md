@@ -10,6 +10,28 @@
 
 Backend only.
 
+## Revision 2: rulings on the `reviewer-deep` review of `12102d9`
+
+These amend Tasks 3 and 4. Where they conflict, this section wins.
+
+- **R2-a (L5): classify before scoping.**
+  - `scans_text(document_type)` first maps the value through `categorisation_service.normalise_kind`, then applies the rule. Legacy "User Manual", "Sales Receipt" and "Warranty Card" are therefore never scanned, while "Monthly bill" is.
+  - "Unclassified" now means empty only. The `specs/MVP_Technical_Design.md` sentence says so.
+- **R2-b (L4, D4): only bills get a bill review.**
+  - New `reviews_bills(document_type) -> bool` in `key_dates.py`: `True` when `normalise_kind` gives `Bill` or the value is empty.
+  - `get_document`, overview query 2's bill-review step, and `owner_bills` (R2-c) compute `bill_review` only when `reviews_bills(...)` holds.
+  - `extract_key_dates` keeps using `scans_text`, so Insurance and Contract still give renewals and term ends, with no confirm step.
+  - Test: an `Insurance` renewal with "Renewal statement / Amount payable: EUR 310.00 / Renewal date: 12 December 2026" gives an upcoming `renewal` and no `bill_unconfirmed`.
+- **R2-c (M1): DocBot's bill list uses the same rule.**
+  - Adds `backend/app/services/assistant/bills.py` to this PR's files.
+  - `owner_bills` keeps a document when it has a confirmed revision, or when `reviews_bills(d.document_type)` holds and `extract_bill_review(d.raw_text)` is not None.
+  - Tests: a `Receipt` with "VAT invoice / Amount due: EUR 899.00" is not offered and does not take a `MAX_BILLS` place; a confirmed bill whose kind later changed is still offered.
+  - Every existing assistant test passes unedited.
+- **R2-d (L2):** the overview's warranty query adds `Warranty.document_id.in_(list(facts))`. Test: a warranty on a document missing from query 1 does not raise.
+- **R2-e (L3):** a labelled key-date line whose date cannot be read counts as a conflicting value, as in `bill_review._field`, so nothing is returned. Test: "Renewal date: 15 January 2027" plus "Renewal date: 03/02/2027" returns no renewal.
+- **Known limit (L1):** `save_revision` still recomputes the review without the kind check. There is no new approval path, and changing the protected bill-revision flow is out of scope. Record this in the PR.
+- **Not taken:** the reviewer's performance note (5 to 10 queries for each bill). Revisit it if PR 3's polling shows it matters.
+
 ## Task 1: Bill review for every utility bill (D2)
 
 **Files:** `backend/app/services/bill_review.py`, `backend/tests/test_bill_review.py`, `specs/MVP_Technical_Design.md` (one sentence on the widened scope).
