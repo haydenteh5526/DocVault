@@ -98,8 +98,12 @@ def sanitise_summary(value: str | None) -> str | None:
     return cleaned
 
 
-def _from_model_json(data: dict) -> DocumentMetadata:
-    """Parse a model's JSON into the fixed schema. Nothing outside these fields is used."""
+def _from_model_json(data: dict, source_text: str = "") -> DocumentMetadata:
+    """Parse a model's JSON into the fixed schema. Nothing outside these fields is used.
+
+    A reply with no kind takes the keyword fallback's kind (marked as a fallback), so every
+    document with text has one of the seven kinds.
+    """
     def text(key: str) -> str | None:
         value = data.get(key)
         return (value.strip() or None) if isinstance(value, str) else None
@@ -109,13 +113,16 @@ def _from_model_json(data: dict) -> DocumentMetadata:
         return value[:_NAME_LIMIT].strip() or None if value else None
 
     kind = normalise_kind(text("kind") or text("document_type"))
+    kind_source: KindSource | None = "model" if kind else None
+    if kind is None and source_text:
+        kind, kind_source = _fallback_categorise(source_text).document_type, "fallback"
     return DocumentMetadata(
         brand=name("brand"),
         model=name("model"),
         document_type=kind,
         title=sanitise_title(text("title") or text("suggested_title")),
         summary=sanitise_summary(text("summary")),
-        kind_source="model" if kind else None,
+        kind_source=kind_source,
     )
 
 
@@ -154,7 +161,7 @@ def _categorise_groq(text: str) -> DocumentMetadata:
             )
 
         response = with_retry(_call, label="groq.categorise", attempts=2)
-        return _from_model_json(json.loads(response.choices[0].message.content))
+        return _from_model_json(json.loads(response.choices[0].message.content), text)
     except Exception:
         return _fallback_categorise(text)
 
@@ -180,7 +187,7 @@ def _categorise_gemini(text: str) -> DocumentMetadata:
             },
         ), label="gemini.categorise", attempts=2)
 
-        return _from_model_json(json.loads(response.text))
+        return _from_model_json(json.loads(response.text), text)
     except Exception:
         return _fallback_categorise(text)
 
@@ -215,7 +222,7 @@ def _categorise_mistral(text: str) -> DocumentMetadata:
     try:
         result = with_retry(_call, label="mistral.categorise", attempts=2)
         content = result["choices"][0]["message"]["content"]
-        return _from_model_json(json.loads(content))
+        return _from_model_json(json.loads(content), text)
     except Exception:
         return _fallback_categorise(text)
 
@@ -239,7 +246,9 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
     # A bill first: a bill may mention insurance or a "premium" plan without being a policy.
     if has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due"):
         kind = "Bill"
-    elif has(r"insurance") and has(r"policy|renewal|premium|sum insured|cover"):
+    elif (has(r"insurance") and has(r"policy|renewal|premium|sum insured|cover")) or has(
+        r"policy schedule|sum insured"
+    ):
         kind = "Insurance"
     elif has(r"receipt"):
         kind = "Receipt"

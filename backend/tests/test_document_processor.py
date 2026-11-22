@@ -823,3 +823,12 @@ async def test_refresh_during_an_outage_keeps_a_stored_kind(monkeypatch):
             assert (await db.get(Document, document_id)).document_type == "Receipt"
     finally:
         await delete_users(owner_id, other_id)
+
+
+async def test_a_policy_schedule_without_a_model_is_insurance_and_gets_no_warranty(monkeypatch):
+    text = "EXAMPLE ASSURANCE\nPolicy schedule\nPolicy start: 12 December 2025\nCover ends: 12 December 2026"
+    metadata = document_processor.categorisation_service._fallback_categorise(text)
+    document = _document("policy.pdf")
+    database = await _process(monkeypatch, document, text, metadata)
+    assert document.document_type == "Insurance"
+    assert not any(isinstance(item, Warranty) for item in database.added)

@@ -284,9 +284,34 @@ def test_the_kind_source_says_where_the_kind_came_from(monkeypatch):
     assert categorisation_service.categorise_document("").kind_source is None
 
 
-def test_a_model_without_a_kind_has_no_kind_source():
-    metadata = categorisation_service._from_model_json({"kind": None, "title": "x y"})
-    assert (metadata.document_type, metadata.kind_source) == (None, None)
+def test_a_model_reply_without_a_kind_takes_the_fallback_kind(monkeypatch):
+    _configure(monkeypatch, gemini="key")
+    _run_without_retry_delay(monkeypatch)
+
+    class Models:
+        def generate_content(self, **kwargs):
+            return SimpleNamespace(text='{"kind":null,"title":"Linkline bill","brand":null,"model":null,"summary":null}')
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
+    metadata = categorisation_service._categorise_gemini(household_texts.BROADBAND_BILL)
+    assert (metadata.document_type, metadata.kind_source) == ("Bill", "fallback")
+    assert metadata.title == "Linkline bill"
+
+
+def test_a_model_reply_with_a_kind_keeps_it_as_the_models():
+    metadata = categorisation_service._from_model_json({"kind": "Receipt"}, household_texts.BROADBAND_BILL)
+    assert (metadata.document_type, metadata.kind_source) == ("Receipt", "model")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "EXAMPLE ASSURANCE\nPolicy schedule\nCover ends: 12 December 2026",
+        "EXAMPLE ASSURANCE\nHome contents\nSum insured: EUR 25,000.00",
+    ],
+)
+def test_a_policy_schedule_or_sum_insured_is_insurance_without_the_word(text):
+    assert categorisation_service._fallback_categorise(text).document_type == "Insurance"
 
 
 def test_brand_and_model_are_capped_at_100_characters():
