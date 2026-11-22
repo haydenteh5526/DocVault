@@ -27,8 +27,8 @@ from app.schemas.reminder import ReminderProposalOut
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import latest_revision
 from app.services.bill_split import latest_split
-from app.services.categorisation_service import KINDS, normalise_kind
-from app.services.key_dates import DatedLine, extract_key_dates, reviews_bills, scans_text
+from app.services.categorisation_service import KINDS
+from app.services.key_dates import DatedLine, classify_kind, extract_key_dates, reviews_bills, scans_text
 from app.services.reminders import list_proposals
 
 UPCOMING_DAYS = 60
@@ -225,7 +225,7 @@ def _recent(facts: list[_Facts]) -> list[RecentDocument]:
     for f in facts[:RECENT_COUNT]:  # facts are newest first
         outcome, label = _outcome(f)
         out.append(RecentDocument(
-            id=f.doc.id, title=f.doc.title, kind=normalise_kind(f.doc.document_type),
+            id=f.doc.id, title=f.doc.title, kind=classify_kind(f.doc.document_type),
             processing_status=f.doc.processing_status,
             created_at=f.doc.created_at, outcome=outcome, outcome_label=label,
         ))
@@ -233,8 +233,9 @@ def _recent(facts: list[_Facts]) -> list[RecentDocument]:
 
 
 def _counts(facts: list[_Facts]) -> dict[str, int]:
-    # Legacy labels count under the kind they classify as; an empty kind counts only in the total.
-    kinds = [normalise_kind(f.doc.document_type) for f in facts]
+    # Legacy labels count under the kind they classify as; an empty kind or an old keyword guess counts only
+    # in the total (R4-e).
+    kinds = [classify_kind(f.doc.document_type) for f in facts]
     counts = {"total": len(facts)}
     for kind in KINDS:
         n = kinds.count(kind)

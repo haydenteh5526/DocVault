@@ -16,7 +16,7 @@ SCANNED_KINDS = frozenset({"Bill", "Insurance", "Contract"})
 LEGACY_GUESS_LABELS = frozenset({"User Manual", "Warranty Card", "Quick Start Guide", "Specification Sheet"})
 
 
-def _kind(document_type: str | None) -> str | None:
+def classify_kind(document_type: str | None) -> str | None:
     """One of the seven kinds, or None when the document is unclassified."""
     if document_type in LEGACY_GUESS_LABELS:
         return None
@@ -30,13 +30,13 @@ def scans_text(document_type: str | None) -> bool:
     receipts, warranties and other documents are never scanned. An empty kind and the old keyword guesses
     count as unclassified.
     """
-    kind = _kind(document_type)
+    kind = classify_kind(document_type)
     return kind is None or kind in SCANNED_KINDS
 
 
 def reviews_bills(document_type: str | None) -> bool:
     """Whether a document gets a bill review: bills and unclassified documents only (D4)."""
-    return _kind(document_type) in (None, "Bill")
+    return classify_kind(document_type) in (None, "Bill")
 
 
 # Each pattern matches a label; the rest of the line must then be one date.
@@ -45,7 +45,8 @@ _RENEWAL = re.compile(
     r"|cover\s+ends|valid\s+until)\b\s*:?\s*",
     re.I,
 )
-_TERM = re.compile(r"^\s*term\s*:\s*\S.*?\s+to\s+", re.I)
+# Greedy, so the end date follows the last " to " ("Tenancy to run from … to 31 August 2027", R4-d).
+_TERM = re.compile(r"^\s*term\s*:\s*\S.*\s+to\s+", re.I)
 _CONTRACT_END = re.compile(r"^\s*(?:end\s+date|tenancy\s+ends|agreement\s+ends)\s*:\s*", re.I)
 
 _PATTERNS: tuple[tuple[KeyDateKind, tuple[re.Pattern, ...]], ...] = (
@@ -54,6 +55,12 @@ _PATTERNS: tuple[tuple[KeyDateKind, tuple[re.Pattern, ...]], ...] = (
 )
 
 _UNREADABLE = "unreadable"
+# A remainder that starts like a date: a digit, or a month name in full or abbreviated (R4-c).
+_LOOKS_LIKE_A_DATE = re.compile(
+    r"^(?:\d|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b)",
+    re.I,
+)
 
 
 def _value(rest: str) -> str | None:
@@ -63,7 +70,7 @@ def _value(rest: str) -> str | None:
     parsed = _date(rest)
     if parsed:
         return parsed
-    return _UNREADABLE if rest[:1].isdigit() else None
+    return _UNREADABLE if _LOOKS_LIKE_A_DATE.match(rest) else None
 
 
 @dataclass(frozen=True)
@@ -75,7 +82,7 @@ class DatedLine:
 
 
 def _wanted(document_type: str | None) -> set[KeyDateKind]:
-    kind = _kind(document_type)
+    kind = classify_kind(document_type)
     if kind == "Insurance":
         return {"renewal"}
     if kind == "Contract":

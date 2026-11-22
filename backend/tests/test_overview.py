@@ -454,6 +454,17 @@ async def test_a_bill_stored_with_an_old_guess_label_needs_confirming(owner):
     assert out.statuses[bill].label == "Needs confirming"
 
 
+async def test_old_guess_labels_count_as_unclassified(owner):
+    text = household_texts.BROADBAND_BILL_LIVE + "\nDirect Debit Instruction: your bank collects the amount due."
+    await _doc(owner, "Broadband bill", text, "User Manual")
+    await _doc(owner, "Old card", household_texts.WASHER_WARRANTY_CARD, "Warranty Card")
+
+    out = await _overview(owner)
+
+    assert out.counts == {"total": 2}
+    assert {doc.title: doc.kind for doc in out.recent} == {"Broadband bill": None, "Old card": None}
+
+
 async def test_legacy_labels_are_counted_and_shown_as_kinds(owner):
     await _doc(owner, "Old bill", household_texts.BROADBAND_BILL_LIVE, "Monthly bill")
     await _doc(owner, "No kind yet", None, None)
