@@ -261,8 +261,9 @@ async def test_a_short_new_password_is_still_refused(cleanup):
     async with _client() as client:
         res = await client.post(
             "/api/v1/auth/reset-password",
-            # Four characters of a valid password: too short for the rules.
-            json={"token": create_password_reset_token(user_id, 0), "new_password": NEW_PASSWORD[:4]},
+            # Six characters with an upper-case and lower-case letter, a number and a special character:
+            # only the length rule is broken.
+            json={"token": create_password_reset_token(user_id, 0), "new_password": NEW_PASSWORD[:2] + NEW_PASSWORD[-4:]},
         )
     assert res.status_code == 422
     assert (await _user(user_id)).token_version == 0
