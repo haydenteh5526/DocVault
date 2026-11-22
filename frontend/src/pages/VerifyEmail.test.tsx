@@ -2,7 +2,7 @@
 import { StrictMode } from 'react'
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import VerifyEmail from './VerifyEmail'
 
@@ -75,6 +75,20 @@ describe('VerifyEmail', () => {
     await screen.findByRole('heading', { name: 'This link no longer works' })
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'Someone@Example.com' } })
     expect(screen.getByRole('button', { name: /Send a new link in [0-9]+s/ })).toBeDisabled()
+  })
+
+  // Review finding L-new-1: a deadline that passed before the address was typed must not freeze the button.
+  it('enables the button for an address whose countdown ended before it was typed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: 'Invalid or expired verification link' }, 400)))
+    vi.useFakeTimers({ toFake: ['Date'] })
+    sessionStorage.setItem('docvault.linkSent.verify:someone@example.com', String(Date.now() + 30_000))
+    open('old-tok')
+    await screen.findByRole('heading', { name: 'This link no longer works' })
+    vi.setSystemTime(Date.now() + 31_000)
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'someone@example.com' } })
+    await act(async () => {})
+    expect(screen.getByRole('button', { name: 'Send a new link' })).toBeEnabled()
+    vi.useRealTimers()
   })
 
   it('a rejected token says INVALID', async () => {

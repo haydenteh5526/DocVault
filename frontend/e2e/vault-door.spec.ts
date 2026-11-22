@@ -54,6 +54,32 @@ test.describe('the vault door at 1366 x 768', () => {
   });
 });
 
+test.describe('the vault door on a very short screen', () => {
+  // About what is left of a laptop at 200% zoom, or a phone on its side, after the browser's own bars.
+  test.use({ viewport: { width: 683, height: 280 } });
+
+  test('every part of the registration confirmation can be reached', async ({ page }) => {
+    await page.route('**/api/v1/auth/register', route => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ message: 'sent', requires_verification: true }) }));
+    await page.goto('/register');
+    await toPasswordStep(page, 'someone@example.com');
+    await page.getByPlaceholder('Password').fill('Password123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-settled/);
+    // The card starts inside the screen rather than being centred off the top...
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeInViewport();
+    // ...and the rest can be reached with the mouse wheel, as a person would. (Scrolling from code
+    // would pass even inside an overflow: hidden box that no one can scroll.)
+    const resend = page.getByRole('button', { name: /Resend email/ });
+    await page.mouse.move(341, 140);
+    for (let i = 0; i < 10 && !(await resend.evaluate(el => el.getBoundingClientRect().bottom <= innerHeight)); i++) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(100);
+    }
+    await expect(resend).toBeInViewport();
+    await expect(page.getByRole('link', { name: 'Go to sign in' })).toBeVisible();
+  });
+});
+
 test.describe('the vault door at 390 px', () => {
   test.use({ viewport: MOBILE });
 

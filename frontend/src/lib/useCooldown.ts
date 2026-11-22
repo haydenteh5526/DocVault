@@ -39,6 +39,9 @@ export function useLinkCooldown(kind: LinkKind, email: string): [remaining: numb
   const until = readUntil(kind, email)
 
   useEffect(() => {
+    // Refresh the clock whenever the deadline changes (another address typed, or a send recorded elsewhere),
+    // so a deadline that has already passed never leaves the button frozen on a stale countdown.
+    setNow(Date.now())
     if (until <= Date.now()) return
     const timer = window.setInterval(() => {
       const t = Date.now()
