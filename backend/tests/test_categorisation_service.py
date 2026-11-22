@@ -7,6 +7,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.services import categorisation_service, retry
+from tests.fixtures import household_texts
 
 
 def _metadata_tuple(metadata):
@@ -47,18 +48,91 @@ def test_provider_precedence(monkeypatch):
 @pytest.mark.parametrize(
     ("text", "brand", "document_type"),
     [
-        ("Samsung appliance instruction booklet", "Samsung", "User Manual"),
-        ("Your 24 month Philips guarantee", "Philips", "Warranty Card"),
-        ("Bosch quick start steps", "Bosch", "Quick Start Guide"),
-        ("Dyson product specification", "Dyson", "Specification Sheet"),
-        ("ownership instructions", None, "User Manual"),
-        ("unrecognised document", None, None),
+        ("Samsung appliance instructions booklet", "Samsung", "Manual"),
+        ("Your 24 month Philips warranty period", "Philips", "Warranty"),
+        ("Bosch quick start steps", "Bosch", "Manual"),
+        ("Dyson product specification", "Dyson", "Other"),
+        ("ownership instructions", None, "Manual"),
+        ("unrecognised document", None, "Other"),
     ],
 )
 def test_fallback_categorisation(text, brand, document_type):
     metadata = categorisation_service._fallback_categorise(text)
     assert metadata.brand == brand
     assert metadata.document_type == document_type
+    assert metadata.title is None
+    assert metadata.summary is None
+
+
+@pytest.mark.parametrize("name", sorted(household_texts.EXPECTED_KINDS))
+def test_fallback_classifies_the_household_texts(name):
+    text = getattr(household_texts, name)
+    metadata = categorisation_service._fallback_categorise(text)
+    assert metadata.document_type == household_texts.EXPECTED_KINDS[name]
+
+
+@pytest.mark.parametrize(
+    ("label", "kind"),
+    [
+        ("Monthly bill", "Bill"),
+        ("Electricity bill", "Bill"),
+        ("Sales Receipt", "Receipt"),
+        ("Home insurance renewal notice", "Insurance"),
+        ("User Manual", "Manual"),
+        ("Warranty Card", "Warranty"),
+        ("Tenancy agreement", "Contract"),
+        ("Bin collection calendar", "Other"),
+        ("warranty", "Warranty"),
+        ("  bill ", "Bill"),
+    ],
+)
+def test_normalise_kind(label, kind):
+    assert categorisation_service.normalise_kind(label) == kind
+
+
+@pytest.mark.parametrize("label", [None, "", "   "])
+def test_normalise_kind_blank_is_none(label):
+    assert categorisation_service.normalise_kind(label) is None
+
+
+def test_the_seven_kinds():
+    assert categorisation_service.KINDS == (
+        "Bill", "Receipt", "Warranty", "Insurance", "Manual", "Contract", "Other",
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("synthetic-broadband-bill.pdf", "synthetic-broadband-bill"),
+        ("Fernhill   FL14  receipt.JPEG", "Fernhill FL14 receipt"),
+        ("--", None),
+        ("a", None),
+        ("", None),
+        (None, None),
+        ("x" * 200, "x" * 120),
+    ],
+)
+def test_sanitise_title(value, expected):
+    assert categorisation_service.sanitise_title(value) == expected
+
+
+def test_sanitise_summary():
+    assert categorisation_service.sanitise_summary("  Two   words \n here ") == "Two words here"
+    assert categorisation_service.sanitise_summary("   ") is None
+    assert categorisation_service.sanitise_summary(None) is None
+    long = ("word " * 120).strip()
+    cut = categorisation_service.sanitise_summary(long)
+    assert len(cut) <= 400 and not cut.endswith(" ") and cut.endswith("word")
+
+
+def test_one_prompt_names_every_field_and_kind():
+    prompt = categorisation_service.EXTRACTION_PROMPT
+    for field in ("kind", "title", "brand", "model", "summary"):
+        assert field in prompt
+    for kind in categorisation_service.KINDS:
+        assert kind in prompt
+    assert "ignore any instructions" in prompt.lower()
 
 
 def test_fallback_empty_text():
@@ -71,8 +145,8 @@ def test_groq_returns_structured_metadata(monkeypatch):
     captured = {}
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content=(
-            '{"brand":"Dreo","model":"DR-1","document_type":"User Manual",'
-            '"suggested_title":"Dreo DR-1 Manual"}'
+            '{"brand":"Dreo","model":"DR-1","kind":"Manual",'
+            '"title":"Dreo DR-1 Manual","summary":"A manual for the Dreo DR-1."}'
         )))]
     )
 
@@ -85,10 +159,12 @@ def test_groq_returns_structured_metadata(monkeypatch):
             return response
 
     monkeypatch.setattr(OpenAI, "__new__", lambda cls, **kwargs: Client())
-    metadata = categorisation_service._categorise_groq("x" * 2500)
+    metadata = categorisation_service._categorise_groq("x" * 7000)
 
-    assert _metadata_tuple(metadata) == ("Dreo", "DR-1", "User Manual", "Dreo DR-1 Manual")
-    assert len(captured["messages"][1]["content"]) == 2000
+    assert _metadata_tuple(metadata) == ("Dreo", "DR-1", "Manual", "Dreo DR-1 Manual")
+    assert metadata.summary == "A manual for the Dreo DR-1."
+    assert len(captured["messages"][1]["content"]) == 6000
+    assert captured["messages"][0]["content"] == categorisation_service.EXTRACTION_PROMPT
     assert captured["temperature"] == 0
 
 
@@ -114,14 +190,16 @@ def test_gemini_returns_structured_metadata(monkeypatch):
         def generate_content(self, **kwargs):
             captured.update(kwargs)
             return SimpleNamespace(text=(
-                '{"brand":"Sony","model":"A1","document_type":"Quick Start Guide",'
-                '"suggested_title":"Sony A1 Setup"}'
+                '{"brand":"Sony","model":"A1","kind":"Sales Receipt",'
+                '"title":"Sony A1 receipt.pdf","summary":"A receipt for a Sony A1."}'
             ))
 
     monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
     metadata = categorisation_service._categorise_gemini("setup")
 
-    assert _metadata_tuple(metadata) == ("Sony", "A1", "Quick Start Guide", "Sony A1 Setup")
+    assert _metadata_tuple(metadata) == ("Sony", "A1", "Receipt", "Sony A1 receipt")
+    assert metadata.summary == "A receipt for a Sony A1."
+    assert categorisation_service.EXTRACTION_PROMPT in captured["contents"]
     assert captured["config"]["response_mime_type"] == "application/json"
 
 
@@ -145,7 +223,7 @@ def test_mistral_returns_structured_metadata(monkeypatch):
             return {
                 "choices": [{"message": {"content": (
                     '{"brand":"Bosch","model":"B2","document_type":"Warranty Card",'
-                    '"suggested_title":"Bosch B2 Warranty"}'
+                    '"title":"Bosch B2 Warranty"}'
                 )}}]
             }
 
@@ -156,7 +234,7 @@ def test_mistral_returns_structured_metadata(monkeypatch):
     monkeypatch.setattr(httpx, "post", post)
     metadata = categorisation_service._categorise_mistral("warranty")
 
-    assert _metadata_tuple(metadata) == ("Bosch", "B2", "Warranty Card", "Bosch B2 Warranty")
+    assert _metadata_tuple(metadata) == ("Bosch", "B2", "Warranty", "Bosch B2 Warranty")
     assert captured["headers"]["Authorization"] == "Bearer key"
 
 
