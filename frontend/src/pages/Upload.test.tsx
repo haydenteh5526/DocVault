@@ -20,23 +20,25 @@ function Where() {
 
 function renderUpload(queryClient = new QueryClient()) {
   const view = render(
-    <QueryClientProvider client={queryClient}><ToastProvider>
-      <MemoryRouter initialEntries={['/app/upload']}>
-        <Where />
-        <Routes>
-          <Route path="/app/upload" element={<UploadPage />} />
-          <Route path="*" element={null} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider></QueryClientProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/app/upload']}>
+          <Where />
+          <Routes>
+            <Route path="/app/upload" element={<UploadPage />} />
+            <Route path="*" element={null} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
   )
   return { ...view, queryClient }
 }
 
-async function uploadOneFile(container: HTMLElement) {
+async function uploadOneFile(container: HTMLElement, file = new File(['x'], 'bill.pdf', { type: 'application/pdf' })) {
   vi.mocked(uploadDocument).mockResolvedValue({ id: 'doc-1' } as Document)
   const input = container.querySelector('input[type="file"]') as HTMLInputElement
-  await userEvent.upload(input, new File(['x'], 'bill.pdf', { type: 'application/pdf' }))
+  await userEvent.upload(input, file)
   await userEvent.click(screen.getByRole('button', { name: /^Upload/ }))
   await screen.findByText('Upload Complete!')
 }
@@ -117,10 +119,11 @@ describe('queue dedupe', () => {
 
   it('allows the same file again after Upload More', async () => {
     const { container } = renderUpload()
-    await uploadOneFile(container)
+    await uploadOneFile(container, pdf('bill.pdf'))
     await userEvent.click(screen.getByRole('button', { name: 'Upload More' }))
     await userEvent.upload(input(container), pdf('bill.pdf'))
     expect(screen.getByRole('heading', { name: 'Files (1)' })).toBeVisible()
+    expect(screen.queryByText(/already in the queue/)).toBeNull()
   })
 
   it('uploads each of the four files once', async () => {
