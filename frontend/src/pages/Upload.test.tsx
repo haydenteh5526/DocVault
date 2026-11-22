@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { uploadDocument, type Document } from '@/lib/api'
+import { ToastProvider } from '@/components/Toast'
 import UploadPage from './Upload'
 
 vi.mock('@/lib/api', async importOriginal => {
@@ -19,7 +20,7 @@ function Where() {
 
 function renderUpload(queryClient = new QueryClient()) {
   const view = render(
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}><ToastProvider>
       <MemoryRouter initialEntries={['/app/upload']}>
         <Where />
         <Routes>
@@ -27,7 +28,7 @@ function renderUpload(queryClient = new QueryClient()) {
           <Route path="*" element={null} />
         </Routes>
       </MemoryRouter>
-    </QueryClientProvider>,
+    </ToastProvider></QueryClientProvider>,
   )
   return { ...view, queryClient }
 }
@@ -76,4 +77,59 @@ it('keeps the file available to retry after a failed upload', async () => {
   expect(await screen.findByText('Could not read this file')).toBeVisible()
   await userEvent.click(screen.getByRole('button',{name:'Try again'}))
   expect(await screen.findByRole('heading',{name:'Upload Complete!'})).toBeVisible()
+})
+
+describe('queue dedupe', () => {
+  const pdf = (name: string, body = 'x', lastModified = 1000) => new File([body], name, { type: 'application/pdf', lastModified })
+  const four = () => ['a', 'b', 'c', 'd'].map(n => pdf(n + '.pdf'))
+  const input = (c: HTMLElement) => c.querySelector('input[type=file]') as HTMLInputElement
+
+  it('choosing the same four files twice queues four and says so', async () => {
+    const { container } = renderUpload()
+    await userEvent.upload(input(container), four())
+    await userEvent.upload(input(container), four())
+    expect(screen.getByRole('heading', { name: 'Files (4)' })).toBeVisible()
+    expect(screen.getByText('4 files are already in the queue.')).toBeVisible()
+  })
+
+  it('names the file when one repeat is skipped', async () => {
+    const { container } = renderUpload()
+    await userEvent.upload(input(container), pdf('bill.pdf'))
+    await userEvent.upload(input(container), pdf('bill.pdf'))
+    expect(screen.getByRole('heading', { name: 'Files (1)' })).toBeVisible()
+    expect(screen.getByText('bill.pdf is already in the queue.')).toBeVisible()
+  })
+
+  it('queues a file once when a selection repeats it', async () => {
+    const { container } = renderUpload()
+    await userEvent.upload(input(container), [pdf('bill.pdf'), pdf('bill.pdf'), pdf('other.pdf')])
+    expect(screen.getByRole('heading', { name: 'Files (2)' })).toBeVisible()
+    expect(screen.getByText('bill.pdf is already in the queue.')).toBeVisible()
+  })
+
+  it('still queues a file with the same name but a different size', async () => {
+    const { container } = renderUpload()
+    await userEvent.upload(input(container), pdf('bill.pdf', 'x'))
+    await userEvent.upload(input(container), pdf('bill.pdf', 'xy'))
+    expect(screen.getByRole('heading', { name: 'Files (2)' })).toBeVisible()
+    expect(screen.queryByText(/already in the queue/)).toBeNull()
+  })
+
+  it('allows the same file again after Upload More', async () => {
+    const { container } = renderUpload()
+    await uploadOneFile(container)
+    await userEvent.click(screen.getByRole('button', { name: 'Upload More' }))
+    await userEvent.upload(input(container), pdf('bill.pdf'))
+    expect(screen.getByRole('heading', { name: 'Files (1)' })).toBeVisible()
+  })
+
+  it('uploads each of the four files once', async () => {
+    vi.mocked(uploadDocument).mockResolvedValue({ id: 'doc-1' } as Document)
+    const { container } = renderUpload()
+    await userEvent.upload(input(container), four())
+    await userEvent.upload(input(container), four())
+    await userEvent.click(screen.getByRole('button', { name: 'Upload All (4)' }))
+    await screen.findByText('Upload Complete!')
+    expect(uploadDocument).toHaveBeenCalledTimes(4)
+  })
 })
