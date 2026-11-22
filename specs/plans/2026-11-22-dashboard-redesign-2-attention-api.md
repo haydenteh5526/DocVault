@@ -16,8 +16,10 @@ These amend Revision 3. Each fix needs a test that fails first.
 
 - **R4-a (L-1):** on "Read details again" or reprocess, a `fallback` kind replaces a `LEGACY_GUESS_LABELS` value only when it is `Bill`, `Receipt`, `Insurance` or `Contract`. Otherwise the legacy label stays and is still treated as unclassified (R3-a). A `model` kind replaces it as before (R1-b).
   - Test: a bill stored as "User Manual", refreshed with no provider key, stays reviewable.
-- **R4-b (L-2, a regression from R3-d):** the fallback's label-based Bill rule must not fire on a receipt. Check the `Receipt` signal first when `receipt` appears and no line matches `_AMOUNT_LABEL` or `_DATE_LABEL`.
-  - Tests: a laptop receipt with "Billing address" stays `Receipt` and keeps its warranty; the R3-d gas bill is still `Bill`.
+- **R4-b (L-2, a regression from R3-d; corrected 22 November after the builder showed the first wording could not fail first):**
+  - The label-based Bill branch from R3-d uses the bill review's own whole-word check, `re.search(r"\b(?:bill|invoice|statement)\b", text, re.I)`, as R3-d's wording intended. "Billing address" therefore no longer counts as "bill".
+  - The older substring rule from PR 1 is unchanged, so every PR 1 test passes unedited, and any text that gets a bill review is still typed `Bill`.
+  - Tests: the reviewer's probe "Sales receipt / Billing address: 1 Main St / Amount payable: EUR 899.00" stays `Receipt` and keeps its warranty; the R3-d gas bill is still `Bill`.
 - **R4-c (L-3):** a labelled key-date remainder that starts with a digit **or a month name** and fails to parse counts as unreadable.
   - Test: "Renewal date: 15 January 2027" plus "Renewal date: January 15, 2027" returns no renewal.
 - **R4-d (a regression from R3-c):** contract term phrases that read before R3-c read again.
