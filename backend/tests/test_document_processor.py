@@ -439,3 +439,57 @@ async def test_an_existing_warranty_keeps_set_dates_and_only_fills_empty_ones(mo
     assert existing.expiry_date == date(2027, 5, 1)
     assert existing.purchase_date == date(2026, 1, 8)
     assert existing.notes == "Owner note"
+
+
+# --- Summaries (Task 4) ------------------------------------------------------------------------
+
+_GEMINI_SUMMARY = "Linkline Broadband bill for November 2026. EUR 45.00 is due on 20 November 2026."
+
+
+def _keys(monkeypatch, *, gemini="", mistral=""):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", gemini)
+    monkeypatch.setattr(settings, "MISTRAL_API_KEY", mistral)
+
+
+async def test_a_gemini_only_setup_stores_the_extraction_summary(monkeypatch):
+    from google import genai
+
+    _keys(monkeypatch, gemini="key")
+    monkeypatch.setattr(retry, "with_retry", lambda fn, **kwargs: fn())
+
+    class Models:
+        def generate_content(self, **kwargs):
+            return SimpleNamespace(text=(
+                '{"kind":"Bill","title":"Linkline Broadband bill \u2014 November 2026",'
+                f'"brand":null,"model":null,"summary":"{_GEMINI_SUMMARY}"}}'
+            ))
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
+    monkeypatch.setattr(
+        document_processor, "_generate_summary",
+        lambda text: (_ for _ in ()).throw(AssertionError("no second model call")),
+    )
+    metadata = document_processor.categorisation_service.categorise_document("LINKLINE BROADBAND bill")
+    document = _document("synthetic-broadband-bill.pdf")
+    await _process(monkeypatch, document, "LINKLINE BROADBAND bill", metadata)
+    assert document.summary == _GEMINI_SUMMARY
+    assert document.document_type == "Bill"
+
+
+async def test_with_a_mistral_key_the_mistral_summary_is_stored(monkeypatch):
+    _keys(monkeypatch, gemini="key", mistral="key")
+    payload = '{"overview":"From Mistral","key_topics":[],"specifications":[],"safety_warnings":[],"quick_facts":[]}'
+    monkeypatch.setattr(document_processor, "_generate_summary", lambda text: payload)
+    document = _document("bill.pdf")
+    await _process(monkeypatch, document, "text", _metadata(summary="From the extraction"))
+    assert document.summary == payload
+
+
+async def test_with_no_key_the_summary_is_none(monkeypatch):
+    _keys(monkeypatch)
+    document = _document("bill.pdf")
+    metadata = document_processor.categorisation_service.categorise_document("Electricity bill. Amount due EUR 5")
+    await _process(monkeypatch, document, "Electricity bill. Amount due EUR 5", metadata)
+    assert document.summary is None
+    assert document.document_type == "Bill"

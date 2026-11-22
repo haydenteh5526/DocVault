@@ -9,6 +9,7 @@ import uuid
 
 from sqlalchemy import select
 
+from app.config import settings
 from app.dependencies import async_session
 from app.logging_config import get_logger
 from app.models.base import DocChunk, Document, Warranty
@@ -79,6 +80,13 @@ def _run_ocr_and_metadata(file_bytes: bytes, content_type: str) -> tuple[str, ob
     return raw_text, metadata
 
 
+async def _summary_for(raw_text: str, metadata) -> str | None:
+    """Mistral's structured summary when Mistral is configured; otherwise the extraction's own summary."""
+    if settings.MISTRAL_API_KEY:
+        return await asyncio.to_thread(_generate_summary, raw_text)
+    return categorisation_service.sanitise_summary(metadata.summary)
+
+
 async def _apply_warranty(db, doc: Document, raw_text: str) -> None:
     """Create a warranty only when an end date is known; never change a date the owner set.
 
@@ -126,9 +134,8 @@ async def process_document(document_id: str | uuid.UUID) -> None:
             doc.raw_text = raw_text or None
             _apply_details(doc, raw_text, metadata)
 
-            # Generate a short AI summary
             if raw_text:
-                doc.summary = await asyncio.to_thread(_generate_summary, raw_text)
+                doc.summary = await _summary_for(raw_text, metadata)
 
             # Replace any existing chunks, then chunk + embed
             existing = (await db.execute(select(DocChunk).where(DocChunk.document_id == doc.id))).scalars().all()
