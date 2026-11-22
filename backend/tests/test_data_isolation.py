@@ -23,9 +23,10 @@ async def test_document_endpoints_are_isolated_between_users():
                 await client.get(f"/api/v1/documents/{document_id}", headers=headers),
                 await client.patch(f"/api/v1/documents/{document_id}", headers=headers, json={"title": "stolen"}),
                 await client.get(f"/api/v1/documents/{document_id}/share", headers=headers),
+                await client.post(f"/api/v1/documents/{document_id}/refresh-details", headers=headers),
                 await client.delete(f"/api/v1/documents/{document_id}", headers=headers),
             ]
-        assert [response.status_code for response in responses] == [404, 404, 404, 404]
+        assert [response.status_code for response in responses] == [404, 404, 404, 404, 404]
 
         async with async_session() as db:
             document = (

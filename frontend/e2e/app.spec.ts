@@ -487,7 +487,8 @@ test.describe('Bill review and split', () => {
     };
 
     // A name no other run or scenario uses, so a bill left behind by a crashed run cannot match the title too.
-    const fileName = `playwright-assistant-${Date.now()}.png`;
+    const stamp = Date.now();
+    const fileName = `playwright-assistant-${stamp}.png`;
     let documentId: string | undefined;
     let conversationId: string | undefined;
     try {
@@ -499,7 +500,8 @@ test.describe('Bill review and split', () => {
       await expect(review).toContainText('Confirmed · revision 1');
 
       // Name the bill by its title, which is unique to this run, so the request holds when the account has other bills.
-      const title = ((await page.getByRole('heading', { name: fileName }).first().textContent()) ?? '').trim();
+      // Processing turns the file name into a title without its extension, e.g. "Playwright assistant 1763...".
+      const title = ((await page.getByRole('heading', { name: new RegExp(`playwright[- ]assistant[- ]${stamp}`, 'i') }).first().textContent()) ?? '').trim();
       expect(title).not.toBe('');
 
       await goInApp(page, '/app/ask');

@@ -321,3 +321,47 @@ async def test_an_explicit_null_title_means_not_changing():
         assert res.json()["brand"] == "Acme"
     finally:
         await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
+async def test_refresh_details_is_owner_scoped_and_waits_for_reading(monkeypatch):
+    from sqlalchemy import update
+
+    from app.dependencies import async_session
+    from app.models.base import Document, Tag, document_tags
+    from app.services import categorisation_service
+    from app.services.auth_service import create_access_token
+    from tests.accounts import create_users_and_document, delete_users
+
+    monkeypatch.setattr(
+        categorisation_service, "categorise_document",
+        lambda text: categorisation_service.DocumentMetadata(document_type="Bill", title="Linkline Broadband bill"),
+    )
+    owner_id, other_id, document_id = await create_users_and_document(raw_text="LINKLINE BROADBAND bill")
+    url = f"/api/v1/documents/{document_id}/refresh-details"
+    try:
+        async with async_session() as db:
+            await db.execute(update(Document).where(Document.id == document_id).values(title="broadband.pdf"))
+            tag = Tag(user_id=owner_id, name="household")
+            db.add(tag)
+            await db.flush()
+            await db.execute(document_tags.insert().values(document_id=document_id, tag_id=tag.id))
+            await db.commit()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+            other = await c.post(url, headers={"Authorization": f"Bearer {create_access_token(other_id)}"})
+            owner = await c.post(url, headers={"Authorization": f"Bearer {create_access_token(owner_id)}"})
+        assert other.status_code == 404
+        assert owner.status_code == 200
+        assert owner.json()["title"] == "Linkline Broadband bill"
+        assert owner.json()["document_type"] == "Bill"
+        assert [t["name"] for t in owner.json()["tags"]] == ["household"]
+
+        async with async_session() as db:
+            await db.execute(update(Document).where(Document.id == document_id).values(processing_status="pending"))
+            await db.commit()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+            pending = await c.post(url, headers={"Authorization": f"Bearer {create_access_token(owner_id)}"})
+        assert pending.status_code == 409
+        assert pending.json()["detail"] == {"code": "not_ready", "message": "This document is still being read."}
+    finally:
+        await delete_users(owner_id, other_id)
