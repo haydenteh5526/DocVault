@@ -48,8 +48,8 @@ def test_token_expiry_only_reads_verified_tokens():
 
 def test_password_reset_token_roundtrip():
     uid = uuid.uuid4()
-    token = create_password_reset_token(uid)
-    assert verify_password_reset_token(token) == uid
+    token = create_password_reset_token(uid, 4)
+    assert verify_password_reset_token(token) == (uid, 4)
 
 
 def test_password_reset_rejects_other_token_types():

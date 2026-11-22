@@ -30,6 +30,56 @@ async function toPasswordStep(page: Page, email: string) {
   await expect(page.getByPlaceholder('Password')).toBeVisible();
 }
 
+test.describe('the vault door at 1366 x 768', () => {
+  test.use({ viewport: { width: 1366, height: 768 } });
+
+  test('a dead verification link, the longest door page, fits without a vertical scroll', async ({ page }) => {
+    await page.goto('/verify?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test('the registration confirmation behind the open door fits without a vertical scroll', async ({ page }) => {
+    // The confirmation only needs a 201; nothing is created and no email is sent.
+    await page.route('**/api/v1/auth/register', route => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ message: 'sent', requires_verification: true }) }));
+    await page.goto('/register');
+    await toPasswordStep(page, 'someone@example.com');
+    await page.getByPlaceholder('Password').fill('Password123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-settled/);
+    const overflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
+test.describe('the vault door on a very short screen', () => {
+  // About what is left of a laptop at 200% zoom, or a phone on its side, after the browser's own bars.
+  test.use({ viewport: { width: 683, height: 280 } });
+
+  test('every part of the registration confirmation can be reached', async ({ page }) => {
+    await page.route('**/api/v1/auth/register', route => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ message: 'sent', requires_verification: true }) }));
+    await page.goto('/register');
+    await toPasswordStep(page, 'someone@example.com');
+    await page.getByPlaceholder('Password').fill('Password123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.locator('.safe-stage')).toHaveClass(/safe-settled/);
+    // The card starts inside the screen rather than being centred off the top...
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeInViewport();
+    // ...and the rest can be reached with the mouse wheel, as a person would. (Scrolling from code
+    // would pass even inside an overflow: hidden box that no one can scroll.)
+    const resend = page.getByRole('button', { name: /Resend email/ });
+    await page.mouse.move(341, 140);
+    for (let i = 0; i < 10 && !(await resend.evaluate(el => el.getBoundingClientRect().bottom <= innerHeight)); i++) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(100);
+    }
+    await expect(resend).toBeInViewport();
+    await expect(page.getByRole('link', { name: 'Go to sign in' })).toBeVisible();
+  });
+});
+
 test.describe('the vault door at 390 px', () => {
   test.use({ viewport: MOBILE });
 
@@ -54,9 +104,33 @@ test.describe('the vault door at 390 px', () => {
     await expectNoWcagViolations(page);
   });
 
+  test('reset password, email verification and the Google callback sit in the door with no WCAG A/AA violations', async ({ page }) => {
+    await page.goto('/reset-password?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'Set a new password' })).toBeVisible();
+    await page.getByPlaceholder('New password').fill('abcdefgh');
+    await expect(page.locator('.vault-door')).toHaveClass(/vault-entering/);
+    await expectNoWcagViolations(page);
+
+    // A made-up token is refused, so the page offers a new link.
+    await page.getByPlaceholder('New password').fill('NewPass789!');
+    await page.getByRole('button', { name: 'Reset password', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'This reset link no longer works' })).toBeVisible();
+    await expect(page.locator('[data-part="status-label"]')).toHaveText('INVALID');
+    await expectNoWcagViolations(page);
+
+    await page.goto('/verify?token=not-a-real-token');
+    await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send a new link' })).toBeVisible();
+    await expectNoWcagViolations(page);
+
+    await page.goto('/auth/callback#error=oauth_denied');
+    await expect(page.getByRole('heading', { name: 'Sign-in failed' })).toBeVisible();
+    await expectNoWcagViolations(page);
+  });
+
   test('every door page fits the screen without a sideways scroll', async ({ page }) => {
     const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    for (const route of ['/login', '/register', '/forgot-password']) {
+    for (const route of ['/login', '/register', '/forgot-password', '/reset-password?token=x', '/verify', '/auth/callback#error=oauth_denied']) {
       await page.goto(route);
       await expect(page.locator('.safe-stage')).toBeVisible();
       expect(await overflow(), route).toBeLessThanOrEqual(0);

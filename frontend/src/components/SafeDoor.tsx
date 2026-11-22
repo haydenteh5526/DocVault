@@ -5,7 +5,10 @@ import { VaultDoor, type VaultState } from '@/components/VaultDoor'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import './SafeDoor.css'
 
-const STATUS: Record<VaultState, { label: string; led: string }> = {
+/** The status light's states. `sent` is a steady neutral blue: a link went out, and nothing is said about the account. */
+export type StatusLight = 'locked' | 'verifying' | 'invalid' | 'unlocked' | 'sent'
+
+const STATUS: Record<VaultState, { label: string; led: StatusLight }> = {
   closed: { label: 'LOCKED', led: 'locked' },
   entering: { label: 'LOCKED', led: 'locked' },
   unlocking: { label: 'VERIFYING', led: 'verifying' },
@@ -60,6 +63,7 @@ export function SafeDoor({
   interior,
   settled = false,
   announcement = '',
+  status,
   children,
 }: {
   state: VaultState
@@ -70,10 +74,12 @@ export function SafeDoor({
   settled?: boolean
   /** Read out politely. It lives outside the door slab, which is hidden from assistive technology once open. */
   announcement?: string
+  /** A page's own wording for the LCD (CHECK EMAIL, UPDATED and so on) in place of the label `state` gives. */
+  status?: { label: string; led: StatusLight }
   children: ReactNode
 }) {
   const still = useReducedMotion()
-  const { label, led } = STATUS[state]
+  const { label, led } = status ?? STATUS[state]
   const open = state === 'open'
   return (
     <div className={`safe-stage safe-${state}${still ? ' safe-still' : ''}${settled ? ' safe-settled' : ''}`}>
@@ -98,7 +104,7 @@ export function SafeDoor({
         <main id="account-form" tabIndex={-1} className="safe-main">
           <div className="safe-console">
             {CORNERS.map(c => <span key={c} data-part="screw" className={`safe-screw safe-screw-${c}`} aria-hidden="true" />)}
-            <div data-part="lcd" className="safe-lcd">
+            <div data-part="lcd" data-led={led} className="safe-lcd">
               <StatusLed led={led} />
               <span data-part="status-label" className="safe-status-label">{label}</span>
             </div>

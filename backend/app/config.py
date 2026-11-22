@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     JWT_EXPIRY_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
+    VERIFICATION_EXPIRY_HOURS: int = 24
+    VERIFICATION_RESEND_COOLDOWN_S: int = 60
     OLLAMA_URL: str = ""
     ANSWER_MODEL: str = ""  # Ollama tag; empty: answers come from Groq, Gemini or the no-key reply
     ASSISTANT_MODEL: str = ""  # empty: chat requests use the keyword router

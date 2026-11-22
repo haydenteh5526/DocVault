@@ -60,6 +60,6 @@ describe('verifyEmail', () => {
 
   it('does not use the registration wording for a list detail', async () => {
     vi.stubGlobal('fetch', reply(422, { detail: [{ loc: ['query'] }] }))
-    await expect(verifyEmail('tok-422')).resolves.toEqual({ ok: false, message: 'Verification failed' })
+    await expect(verifyEmail('tok-422')).resolves.toEqual({ ok: false, message: 'Verification failed', status: 422 })
   })
 })

@@ -167,6 +167,9 @@ Use [`.env.example`](.env.example) for the full local configuration.
 | `GROQ_API_KEY` or `GEMINI_API_KEY` | Optional. Enable generated Q&A. Without a key, development mode returns retrieved excerpts. |
 | `GEMINI_MODEL` | `gemini-2.5-flash`. The Gemini model used for answers and for document categorisation. Every call turns thinking off, so the model must allow that (2.5 Flash or Flash-Lite; 2.5 Pro cannot). |
 | `FRONTEND_URL` | `http://localhost:3000`. Used in verification and recovery links. |
+| `RESEND_API_KEY` or `SMTP_*` | Optional real email delivery. Without either, Docker Compose sends account email to Mailpit at `http://localhost:8025`. |
+| `VERIFICATION_EXPIRY_HOURS` | `24`. How long a verification link works. |
+| `VERIFICATION_RESEND_COOLDOWN_S` | `60`. How often one account may be sent a new verification link. |
 | `EXPO_PUBLIC_API_URL` | Optional API base URL for the mobile client. Set it in the shell that starts Expo. |
 
 ---

@@ -1,7 +1,8 @@
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from app.services.auth_service import (
     create_oauth_state,
     create_password_reset_token,
     create_refresh_token,
-    decode_token,
+    decode_token_claims,
     hash_password,
     token_expiry,
     verify_oauth_state,
@@ -24,6 +25,11 @@ from app.services.auth_service import (
 )
 
 router = APIRouter()
+
+
+def _utcnow() -> datetime:
+    """Naive UTC, matching how the users table stores timestamps."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 PASSWORD_RULES_MESSAGE = (
@@ -76,6 +82,10 @@ class ResetPasswordRequest(BaseModel):
         return check_password_rules(value)
 
 
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -105,6 +115,7 @@ async def register(request: Request, req: RegisterRequest, db: AsyncSession = De
         hashed_password=hash_password(req.password),
         display_name=req.display_name,
         verification_token=token,
+        verification_sent_at=_utcnow(),
         is_verified=False,
     )
     db.add(user)
@@ -123,11 +134,54 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(400, "Invalid or expired verification link")
+    sent_at = user.verification_sent_at
+    if sent_at is None or _utcnow() - sent_at > timedelta(hours=settings.VERIFICATION_EXPIRY_HOURS):
+        raise HTTPException(400, "This verification link has expired. Request a new one.")
 
     user.is_verified = True
     user.verification_token = None
     await db.commit()
     return {"message": "Email verified successfully. You can now sign in."}
+
+
+# True whether or not a link went out: the server sends at most one a minute per account.
+RESEND_VERIFICATION_MESSAGE = (
+    "If that account still needs verifying, a new link is on its way. We send at most one a minute."
+)
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification(
+    request: Request,
+    req: ResendVerificationRequest,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a new verification link. The reply is the same whatever the account's state,
+    so the endpoint cannot be used to learn which emails are registered or verified.
+
+    The row is locked so two requests at once cannot both pass the cooldown and send two
+    links, and the email goes out after the reply so its timing reveals nothing.
+    """
+    user = (
+        await db.execute(select(User).where(User.email == req.email).with_for_update())
+    ).scalar_one_or_none()
+    generic = {"message": RESEND_VERIFICATION_MESSAGE}
+    if not user or user.is_verified:
+        return generic
+    cooldown = timedelta(seconds=settings.VERIFICATION_RESEND_COOLDOWN_S)
+    if user.verification_sent_at and _utcnow() - user.verification_sent_at < cooldown:
+        return generic
+
+    # A new link replaces the old one, so only the latest email works.
+    user.verification_token = secrets.token_urlsafe(32)
+    user.verification_sent_at = _utcnow()
+    await db.commit()
+
+    from app.services.email_service import send_verification_email
+    background.add_task(send_verification_email, user.email, user.verification_token)
+    return generic
 
 
 class LoginResponse(BaseModel):
@@ -154,8 +208,8 @@ async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(
         return LoginResponse(requires_2fa=True)
 
     return LoginResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id, req.remember_me),
+        access_token=create_access_token(user.id, user.token_version),
+        refresh_token=create_refresh_token(user.id, req.remember_me, user.token_version),
     )
 
 
@@ -167,13 +221,14 @@ async def refresh(req: RefreshRequest, db: AsyncSession = Depends(get_db)):
     preserves the remaining lifetime of the presented one (we keep the same
     30-day window by decoding its expiry rather than resetting it).
     """
-    user_id = decode_token(req.refresh_token, expected_type="refresh")
-    if not user_id:
+    claims = decode_token_claims(req.refresh_token, expected_type="refresh")
+    if not claims:
         raise HTTPException(401, "Invalid or expired refresh token")
+    user_id, version = claims
 
-    # Ensure the user still exists (e.g. account not deleted)
-    result = await db.execute(select(User).where(User.id == user_id))
-    if not result.scalar_one_or_none():
+    # The account must still exist and the token must not predate a password reset.
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or user.token_version != version:
         raise HTTPException(401, "Invalid or expired refresh token")
 
     # Preserve the original refresh window rather than extending a session
@@ -187,8 +242,8 @@ async def refresh(req: RefreshRequest, db: AsyncSession = Depends(get_db)):
     remember = remaining_days > settings.REFRESH_TOKEN_EXPIRY_DAYS_SHORT
 
     return TokenResponse(
-        access_token=create_access_token(user_id),
-        refresh_token=create_refresh_token(user_id, remember_me=remember),
+        access_token=create_access_token(user_id, user.token_version),
+        refresh_token=create_refresh_token(user_id, remember_me=remember, version=user.token_version),
     )
 
 
@@ -214,8 +269,8 @@ async def login_2fa(request: Request, req: Verify2FARequest, db: AsyncSession = 
         raise HTTPException(401, "Invalid 2FA code")
 
     return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id, req.remember_me),
+        access_token=create_access_token(user.id, user.token_version),
+        refresh_token=create_refresh_token(user.id, req.remember_me, user.token_version),
     )
 
 
@@ -300,7 +355,7 @@ async def forgot_password(request: Request, req: ForgotPasswordRequest, db: Asyn
         return generic
 
     from app.services.email_service import send_password_reset_email
-    token = create_password_reset_token(user.id)
+    token = create_password_reset_token(user.id, user.token_version)
     send_password_reset_email(user.email, token)
     return generic
 
@@ -308,20 +363,24 @@ async def forgot_password(request: Request, req: ForgotPasswordRequest, db: Asyn
 @router.post("/reset-password")
 @limiter.limit("5/minute")
 async def reset_password(request: Request, req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
-    """Reset a password using a valid, signed reset token from the email link."""
-    if len(req.new_password) < 8:
-        raise HTTPException(400, "Password must be at least 8 characters")
+    """Reset a password using a valid, signed reset token from the email link.
 
-    user_id = verify_password_reset_token(req.token)
-    if not user_id:
+    The token carries the account's `token_version`. Bumping it here makes the link single use
+    and signs out every existing session.
+    """
+    claims = verify_password_reset_token(req.token)
+    if not claims:
         raise HTTPException(400, "Invalid or expired reset link")
+    user_id, version = claims
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
+    user = (
+        await db.execute(select(User).where(User.id == user_id).with_for_update())
+    ).scalar_one_or_none()
+    if not user or user.token_version != version:
         raise HTTPException(400, "Invalid or expired reset link")
 
     user.hashed_password = hash_password(req.new_password)
+    user.token_version += 1
     await db.commit()
     return {"message": "Your password has been reset. You can now sign in."}
 
@@ -470,8 +529,8 @@ async def oauth_google_callback(
         user.is_verified = True
         await db.commit()
 
-    access = create_access_token(user.id)
-    refresh = create_refresh_token(user.id, remember_me=True)
+    access = create_access_token(user.id, user.token_version)
+    refresh = create_refresh_token(user.id, remember_me=True, version=user.token_version)
     return RedirectResponse(
         f"{frontend}/auth/callback#access_token={access}&refresh_token={refresh}"
     )
