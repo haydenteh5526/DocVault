@@ -58,6 +58,40 @@ async def test_similar_documents_requires_ownership_of_the_source_document():
 
 
 @pytest.mark.asyncio
+async def test_overview_shows_another_account_nothing():
+    bill = "Electricity bill\nTotal amount due: EUR 123.47\nPayment due date: 23 November 2026"
+    owner_id, other_id, bill_id = await create_users_and_document(raw_text=bill)
+    async with async_session() as db:
+        failed = Document(user_id=owner_id, title="Owner failed", s3_key_original=f"users/{owner_id}/f.pdf",
+                          processing_status="failed", document_type="Receipt")
+        mine = Document(user_id=other_id, title="Other's manual", s3_key_original=f"users/{other_id}/m.pdf",
+                        processing_status="complete", document_type="Manual")
+        db.add_all([failed, mine])
+        await db.commit()
+        failed_id, mine_id = failed.id, mine.id
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as client:
+            owner = await client.get(
+                "/api/v1/overview", headers={"Authorization": f"Bearer {create_access_token(owner_id)}"}
+            )
+            other = await client.get(
+                "/api/v1/overview", headers={"Authorization": f"Bearer {create_access_token(other_id)}"}
+            )
+        assert owner.status_code == other.status_code == 200
+        assert owner.json()["attention_count"] == 2
+        body = other.json()
+        assert set(body["statuses"]) == {str(mine_id)}
+        assert body["attention"] == [] and body["attention_count"] == 0
+        assert body["upcoming"] == [] and body["next_after_window"] is None
+        assert [doc["id"] for doc in body["recent"]] == [str(mine_id)]
+        assert body["counts"] == {"total": 1, "Manual": 1}
+        assert body["processing"] == 0
+        assert str(bill_id) not in other.text and str(failed_id) not in other.text
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
 async def test_account_deletion_removes_object_prefix(monkeypatch):
     owner_id, other_id, _ = await create_users_and_document()
     deleted_prefixes = []

@@ -3,6 +3,7 @@ import re
 from typing import Literal
 
 from app.config import settings
+from app.services.bill_review import BILL_LABELS
 
 KINDS: tuple[str, ...] = ("Bill", "Receipt", "Warranty", "Insurance", "Manual", "Contract", "Other")
 
@@ -227,6 +228,16 @@ def _categorise_mistral(text: str) -> DocumentMetadata:
         return _fallback_categorise(text)
 
 
+def _reads_as_a_bill(text: str) -> bool:
+    """The bill review's own test: the whole word bill, invoice or statement and a labelled bill line.
+
+    "Billing address" on a receipt is not the word "bill", so a receipt stays a receipt (R4-b).
+    """
+    if not re.search(r"\b(?:bill|invoice|statement)\b", text, re.I):
+        return False
+    return any(label.match(line) for line in text.splitlines() for label in BILL_LABELS)
+
+
 def _fallback_categorise(text: str) -> DocumentMetadata:
     """Keyword fallback when no LLM is available. Returns a kind and a brand, never a title or summary."""
     if not text:
@@ -244,7 +255,10 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
         return re.search(pattern, text_lower) is not None
 
     # A bill first: a bill may mention insurance or a "premium" plan without being a policy.
-    if has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due"):
+    # Text the bill review reads as a bill is a bill too, so a keyless bill and its review agree (R3-d, R4-b).
+    if (has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due")) or _reads_as_a_bill(
+        text
+    ):
         kind = "Bill"
     elif (has(r"insurance") and has(r"policy|renewal|premium|sum insured|cover")) or has(
         r"policy schedule|sum insured"

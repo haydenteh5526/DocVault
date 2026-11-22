@@ -1,6 +1,6 @@
 # Dashboard Redesign, PR 2 of 6: One Server Answer for Attention, Coming Up and Document Status
 
-**Status:** approved by the owner on 22 November 2026. Nothing in it is implemented. Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
+**Status:** approved by the owner on 22 November 2026, with Revisions 1–4. Being built on `feature/dashboard-redesign-2-attention-api` (not yet merged or verified in CI). Shared diagnosis, decisions D1–D7 and global constraints: see `2026-11-22-dashboard-redesign-1-extraction.md`, section "Programme".
 
 **Issue:** `Part of #48` (the series issue).
 
@@ -10,11 +10,81 @@
 
 Backend only.
 
+## Revision 4: rulings on the `reviewer-deep` review of `9c1e051` (APPROVE with lows)
+
+These amend Revision 3. Each fix needs a test that fails first.
+
+- **R4-a (L-1):** on "Read details again" or reprocess, a `fallback` kind replaces a `LEGACY_GUESS_LABELS` value only when it is `Bill`, `Receipt`, `Insurance` or `Contract`. Otherwise the legacy label stays and is still treated as unclassified (R3-a). A `model` kind replaces it as before (R1-b).
+  - Test: a bill stored as "User Manual", refreshed with no provider key, stays reviewable.
+- **R4-b (L-2, a regression from R3-d; corrected 22 November after the builder showed the first wording could not fail first):**
+  - The label-based Bill branch from R3-d uses the bill review's own whole-word check, `re.search(r"\b(?:bill|invoice|statement)\b", text, re.I)`, as R3-d's wording intended. "Billing address" therefore no longer counts as "bill".
+  - The older substring rule from PR 1 is unchanged, so every PR 1 test passes unedited, and any text that gets a bill review is still typed `Bill`.
+  - Tests: the reviewer's probe "Sales receipt / Billing address: 1 Main St / Amount payable: EUR 899.00" stays `Receipt` and keeps its warranty; the R3-d gas bill is still `Bill`.
+- **R4-c (L-3):** a labelled key-date remainder that starts with a digit **or a month name** and fails to parse counts as unreadable.
+  - Test: "Renewal date: 15 January 2027" plus "Renewal date: January 15, 2027" returns no renewal.
+- **R4-d (a regression from R3-c):** contract term phrases that read before R3-c read again.
+  - Test: "Tenancy to run from 1 September 2026 to 31 August 2027" gives `contract_end` 2027-08-31, alongside the Task 2 `Term:` case.
+- **R4-e (L-4):** `counts` keys and `recent[].kind` treat a `LEGACY_GUESS_LABELS` value as unclassified (no kind key; `kind` is null), matching R3-a, instead of normalising it to `Manual` or `Warranty`.
+- **Wording:** fix the `specs/Repo_Current_State.md` sentence the reviewer flagged. Revision 3's wording bullet is corrected here: the row must describe the cross-account isolation *test* accurately, not claim a manual check was run.
+- **Known limits for the PR description** (both fail safe):
+  - A date on a legacy "Warranty Card" can show as a renewal.
+  - A non-date such as "12 months after renewal" on a labelled line can hide a real date.
+
+## Revision 3: rulings on the `reviewer-deep` review of `da91138`
+
+These amend Revision 2. Where they conflict, this section wins.
+
+- **R3-a (M-1, corrects R2-a): labels from the old keyword guesser count as unclassified.**
+  - Before PR 1, the keyword fallback wrote exactly `"User Manual"`, `"Warranty Card"`, `"Quick Start Guide"` or `"Specification Sheet"` from word fragments. Real bills carry those fragments ("Direct Debit Instruction", "Direct Debit Guarantee", "Setup fee").
+  - New `LEGACY_GUESS_LABELS` in `key_dates.py` holds those four strings. `scans_text` and `reviews_bills` treat them like an empty kind, so the document is scanned and may get a bill review. Every other value still goes through `normalise_kind` first (R2-a).
+  - Accepted cost: a real manual stored as "User Manual" is scanned until an AI model reads it again. Since R4-a, a keyless re-read clears the label only when the fallback finds a bill, receipt, policy or contract. It gets a bill review only if its text also has `bill|invoice|statement` and a bill label.
+  - Tests: a broadband bill stored as "User Manual" with "Direct Debit Instruction" gets a bill review, a `bill_unconfirmed` item and a DocBot offer; "Sales Receipt" still is not scanned.
+- **R3-b (L-1): a confirmed bill stays editable whatever its kind became.**
+  - `get_document` reads `latest_revision` first and computes `bill_review` when `reviews_bills(...)` holds or a confirmed revision exists. This mirrors R2-c's carve-out for DocBot.
+  - The overview uses the same rule for its statuses.
+  - Test: a confirmed bill whose kind changed to `Other` still returns `bill_review`.
+- **R3-c (L-2): an unreadable labelled date always counts as a conflict.**
+  - Match the label prefix on its own, then parse the rest of the line with `_date` after stripping one trailing ".".
+  - A remainder that starts with a digit but fails to parse counts as an unreadable value.
+  - Test: "Renewal date: 15 January 2027" plus "Renewal date: 1st February 2027" returns no renewal.
+- **R3-d (L-3, a PR 1 file):** the keyword fallback in `categorisation_service._fallback_categorise` types a document `Bill` when `bill|invoice|statement` appears and any line matches `bill_review`'s `_AMOUNT_LABEL`, `_DATE_LABEL` or `_PERIOD_LABEL`. It imports those patterns rather than copying them. This removes a regression R2-b introduced for keyless bills.
+  - Test: "Gas bill / Balance due: EUR 80.00 / Pay by 5 December 2026" with no provider key is `Bill` and gets a review.
+  - Every PR 1 categoriser test passes unedited.
+- **R3-e (note): counts and recent kinds are classified.**
+  - `counts` keys and `recent[].kind` use `normalise_kind(document_type)`, so legacy labels add to a kind; an empty kind stays out of the kind keys.
+  - Test: a legacy "Monthly bill" counts under `Bill`.
+- **R3-f (note):** the warranty query drops the `in_(...)` filter from R2-d and skips any `document_id` not in `facts` in Python. The result is the same, with no parameter growth.
+- **Wording:** fix the second-account sentence in `specs/Repo_Current_State.md` so it says a cross-account isolation check was run.
+- **Known limits for the PR description:** L1 from the first review (`save_revision` has no kind check). Real manuals with a legacy guess label stay scanned until a model reads them again, or until a keyless re-read finds a bill, receipt, policy or contract (R3-a, R4-a).
+
+## Revision 2: rulings on the `reviewer-deep` review of `12102d9`
+
+These amend Tasks 3 and 4. Where they conflict, this section wins.
+
+- **R2-a (L5): classify before scoping.**
+  - `scans_text(document_type)` first maps the value through `categorisation_service.normalise_kind`, then applies the rule. Legacy "User Manual", "Sales Receipt" and "Warranty Card" are therefore never scanned, while "Monthly bill" is.
+  - "Unclassified" now means empty only. The `specs/MVP_Technical_Design.md` sentence says so.
+- **R2-b (L4, D4): only bills get a bill review.**
+  - New `reviews_bills(document_type) -> bool` in `key_dates.py`: `True` when `normalise_kind` gives `Bill` or the value is empty.
+  - `get_document`, overview query 2's bill-review step, and `owner_bills` (R2-c) compute `bill_review` only when `reviews_bills(...)` holds.
+  - `extract_key_dates` keeps using `scans_text`, so Insurance and Contract still give renewals and term ends, with no confirm step.
+  - Test: an `Insurance` renewal with "Renewal statement / Amount payable: EUR 310.00 / Renewal date: 12 December 2026" gives an upcoming `renewal` and no `bill_unconfirmed`.
+- **R2-c (M1): DocBot's bill list uses the same rule.**
+  - Adds `backend/app/services/assistant/bills.py` to this PR's files.
+  - `owner_bills` keeps a document when it has a confirmed revision, or when `reviews_bills(d.document_type)` holds and `extract_bill_review(d.raw_text)` is not None.
+  - Tests: a `Receipt` with "VAT invoice / Amount due: EUR 899.00" is not offered and does not take a `MAX_BILLS` place; a confirmed bill whose kind later changed is still offered.
+  - Every existing assistant test passes unedited.
+- **R2-d (L2):** the overview's warranty query adds `Warranty.document_id.in_(list(facts))`. Test: a warranty on a document missing from query 1 does not raise.
+- **R2-e (L3):** a labelled key-date line whose date cannot be read counts as a conflicting value, as in `bill_review._field`, so nothing is returned. Test: "Renewal date: 15 January 2027" plus "Renewal date: 03/02/2027" returns no renewal.
+- **Known limit (L1):** `save_revision` still recomputes the review without the kind check. There is no new approval path, and changing the protected bill-revision flow is out of scope. Record this in the PR.
+- **Not taken:** the reviewer's performance note (5 to 10 queries for each bill). Revisit it if PR 3's polling shows it matters.
+
 ## Task 1: Bill review for every utility bill (D2)
 
 **Files:** `backend/app/services/bill_review.py`, `backend/tests/test_bill_review.py`, `specs/MVP_Technical_Design.md` (one sentence on the widened scope).
 
-- Replace the `electricity` requirement: return a review when the text matches `\b(?:bill|invoice|statement)\b` **and** at least one line matches `_AMOUNT_LABEL` or `_DATE_LABEL`. Labels, parsing and the review shape are unchanged.
+- Replace the `electricity` requirement: return a review when the text matches `\b(?:bill|invoice|statement)\b` **and** at least one line matches `_AMOUNT_LABEL`, `_DATE_LABEL` or `_PERIOD_LABEL`. Labels, parsing and the review shape are unchanged.
+  - **Revision 1 (22 November):** `_PERIOD_LABEL` was added after the builder found that five existing tests have only a billing-period line. They are `test_billing_period_uses_both_dates_from_the_same_labelled_line` and the four `test_invalid_or_conflicting_periods_require_review` cases. With the period label they still pass unedited.
 - [ ] **Tests first:** broadband (`Total amount due: EUR 45.00`, `Payment due date: 20 November 2026`) and water bills return reviews with those values and source lines; the October electricity bill is unchanged; the kettle receipt, car insurance renewal and tenancy agreement return `None`. Every existing `test_bill_review.py` and `test_bill_revisions.py` test passes unedited.
 - [ ] Commit: `Review any utility bill, not only electricity`
 

@@ -317,3 +317,15 @@ def test_a_policy_schedule_or_sum_insured_is_insurance_without_the_word(text):
 def test_brand_and_model_are_capped_at_100_characters():
     metadata = categorisation_service._from_model_json({"brand": "b" * 150, "model": "m" * 150})
     assert (len(metadata.brand), len(metadata.model)) == (100, 100)
+
+
+def test_a_keyless_bill_with_other_bill_labels_is_a_bill_and_gets_a_review():
+    # R3-d: the fallback uses the bill review's own labels, so the two agree.
+    from app.services.bill_review import extract_bill_review
+    from app.services.key_dates import reviews_bills
+
+    text = "Gas bill\nBalance due: EUR 80.00\nPay by 5 December 2026"
+    metadata = categorisation_service._fallback_categorise(text)
+    assert (metadata.document_type, metadata.kind_source) == ("Bill", "fallback")
+    assert reviews_bills(metadata.document_type)
+    assert extract_bill_review(text).amount_due.value == "80.00"
