@@ -218,11 +218,11 @@ describe('the row menu', () => {
     await user.click(await screen.findByRole('button', { name: 'Actions for ' + title }))
   }
 
-  it('lists Open, Preview, Rename, Star and Delete, in that order', async () => {
+  it('lists Open, Preview, Rename, Star, Read details again and Delete, in that order', async () => {
     const user = userEvent.setup()
     renderDashboard()
     await openMenu(user, 'Kettle receipt')
-    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual(['Open', 'Preview', 'Rename', 'Star', 'Delete'])
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual(['Open', 'Preview', 'Rename', 'Star', 'Read details again', 'Delete'])
   })
 
   it('offers "Remove star" for a starred document and toggles it', async () => {

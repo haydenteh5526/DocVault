@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import Document, DocumentVersion
+from app.rate_limit import limiter
 from app.schemas.bill_split import BillSplitOut, BillSplitPreview, BillSplitRequest, BillSplitSave
 from app.schemas.document import (
     BillConfirmation,
@@ -439,6 +440,27 @@ async def reprocess_document(document_id: uuid.UUID, db: AsyncSession = Depends(
         await document_processor.process_document(doc.id)
         await db.refresh(doc)
 
+    return _to_response(doc)
+
+
+@router.post("/{document_id}/refresh-details", response_model=DocumentOut)
+@limiter.limit("30/hour")
+async def refresh_document_details(
+    request: Request,
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Read the title, kind, summary and warranty again from the stored text, keeping what the owner set."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    if doc.processing_status != "complete":
+        raise HTTPException(409, {"code": "not_ready", "message": "This document is still being read."})
+    # End this session's read transaction so the refresh's row lock is not waiting on it.
+    await db.commit()
+    await document_processor.refresh_details(doc.id)
+    # Reload through the owner-scoped query so the response carries fresh fields and tags.
+    db.expire_all()
+    doc = await _get_doc_or_404(document_id, user_id, db)
     return _to_response(doc)
 
 
