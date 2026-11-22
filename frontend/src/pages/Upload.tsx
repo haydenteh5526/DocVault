@@ -13,6 +13,8 @@ interface UploadItem {
   docId?: string
 }
 
+const fileKey = (f: File) => f.name + '|' + f.size + '|' + f.lastModified
+
 export default function UploadPage() {
   const [dragging, setDragging] = useState(false)
   const [queue, setQueue] = useState<UploadItem[]>([])
@@ -28,9 +30,20 @@ export default function UploadPage() {
   const finished = completed.length > 0 && completed.length === queue.length
 
   function choose(files: FileList | null) {
-    const items = Array.from(files ?? []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf' || /\.pdf$/i.test(f.name))
-      .map(file => ({file, id:crypto.randomUUID(), status:'pending' as const}))
-    if (!items.length) { toast('Only images and PDFs are supported', 'error'); return }
+    const supported = Array.from(files ?? []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf' || /\.pdf$/i.test(f.name))
+    if (!supported.length) { toast('Only images and PDFs are supported', 'error'); return }
+    const seen = new Set(queue.map(item => fileKey(item.file)))
+    const fresh: File[] = []
+    const skipped: File[] = []
+    for (const file of supported) {
+      const key = fileKey(file)
+      if (seen.has(key)) { skipped.push(file); continue }
+      seen.add(key)
+      fresh.push(file)
+    }
+    if (skipped.length) toast(skipped.length === 1 ? skipped[0].name + ' is already in the queue.' : skipped.length + ' files are already in the queue.', 'info')
+    if (!fresh.length) return
+    const items = fresh.map(file => ({file, id:crypto.randomUUID(), status:'pending' as const}))
     setQueue(prev => [...prev,...items])
   }
 
