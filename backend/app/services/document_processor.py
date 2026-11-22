@@ -79,6 +79,32 @@ def _run_ocr_and_metadata(file_bytes: bytes, content_type: str) -> tuple[str, ob
     return raw_text, metadata
 
 
+async def _apply_warranty(db, doc: Document, raw_text: str) -> None:
+    """Create a warranty only when an end date is known; never change a date the owner set.
+
+    An existing warranty keeps its purchase date, expiry date and notes; only an empty
+    expiry or purchase date is filled in.
+    """
+    dates = warranty_extraction.extract_warranty_dates(raw_text)
+    if not dates or not (dates.get("expiry_date") or dates.get("purchase_date")):
+        return
+    existing = (await db.execute(
+        select(Warranty).where(Warranty.document_id == doc.id)
+    )).scalar_one_or_none()
+    if existing is None:
+        if dates.get("expiry_date"):
+            db.add(Warranty(
+                document_id=doc.id,
+                purchase_date=dates.get("purchase_date"),
+                expiry_date=dates["expiry_date"],
+            ))
+        return
+    if existing.expiry_date is None and dates.get("expiry_date"):
+        existing.expiry_date = dates["expiry_date"]
+    if existing.purchase_date is None and dates.get("purchase_date"):
+        existing.purchase_date = dates["purchase_date"]
+
+
 async def process_document(document_id: str | uuid.UUID) -> None:
     """Run the full processing pipeline for a document and update its status."""
     doc_id = uuid.UUID(str(document_id))
@@ -122,17 +148,7 @@ async def process_document(document_id: str | uuid.UUID) -> None:
                         embedding=embedding,
                     ))
 
-                dates = warranty_extraction.extract_warranty_dates(raw_text)
-                if dates:
-                    has_warranty = (await db.execute(
-                        select(Warranty).where(Warranty.document_id == doc.id)
-                    )).scalar_one_or_none()
-                    if not has_warranty:
-                        db.add(Warranty(
-                            document_id=doc.id,
-                            purchase_date=dates.get("purchase_date"),
-                            expiry_date=dates.get("expiry_date"),
-                        ))
+                await _apply_warranty(db, doc, raw_text)
 
             doc.processing_status = "complete"
             await db.commit()

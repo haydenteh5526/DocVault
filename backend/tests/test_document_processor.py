@@ -389,3 +389,53 @@ async def test_reprocessing_replaces_a_legacy_free_text_kind(monkeypatch):
     document = _document("My doc", document_type="Sales Receipt")
     await _process(monkeypatch, document, "text", _metadata(document_type="Receipt"))
     assert document.document_type == "Receipt"
+
+
+# --- Warranties (Task 3) -----------------------------------------------------------------------
+
+
+async def test_a_kettle_receipt_creates_no_warranty(monkeypatch):
+    from tests.fixtures import household_texts
+
+    document = _document("Kettle receipt.png")
+    database = await _process(monkeypatch, document, household_texts.KETTLE_RECEIPT, _metadata(document_type="Receipt"))
+    assert not any(isinstance(item, Warranty) for item in database.added)
+
+
+async def test_a_purchase_date_alone_creates_no_warranty(monkeypatch):
+    monkeypatch.setattr(
+        document_processor.warranty_extraction,
+        "extract_warranty_dates",
+        lambda text: {"purchase_date": "2026-01-08", "expiry_date": None},
+    )
+    document = _document("receipt.pdf")
+    database = await _process(monkeypatch, document, "text", _metadata())
+    assert not any(isinstance(item, Warranty) for item in database.added)
+
+
+async def test_the_laptop_receipt_creates_a_warranty_with_its_end_date(monkeypatch):
+    from datetime import date
+
+    from tests.fixtures import household_texts
+
+    document = _document("laptop.pdf")
+    database = await _process(monkeypatch, document, household_texts.LAPTOP_RECEIPT, _metadata(document_type="Receipt"))
+    warranties = [item for item in database.added if isinstance(item, Warranty)]
+    assert len(warranties) == 1
+    assert (warranties[0].purchase_date, warranties[0].expiry_date) == (date(2026, 1, 8), date(2028, 1, 8))
+
+
+async def test_an_existing_warranty_keeps_set_dates_and_only_fills_empty_ones(monkeypatch):
+    from datetime import date
+
+    from tests.fixtures import household_texts
+
+    existing = SimpleNamespace(purchase_date=None, expiry_date=date(2027, 5, 1), notes="Owner note")
+    document = _document("laptop.pdf")
+    database = await _process(
+        monkeypatch, document, household_texts.LAPTOP_RECEIPT, _metadata(), existing_warranty=existing,
+    )
+    assert not any(isinstance(item, Warranty) for item in database.added)
+    assert existing.expiry_date == date(2027, 5, 1)
+    assert existing.purchase_date == date(2026, 1, 8)
+    assert existing.notes == "Owner note"
