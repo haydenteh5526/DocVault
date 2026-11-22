@@ -369,10 +369,17 @@ async def test_the_google_callback_mints_the_current_version(monkeypatch, cleanu
 
 async def test_google_sign_in_locks_out_a_pre_registered_password(monkeypatch, cleanup):
     """Someone who registered the victim's email first must lose their password once Google proves the owner."""
+    from urllib.parse import parse_qs, urlparse
+
     import httpx
 
-    user_id, email = await _make_user(verified=False)
+    user_id, email = await _make_user(verified=False, token="squatter-link", sent_at=_now())
     cleanup.append(user_id)
+    async with async_session() as db:
+        await db.execute(
+            update(User).where(User.id == user_id).values(display_name="Squatter", totp_pending_secret=pyotp.random_base32())
+        )
+        await db.commit()
     old_token = create_access_token(user_id, (await _user(user_id)).token_version)
     _FakeGoogle.email = email
     monkeypatch.setattr(httpx, "AsyncClient", _FakeGoogle)
@@ -381,13 +388,34 @@ async def test_google_sign_in_locks_out_a_pre_registered_password(monkeypatch, c
             "/api/v1/auth/oauth/google/callback", params={"code": "abc", "state": create_oauth_state()}
         )
         assert res.status_code in (302, 307)
-        assert "access_token=" in res.headers["location"]
+        fragment = parse_qs(urlparse(res.headers["location"]).fragment)
+        access, refresh = fragment["access_token"][0], fragment["refresh_token"][0]
+        assert _ver(access) == 1 and _ver(refresh) == 1
+        owner_me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
         login = await _login(client, email)
         me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
 
+    assert owner_me.status_code == 200
     assert login.status_code == 401
     assert me.status_code == 401
-    assert (await _user(user_id)).is_verified is True
+    user = await _user(user_id)
+    assert user.is_verified is True
+    assert user.verification_token is None and user.verification_sent_at is None
+    assert user.display_name == "Test"
+    assert user.totp_pending_secret is None
+
+
+async def test_two_factor_sign_in_refuses_an_unverified_account(cleanup):
+    secret = pyotp.random_base32()
+    user_id, email = await _make_user(verified=False, totp=secret)
+    cleanup.append(user_id)
+    async with _client() as client:
+        res = await client.post(
+            "/api/v1/auth/login/2fa",
+            json={"email": email, "password": PASSWORD, "code": pyotp.TOTP(secret).now()},
+        )
+    assert res.status_code == 403
+    assert res.json()["detail"] == "Please verify your email before signing in"
 
 
 async def test_two_factor_sign_in_without_two_factor_is_refused_not_a_crash(cleanup):
