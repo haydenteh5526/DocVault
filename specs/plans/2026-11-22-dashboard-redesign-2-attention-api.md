@@ -14,7 +14,8 @@ Backend only.
 
 **Files:** `backend/app/services/bill_review.py`, `backend/tests/test_bill_review.py`, `specs/MVP_Technical_Design.md` (one sentence on the widened scope).
 
-- Replace the `electricity` requirement: return a review when the text matches `\b(?:bill|invoice|statement)\b` **and** at least one line matches `_AMOUNT_LABEL` or `_DATE_LABEL`. Labels, parsing and the review shape are unchanged.
+- Replace the `electricity` requirement: return a review when the text matches `\b(?:bill|invoice|statement)\b` **and** at least one line matches `_AMOUNT_LABEL`, `_DATE_LABEL` or `_PERIOD_LABEL`. Labels, parsing and the review shape are unchanged.
+  - **Revision 1 (22 November):** `_PERIOD_LABEL` was added after the builder found that five existing tests have only a billing-period line. They are `test_billing_period_uses_both_dates_from_the_same_labelled_line` and the four `test_invalid_or_conflicting_periods_require_review` cases. With the period label they still pass unedited.
 - [ ] **Tests first:** broadband (`Total amount due: EUR 45.00`, `Payment due date: 20 November 2026`) and water bills return reviews with those values and source lines; the October electricity bill is unchanged; the kettle receipt, car insurance renewal and tenancy agreement return `None`. Every existing `test_bill_review.py` and `test_bill_revisions.py` test passes unedited.
 - [ ] Commit: `Review any utility bill, not only electricity`
 
