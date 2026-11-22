@@ -56,9 +56,11 @@ def _apply_details(doc: Document, raw_text: str, metadata) -> None:
     """Apply extracted details without overwriting anything the owner set.
 
     The title changes only while it still looks like an upload name. A kind read by a model
-    replaces the stored kind; a keyword-fallback guess (no key, or the provider failed) only
-    fills an empty kind, and a legacy free-text kind is mapped with normalise_kind instead.
-    Brand and model are filled only when empty.
+    replaces the stored kind. A keyword-fallback guess (no key, or the provider failed) fills an
+    empty kind, and replaces one of the four old keyword-guess labels only with Bill, Receipt,
+    Insurance or Contract; otherwise that label is kept and still counts as unclassified (R4-a).
+    Any other legacy free-text kind is mapped with normalise_kind. Brand and model are filled
+    only when empty.
     """
     if raw_text and looks_like_upload_name(doc.title):
         doc.title = (
