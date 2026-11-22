@@ -1,6 +1,47 @@
 import pytest
 
 from app.services.bill_review import extract_bill_review
+from tests.fixtures import household_texts
+
+
+@pytest.mark.parametrize("text, amount, due, due_line", [
+    (household_texts.BROADBAND_BILL_LIVE, "45.00", "2026-11-20", "Payment due date: 20 November 2026"),
+    (household_texts.BROADBAND_BILL, "45.00", "2026-11-20", "Payment due date: 20 November 2026"),
+    (household_texts.WATER_BILL, "61.30", "2026-11-14", "Payment due date: 14 November 2026"),
+])
+def test_any_utility_bill_gets_a_review_with_its_source_lines(text, amount, due, due_line):
+    review = extract_bill_review(text)
+    assert review.amount_due.value == amount
+    assert review.due_date.value == due
+    assert [source.text for source in review.due_date.sources] == [due_line]
+    [amount_source] = review.amount_due.sources
+    assert amount_source.text == f"Total amount due: EUR {amount}"
+    assert text.splitlines()[amount_source.line - 1] == amount_source.text
+
+
+def test_the_october_electricity_bill_is_unchanged():
+    review = extract_bill_review(household_texts.OCTOBER_BILL)
+    assert review.model_dump() == {
+        "amount_due": {"value": "123.47", "sources": [{"line": 7, "text": "Total amount due: EUR 123.47"}]},
+        "due_date": {"value": "2026-11-23", "sources": [{"line": 8, "text": "Payment due date: 23 November 2026"}]},
+        "billing_period": {
+            "value": "2026-10-01/2026-10-31",
+            "sources": [{"line": 4, "text": "Billing period: 1 October 2026 to 31 October 2026"}],
+        },
+    }
+
+
+def test_a_statement_with_only_a_billing_period_line_gets_a_review():
+    review = extract_bill_review("Gas statement\nBilling period: 1 October 2026 to 31 October 2026")
+    assert review.billing_period.value == "2026-10-01/2026-10-31"
+    assert review.amount_due.value is None and review.due_date.value is None
+
+
+@pytest.mark.parametrize("text", [
+    household_texts.KETTLE_RECEIPT, household_texts.CAR_INSURANCE, household_texts.TENANCY,
+])
+def test_receipts_policies_and_tenancies_are_not_bills(text):
+    assert extract_bill_review(text) is None
 
 
 def test_review_uses_labelled_fields_and_preserves_their_source_lines():

@@ -1,4 +1,4 @@
-"""Derive read-only electricity bill candidates from labelled OCR lines."""
+"""Derive read-only utility bill candidates from labelled OCR lines."""
 import re
 from collections.abc import Callable
 from datetime import datetime
@@ -58,9 +58,13 @@ def _period(text: str) -> str | None:
 
 
 def extract_bill_review(text: str | None) -> BillReview | None:
-    if not text or not re.search(r"\belectricity\b", text, re.I) or not re.search(r"\b(?:bill|invoice)\b", text, re.I):
+    # Any utility bill: the word bill, invoice or statement and at least one labelled bill line.
+    if not text or not re.search(r"\b(?:bill|invoice|statement)\b", text, re.I):
         return None
     lines = text.splitlines()
+    labels = (_AMOUNT_LABEL, _DATE_LABEL, _PERIOD_LABEL)
+    if not any(label.match(line) for line in lines for label in labels):
+        return None
     return BillReview(
         amount_due=_field(lines, _AMOUNT_LABEL, _euros),
         due_date=_field(lines, _DATE_LABEL, _date),
