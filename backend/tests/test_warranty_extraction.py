@@ -145,3 +145,31 @@ def test_written_dates_and_period_wordings(text, expected):
 )
 def test_parse_written_dates(raw, expected):
     assert _parse_date(raw) == expected
+
+
+# --- Review fixes (Revision 1) -------------------------------------------------------------------
+
+
+def test_a_price_guarantee_on_a_bill_is_not_a_warranty_period():
+    text = (
+        "Linkline Broadband\nBill date: 1 November 2026\nAmount due EUR 45.00\n"
+        "Price guarantee: 12 months\nDate: 1 November 2026"
+    )
+    # "guarantee" near a date may still give a purchase date, but no period is read, so no end date.
+    result = extract_warranty_dates(text)
+    assert result is None or result["expiry_date"] is None
+
+
+def test_a_bulleted_warranty_end_line_counts():
+    text = "Date of purchase: 8 January 2026\n- Warranty ends: 7 January 2028"
+    assert extract_warranty_dates(text) == {"purchase_date": date(2026, 1, 8), "expiry_date": date(2028, 1, 7)}
+
+
+def test_a_bulleted_labelled_period_counts():
+    text = "Purchased: 8 January 2026\n• Warranty period: 2 years"
+    assert extract_warranty_dates(text)["expiry_date"] == date(2028, 1, 8)
+
+
+def test_a_purchase_date_after_the_expiry_is_dropped():
+    text = "Warranty ends: 7 January 2020\nDate: 8 January 2026"
+    assert extract_warranty_dates(text) == {"purchase_date": None, "expiry_date": date(2020, 1, 7)}

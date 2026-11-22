@@ -1,5 +1,6 @@
 import json
 import re
+from typing import Literal
 
 from app.config import settings
 
@@ -37,15 +38,24 @@ EXTRACTION_PROMPT = (
 )
 
 
+KindSource = Literal["model", "fallback"]
+
+# The brand and model columns hold at most this many characters.
+_NAME_LIMIT = 100
+
+
 class DocumentMetadata:
+    """What one extraction found. `kind_source` says whether the kind came from a model or the keyword fallback."""
+
     def __init__(self, brand: str | None = None, model: str | None = None,
                  document_type: str | None = None, title: str | None = None,
-                 summary: str | None = None):
+                 summary: str | None = None, kind_source: KindSource | None = None):
         self.brand = brand
         self.model = model
         self.document_type = document_type
         self.title = title
         self.summary = summary
+        self.kind_source = kind_source
 
 
 def normalise_kind(label: str | None) -> str | None:
@@ -94,12 +104,18 @@ def _from_model_json(data: dict) -> DocumentMetadata:
         value = data.get(key)
         return (value.strip() or None) if isinstance(value, str) else None
 
+    def name(key: str) -> str | None:
+        value = text(key)
+        return value[:_NAME_LIMIT].strip() or None if value else None
+
+    kind = normalise_kind(text("kind") or text("document_type"))
     return DocumentMetadata(
-        brand=text("brand"),
-        model=text("model"),
-        document_type=normalise_kind(text("kind") or text("document_type")),
+        brand=name("brand"),
+        model=name("model"),
+        document_type=kind,
         title=sanitise_title(text("title") or text("suggested_title")),
         summary=sanitise_summary(text("summary")),
+        kind_source="model" if kind else None,
     )
 
 
@@ -220,10 +236,11 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
     def has(pattern: str) -> bool:
         return re.search(pattern, text_lower) is not None
 
-    if has(r"insurance|policy schedule|premium"):
-        kind = "Insurance"
-    elif has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due"):
+    # A bill first: a bill may mention insurance or a "premium" plan without being a policy.
+    if has(r"bill|statement|invoice") and has(r"amount due|total due|due date|payment due"):
         kind = "Bill"
+    elif has(r"insurance") and has(r"policy|renewal|premium|sum insured|cover"):
+        kind = "Insurance"
     elif has(r"receipt"):
         kind = "Receipt"
     elif has(r"user manual|instruction manual|instructions|quick start"):
@@ -235,4 +252,4 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
     else:
         kind = "Other"
 
-    return DocumentMetadata(brand=brand, document_type=kind)
+    return DocumentMetadata(brand=brand, document_type=kind, kind_source="fallback")

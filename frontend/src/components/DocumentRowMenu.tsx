@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -24,7 +24,11 @@ export function DocumentRowMenu({ doc, onPreview, onRename, onToggleFavourite, o
   const goTo = useTransitionNavigate()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  // One read at a time: a second choice while the first is in flight would only spend another model call.
+  const [reading, setReading] = useState(false)
   const readAgain = async () => {
+    if (reading) return
+    setReading(true)
     try {
       await refreshDocumentDetails(doc.id)
       await Promise.all([
@@ -36,6 +40,8 @@ export function DocumentRowMenu({ doc, onPreview, onRename, onToggleFavourite, o
       toast('Details updated.')
     } catch {
       toast('Could not read the details again. Try again.', 'error')
+    } finally {
+      setReading(false)
     }
   }
   // Rename moves focus into the title field. The menu traps focus while it closes and would take it back to its button,
@@ -66,7 +72,9 @@ export function DocumentRowMenu({ doc, onPreview, onRename, onToggleFavourite, o
         <DropdownMenuItem onSelect={rename}>Rename</DropdownMenuItem>
         <DropdownMenuItem onSelect={onToggleFavourite}>{doc.is_favourite ? 'Remove star' : 'Star'}</DropdownMenuItem>
         {doc.processing_status === 'complete' && (
-          <DropdownMenuItem onSelect={() => void readAgain()}>Read details again</DropdownMenuItem>
+          <DropdownMenuItem disabled={reading} onSelect={() => void readAgain()}>
+            {reading ? 'Reading details…' : 'Read details again'}
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>Delete</DropdownMenuItem>

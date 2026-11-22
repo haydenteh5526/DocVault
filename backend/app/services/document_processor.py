@@ -25,6 +25,9 @@ from app.services import (
 
 logger = get_logger("processor")
 
+# Kinds that may carry a product warranty; an unclassified document (None) may too.
+_WARRANTY_KINDS = {"Receipt", "Warranty", "Manual", "Other", None}
+
 _UPLOAD_EXTENSION = re.compile(r"\.(?:pdf|jpe?g|png|webp)$", re.IGNORECASE)
 
 
@@ -49,8 +52,10 @@ def tidy_filename(title: str) -> str | None:
 def _apply_details(doc: Document, raw_text: str, metadata) -> None:
     """Apply extracted details without overwriting anything the owner set.
 
-    The title changes only while it still looks like an upload name. A kind already set
-    to one of the seven kinds is kept; brand and model are filled only when empty.
+    The title changes only while it still looks like an upload name. A kind read by a model
+    replaces the stored kind; a keyword-fallback guess (no key, or the provider failed) only
+    fills an empty kind, and a legacy free-text kind is mapped with normalise_kind instead.
+    Brand and model are filled only when empty.
     """
     if raw_text and looks_like_upload_name(doc.title):
         doc.title = (
@@ -58,10 +63,14 @@ def _apply_details(doc: Document, raw_text: str, metadata) -> None:
             or tidy_filename(doc.title or "")
             or doc.title
         )
-    if not doc.document_type or doc.document_type not in categorisation_service.KINDS:
-        new_kind = metadata.document_type or categorisation_service.normalise_kind(doc.document_type)
-        if new_kind:
-            doc.document_type = new_kind
+    kind_source = getattr(metadata, "kind_source", None)
+    if kind_source == "model" and metadata.document_type:
+        doc.document_type = metadata.document_type
+    elif not doc.document_type:
+        if metadata.document_type:
+            doc.document_type = metadata.document_type
+    elif doc.document_type not in categorisation_service.KINDS:
+        doc.document_type = categorisation_service.normalise_kind(doc.document_type)
     if not doc.brand and metadata.brand:
         doc.brand = metadata.brand
     if not doc.model and metadata.model:
@@ -90,9 +99,12 @@ async def _summary_for(raw_text: str, metadata) -> str | None:
 async def _apply_warranty(db, doc: Document, raw_text: str) -> None:
     """Create a warranty only when an end date is known; never change a date the owner set.
 
-    An existing warranty keeps its purchase date, expiry date and notes; only an empty
-    expiry or purchase date is filled in.
+    Bills, insurance policies and contracts never get one (a price guarantee or a policy's
+    "Cover ends" line is not a product warranty). An existing warranty keeps its purchase
+    date, expiry date and notes; only an empty expiry or purchase date is filled in.
     """
+    if doc.document_type not in _WARRANTY_KINDS:
+        return
     dates = warranty_extraction.extract_warranty_dates(raw_text)
     if not dates or not (dates.get("expiry_date") or dates.get("purchase_date")):
         return

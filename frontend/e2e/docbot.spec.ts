@@ -129,7 +129,8 @@ test.describe("DocBot's daily check", () => {
     await signIn(page, email!, password!);
 
     // A name no other run or scenario uses, so a bill left behind by a crashed run cannot match the title too.
-    const fileName = `playwright-docbot-${Date.now()}.png`;
+    const stamp = Date.now();
+    const fileName = `playwright-docbot-${stamp}.png`;
     let documentId: string | undefined;
     try {
       // 1. Confirm the synthetic bill, due within 14 days.
@@ -142,7 +143,7 @@ test.describe("DocBot's daily check", () => {
       await expect(review).toContainText('Confirmed · revision 1');
       await expect(review.getByText(due, { exact: true })).toBeVisible();
       // Processing turns the file name into a title without its extension, e.g. "Playwright docbot 1763...".
-      const title = ((await page.getByRole('heading', { name: /playwright[- ]docbot[- ]\d+/i }).first().textContent()) ?? '').trim();
+      const title = ((await page.getByRole('heading', { name: new RegExp(`playwright[- ]docbot[- ]${stamp}`, 'i') }).first().textContent()) ?? '').trim();
       expect(title).not.toBe('');
 
       // 2. Save a preference of 2 days.

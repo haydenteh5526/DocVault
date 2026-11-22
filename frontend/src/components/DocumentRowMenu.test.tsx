@@ -88,6 +88,21 @@ describe('DocumentRowMenu', () => {
     expect(await screen.findByText('Could not read the details again. Try again.')).toBeInTheDocument()
   })
 
+  it('cannot be chosen again while a read is in flight', async () => {
+    let finish: (value: Response) => void = () => {}
+    fetchMock.mockImplementation(() => new Promise<Response>(resolve => { finish = resolve }))
+    show(doc())
+    await openMenu('synthetic-broadband-bill')
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Read details again' }))
+    await openMenu('synthetic-broadband-bill')
+    const item = screen.getByRole('menuitem', { name: 'Reading details…' })
+    expect(item).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(item)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    finish(new Response(JSON.stringify(doc()), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    expect(await screen.findByText('Details updated.')).toBeInTheDocument()
+  })
+
   it('offers it only once a document has been read', async () => {
     show(doc({ processing_status: 'processing' }))
     await openMenu('synthetic-broadband-bill')

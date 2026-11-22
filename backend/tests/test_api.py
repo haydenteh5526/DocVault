@@ -328,7 +328,7 @@ async def test_refresh_details_is_owner_scoped_and_waits_for_reading(monkeypatch
     from sqlalchemy import update
 
     from app.dependencies import async_session
-    from app.models.base import Document
+    from app.models.base import Document, Tag, document_tags
     from app.services import categorisation_service
     from app.services.auth_service import create_access_token
     from tests.accounts import create_users_and_document, delete_users
@@ -342,6 +342,10 @@ async def test_refresh_details_is_owner_scoped_and_waits_for_reading(monkeypatch
     try:
         async with async_session() as db:
             await db.execute(update(Document).where(Document.id == document_id).values(title="broadband.pdf"))
+            tag = Tag(user_id=owner_id, name="household")
+            db.add(tag)
+            await db.flush()
+            await db.execute(document_tags.insert().values(document_id=document_id, tag_id=tag.id))
             await db.commit()
         async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
             other = await c.post(url, headers={"Authorization": f"Bearer {create_access_token(other_id)}"})
@@ -350,6 +354,7 @@ async def test_refresh_details_is_owner_scoped_and_waits_for_reading(monkeypatch
         assert owner.status_code == 200
         assert owner.json()["title"] == "Linkline Broadband bill"
         assert owner.json()["document_type"] == "Bill"
+        assert [t["name"] for t in owner.json()["tags"]] == ["household"]
 
         async with async_session() as db:
             await db.execute(update(Document).where(Document.id == document_id).values(processing_status="pending"))

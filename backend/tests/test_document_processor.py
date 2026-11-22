@@ -331,7 +331,7 @@ async def _process(monkeypatch, document, text, metadata, *, existing_warranty=N
 
 
 def _metadata(**extra):
-    values = dict(brand=None, model=None, document_type="Bill", title=None, summary=None)
+    values = dict(brand=None, model=None, document_type="Bill", title=None, summary=None, kind_source=None)
     values.update(extra)
     return SimpleNamespace(**values)
 
@@ -433,7 +433,8 @@ async def test_an_existing_warranty_keeps_set_dates_and_only_fills_empty_ones(mo
     existing = SimpleNamespace(purchase_date=None, expiry_date=date(2027, 5, 1), notes="Owner note")
     document = _document("laptop.pdf")
     database = await _process(
-        monkeypatch, document, household_texts.LAPTOP_RECEIPT, _metadata(), existing_warranty=existing,
+        monkeypatch, document, household_texts.LAPTOP_RECEIPT, _metadata(document_type="Receipt"),
+        existing_warranty=existing,
     )
     assert not any(isinstance(item, Warranty) for item in database.added)
     assert existing.expiry_date == date(2027, 5, 1)
@@ -514,6 +515,7 @@ def _suggestion(**extra):
         document_type="Bill",
         title="Suggested title",
         summary="A suggested summary of the document.",
+        kind_source="model",
     )
     values.update(extra)
     return DocumentMetadata(**values)
@@ -567,7 +569,10 @@ async def test_refresh_details_keeps_everything_the_owner_set(monkeypatch):
     from tests.accounts import delete_users
 
     monkeypatch.setattr(settings, "MISTRAL_API_KEY", "")
-    monkeypatch.setattr(document_processor.categorisation_service, "categorise_document", lambda text: _suggestion())
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document",
+        lambda text: _suggestion(document_type="Receipt"),
+    )
     owner_id, other_id, document_id = await _owner_with_document(
         title="My laptop", document_type="Receipt", brand="Fernhill", model="FL14",
         summary="Old summary", is_favourite=True,
@@ -672,12 +677,15 @@ async def test_refresh_details_fills_what_is_still_machine_owned(monkeypatch):
         await delete_users(owner_id, other_id)
 
 
-async def test_refresh_details_keeps_a_set_kind(monkeypatch):
+async def test_refresh_details_keeps_a_set_kind_against_a_fallback_guess(monkeypatch):
     from app.dependencies import async_session
     from app.models.base import Document
     from tests.accounts import delete_users
 
-    monkeypatch.setattr(document_processor.categorisation_service, "categorise_document", lambda text: _suggestion())
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document",
+        lambda text: _suggestion(document_type="Bill", kind_source="fallback"),
+    )
     owner_id, other_id, document_id = await _owner_with_document(document_type="Manual")
     try:
         await document_processor.refresh_details(document_id)
@@ -701,5 +709,117 @@ async def test_refresh_details_keeps_an_existing_summary_when_none_is_returned(m
         await document_processor.refresh_details(document_id)
         async with async_session() as db:
             assert (await db.get(Document, document_id)).summary == "Earlier summary"
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+# --- Review fixes (Revision 1) -------------------------------------------------------------------
+
+_BROADBAND_PRICE_GUARANTEE = (
+    "LINKLINE BROADBAND\nBroadband bill\nStatement issued: 5 November 2026\nTotal amount due: EUR 45.00\n"
+    "Price guarantee: 12 months\nWarranty ends: 5 November 2027\nDate: 5 November 2026"
+)
+_INSURANCE_COVER_ENDS = (
+    "EXAMPLE INSURANCE\nHome insurance renewal\nPolicy start: 12 December 2025\n"
+    "Cover ends: 12 December 2026\nAnnual premium: EUR 310.00"
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "kind"),
+    [(_BROADBAND_PRICE_GUARANTEE, "Bill"), (_INSURANCE_COVER_ENDS, "Insurance")],
+)
+async def test_bills_insurance_and_contracts_never_get_a_warranty(monkeypatch, text, kind):
+    document = _document("doc.pdf")
+    database = await _process(monkeypatch, document, text, _metadata(document_type=kind, kind_source="model"))
+    assert document.document_type == kind
+    assert not any(isinstance(item, Warranty) for item in database.added)
+
+
+async def test_a_contract_never_fills_an_existing_warranty(monkeypatch):
+    from tests.fixtures import household_texts
+
+    existing = SimpleNamespace(purchase_date=None, expiry_date=None, notes=None)
+    document = _document("doc.pdf")
+    await _process(
+        monkeypatch, document, household_texts.LAPTOP_RECEIPT,
+        _metadata(document_type="Contract", kind_source="model"), existing_warranty=existing,
+    )
+    assert (existing.purchase_date, existing.expiry_date) == (None, None)
+
+
+@pytest.mark.parametrize("path", ["d15", "laptop"])
+async def test_receipts_and_warranty_certificates_still_get_one(monkeypatch, path):
+    from pathlib import Path
+
+    from tests.fixtures import household_texts
+
+    text = (
+        (Path(__file__).resolve().parents[2] / "evaluation" / "retrieval" / "corpus" / "D15-guarantee-laptop.txt")
+        .read_text(encoding="utf-8")
+        if path == "d15" else household_texts.LAPTOP_RECEIPT
+    )
+    kind = "Warranty" if path == "d15" else "Receipt"
+    document = _document("doc.pdf")
+    database = await _process(monkeypatch, document, text, _metadata(document_type=kind, kind_source="model"))
+    assert len([item for item in database.added if isinstance(item, Warranty)]) == 1
+
+
+async def test_a_model_kind_replaces_a_stored_kind(monkeypatch):
+    document = _document("My doc", document_type="Manual")
+    await _process(monkeypatch, document, "text", _metadata(document_type="Bill", kind_source="model"))
+    assert document.document_type == "Bill"
+
+
+async def test_a_fallback_kind_never_replaces_a_stored_kind(monkeypatch):
+    document = _document("My doc", document_type="Receipt")
+    await _process(monkeypatch, document, "text", _metadata(document_type="Other", kind_source="fallback"))
+    assert document.document_type == "Receipt"
+
+
+async def test_a_fallback_kind_fills_an_empty_kind(monkeypatch):
+    document = _document("doc.pdf", document_type=None)
+    await _process(monkeypatch, document, "text", _metadata(document_type="Other", kind_source="fallback"))
+    assert document.document_type == "Other"
+
+
+async def test_a_legacy_kind_during_an_outage_is_normalised_not_guessed(monkeypatch):
+    document = _document("My doc", document_type="Sales Receipt")
+    await _process(monkeypatch, document, "text", _metadata(document_type="Other", kind_source="fallback"))
+    assert document.document_type == "Receipt"
+
+
+async def test_refresh_replaces_other_stored_during_an_outage(monkeypatch):
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document",
+        lambda text: _suggestion(document_type="Receipt", kind_source="model"),
+    )
+    owner_id, other_id, document_id = await _owner_with_document(document_type="Other")
+    try:
+        await document_processor.refresh_details(document_id)
+        async with async_session() as db:
+            assert (await db.get(Document, document_id)).document_type == "Receipt"
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+async def test_refresh_during_an_outage_keeps_a_stored_kind(monkeypatch):
+    from app.dependencies import async_session
+    from app.models.base import Document
+    from tests.accounts import delete_users
+
+    monkeypatch.setattr(
+        document_processor.categorisation_service, "categorise_document",
+        lambda text: _suggestion(document_type="Other", kind_source="fallback"),
+    )
+    owner_id, other_id, document_id = await _owner_with_document(document_type="Receipt")
+    try:
+        await document_processor.refresh_details(document_id)
+        async with async_session() as db:
+            assert (await db.get(Document, document_id)).document_type == "Receipt"
     finally:
         await delete_users(owner_id, other_id)

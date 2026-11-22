@@ -18,22 +18,26 @@ _DATE = (
     rf"|\b{_MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}\b)"
 )
 
+# A line may start with spaces, tabs or a list bullet.
+_LINE_START = r"^[ \t]*(?:[-*•][ \t]*)?"
+
 _PERIOD_BEFORE = re.compile(
     r"(\d+)[\s-]*(year|yr|month)s?'?\s*"
     r"(?:(?:manufacturer(?:'s)?|limited|parts and labour)\s+)?(?:warranty|guarantee)",
     re.IGNORECASE,
 )
+# Only a line that starts with "Warranty" or "Guarantee": "Price guarantee: 12 months" on a bill is not a warranty.
 _PERIOD_LABELLED = re.compile(
-    r"(?:warranty|guarantee)(?:\s+period)?\s*[:\-]\s*(\d+)\s*(year|yr|month)s?",
-    re.IGNORECASE,
+    rf"{_LINE_START}(?:warranty|guarantee)(?:\s+period)?\s*[:\-]\s*(\d+)\s*(year|yr|month)s?",
+    re.IGNORECASE | re.MULTILINE,
 )
 _EXPLICIT_END = re.compile(
-    r"^[ \t]*(warranty|guarantee|cover)\b[^\n:]{0,30}?\b(?:ends|expires|expiry date|valid until|end date)"
+    rf"{_LINE_START}(warranty|guarantee|cover)\b[^\n:]{{0,30}}?\b(?:ends|expires|expiry date|valid until|end date)"
     rf"\s*[:\-]?\s*{_DATE}",
     re.IGNORECASE | re.MULTILINE,
 )
 _PURCHASE_LABEL = re.compile(
-    rf"^[ \t]*(?:date of purchase|purchase date|purchased|date)\s*[:\-]?\s*{_DATE}",
+    rf"{_LINE_START}(?:date of purchase|purchase date|purchased|date)\s*[:\-]?\s*{_DATE}",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -108,6 +112,10 @@ def extract_warranty_dates(text: str) -> dict | None:
     expiry_date = explicit_expiry
     if expiry_date is None and purchase_date and months:
         expiry_date = _add_months(purchase_date, months)
+
+    # A purchase date after the end date is a misread; keep the end date, which the text states.
+    if purchase_date and expiry_date and purchase_date > expiry_date:
+        purchase_date = None
 
     if not purchase_date and not expiry_date:
         return None

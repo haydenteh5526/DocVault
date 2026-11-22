@@ -458,7 +458,9 @@ async def refresh_document_details(
     # End this session's read transaction so the refresh's row lock is not waiting on it.
     await db.commit()
     await document_processor.refresh_details(doc.id)
-    await db.refresh(doc)
+    # Reload through the owner-scoped query so the response carries fresh fields and tags.
+    db.expire_all()
+    doc = await _get_doc_or_404(document_id, user_id, db)
     return _to_response(doc)
 
 

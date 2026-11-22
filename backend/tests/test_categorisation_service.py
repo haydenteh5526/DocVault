@@ -243,3 +243,52 @@ def test_mistral_failure_uses_fallback(monkeypatch):
     _run_without_retry_delay(monkeypatch)
     monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("offline")))
     assert categorisation_service._categorise_mistral("Ikea manual").brand == "Ikea"
+
+
+# --- Review fixes (Revision 1) -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "LINKLINE PREMIUM BROADBAND\nMonthly bill\nTotal amount due: EUR 45.00",
+        "EXAMPLE ENERGY\nElectricity bill\nAsk us about home insurance cover.\nAmount due: EUR 80.00",
+    ],
+)
+def test_a_bill_with_insurance_words_is_still_a_bill(text):
+    assert categorisation_service._fallback_categorise(text).document_type == "Bill"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [household_texts.CAR_INSURANCE, household_texts.HOME_INSURANCE_SCHEDULE, household_texts.HOME_INSURANCE_RENEWAL],
+)
+def test_insurance_texts_stay_insurance(text):
+    assert categorisation_service._fallback_categorise(text).document_type == "Insurance"
+
+
+def test_the_kind_source_says_where_the_kind_came_from(monkeypatch):
+    _configure(monkeypatch, gemini="key")
+    _run_without_retry_delay(monkeypatch)
+
+    class Models:
+        def generate_content(self, **kwargs):
+            return SimpleNamespace(text='{"kind":"Receipt","title":null,"brand":null,"model":null,"summary":null}')
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: SimpleNamespace(models=Models()))
+    assert categorisation_service._categorise_gemini("receipt").kind_source == "model"
+
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: (_ for _ in ()).throw(RuntimeError("429")))
+    assert categorisation_service._categorise_gemini("receipt").kind_source == "fallback"
+    assert categorisation_service._fallback_categorise("receipt").kind_source == "fallback"
+    assert categorisation_service.categorise_document("").kind_source is None
+
+
+def test_a_model_without_a_kind_has_no_kind_source():
+    metadata = categorisation_service._from_model_json({"kind": None, "title": "x y"})
+    assert (metadata.document_type, metadata.kind_source) == (None, None)
+
+
+def test_brand_and_model_are_capped_at_100_characters():
+    metadata = categorisation_service._from_model_json({"brand": "b" * 150, "model": "m" * 150})
+    assert (len(metadata.brand), len(metadata.model)) == (100, 100)
