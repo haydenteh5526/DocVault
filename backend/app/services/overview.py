@@ -28,7 +28,7 @@ from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import latest_revision
 from app.services.bill_split import latest_split
 from app.services.categorisation_service import KINDS
-from app.services.key_dates import DatedLine, extract_key_dates, scans_text
+from app.services.key_dates import DatedLine, extract_key_dates, reviews_bills, scans_text
 from app.services.reminders import list_proposals
 
 UPCOMING_DAYS = 60
@@ -93,7 +93,9 @@ async def _load(db: AsyncSession, user_id: uuid.UUID) -> list[_Facts]:
         )
         for doc_id, text in rows:
             item = facts[doc_id]
-            item.review = extract_bill_review(text)
+            # Only bills and unclassified documents get a bill review (D4); key dates use the wider scope.
+            if reviews_bills(item.doc.document_type):
+                item.review = extract_bill_review(text)
             item.key_dates = extract_key_dates(text, item.doc.document_type)
 
     with_revision = set(
@@ -116,7 +118,12 @@ async def _load(db: AsyncSession, user_id: uuid.UUID) -> list[_Facts]:
     warranties = await db.execute(
         select(Warranty.document_id, Warranty.expiry_date)
         .join(Document, Document.id == Warranty.document_id)
-        .where(Document.user_id == user_id, Warranty.expiry_date.is_not(None))
+        .where(
+            Document.user_id == user_id,
+            Warranty.expiry_date.is_not(None),
+            # A document created after query 1 waits for the next overview.
+            Warranty.document_id.in_(list(facts)),
+        )
     )
     for doc_id, expiry in warranties:
         # The model says datetime; the column is a date in the database.

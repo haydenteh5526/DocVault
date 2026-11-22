@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import BillRevision, Document
 from app.services.bill_review import extract_bill_review
+from app.services.key_dates import reviews_bills
 
 RECENT_DOCUMENTS = 50
 MAX_BILLS = 10
@@ -42,7 +43,11 @@ async def owner_bills(db: AsyncSession, user_id: uuid.UUID) -> list[BillRef]:
             )
         ).scalars()
     )
-    found = [d for d in documents if d.id in confirmed or extract_bill_review(d.raw_text) is not None]
+    # The same rule as the bill page and the overview; a confirmed bill stays whatever its kind became.
+    found = [
+        d for d in documents
+        if d.id in confirmed or (reviews_bills(d.document_type) and extract_bill_review(d.raw_text) is not None)
+    ]
     return [BillRef(ref=f"bill-{n}", document=d, title=d.title) for n, d in enumerate(found[:MAX_BILLS], start=1)]
 
 

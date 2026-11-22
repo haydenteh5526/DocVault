@@ -397,6 +397,53 @@ async def test_scope_150_manuals_and_3_bills(owner, monkeypatch):
     assert len(out.statuses) == 153
 
 
+async def test_an_insurance_renewal_statement_is_a_renewal_not_a_bill(owner):
+    text = "EXAMPLE INSURANCE\nRenewal statement\nAmount payable: EUR 310.00\nRenewal date: 12 December 2026"
+    policy = await _doc(owner, "Home insurance renewal", text, "Insurance")
+
+    out = await _overview(owner)
+
+    assert out.attention == []
+    assert [(item.kind, item.document_id, item.date, item.confirmed) for item in out.upcoming] == [
+        ("renewal", policy, date(2026, 12, 12), False),
+    ]
+    assert (out.statuses[policy].label, out.statuses[policy].bill) == ("Ready", None)
+    assert out.recent[0].outcome == "renewal_found"
+
+
+async def test_a_legacy_manual_kind_is_never_text_scanned(owner, monkeypatch):
+    calls = []
+    monkeypatch.setattr(overview_service, "extract_bill_review", lambda text: calls.append(text))
+    monkeypatch.setattr(overview_service, "extract_key_dates", lambda text, kind: calls.append(text) or [])
+    await _doc(owner, "Smart meter manual", MANUAL_WITH_BILL_WORDS, "User Manual")
+
+    out = await _overview(owner)
+
+    assert calls == []
+    assert out.attention == [] and out.recent[0].outcome == "ready"
+
+
+async def test_a_warranty_on_a_document_created_mid_overview_does_not_raise(owner, monkeypatch):
+    await _doc(owner, "Electricity bill", household_texts.ELECTRICITY_BILL_LIVE, "Bill")
+    real = overview_service.list_proposals
+    late = []
+
+    async def upload_during_overview(db, document_id):
+        # A document and its warranty committed after query 1 has run.
+        if not late:
+            receipt = await _doc(owner, "Late receipt", household_texts.LAPTOP_RECEIPT, "Receipt")
+            await _warranty(receipt, TODAY + timedelta(days=10))
+            late.append(receipt)
+        return await real(db, document_id)
+
+    monkeypatch.setattr(overview_service, "list_proposals", upload_during_overview)
+
+    out = await _overview(owner)
+
+    assert late and late[0] not in out.statuses
+    assert [item.kind for item in out.attention] == ["bill_unconfirmed"]
+
+
 async def test_the_route_serves_the_signed_in_owner(owner):
     bill = await _doc(owner, "Broadband bill", household_texts.ELECTRICITY_BILL_LIVE, "Bill")
     headers = {"Authorization": f"Bearer {create_access_token(owner)}"}

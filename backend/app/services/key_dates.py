@@ -5,7 +5,7 @@ from datetime import date
 from typing import Literal
 
 from app.services.bill_review import _date
-from app.services.categorisation_service import KINDS
+from app.services.categorisation_service import normalise_kind
 
 KeyDateKind = Literal["renewal", "contract_end"]
 
@@ -16,10 +16,17 @@ SCANNED_KINDS = frozenset({"Bill", "Insurance", "Contract"})
 def scans_text(document_type: str | None) -> bool:
     """Whether a document's text may be read for bill fields and dates.
 
-    Manuals, receipts, warranties and other documents are never scanned. Unclassified documents and
-    legacy free-text kinds are, since they may be bills, policies or contracts.
+    The value is classified first, so a legacy label such as "User Manual" counts as a Manual. Manuals,
+    receipts, warranties and other documents are never scanned; only an empty kind counts as unclassified.
     """
-    return document_type in SCANNED_KINDS or not document_type or document_type not in KINDS
+    kind = normalise_kind(document_type)
+    return kind is None or kind in SCANNED_KINDS
+
+
+def reviews_bills(document_type: str | None) -> bool:
+    """Whether a document gets a bill review: bills and unclassified documents only (D4)."""
+    return normalise_kind(document_type) in (None, "Bill")
+
 
 _DATE_TEXT = r"(?P<date>\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4})"
 _END = r"\s*\.?\s*$"
@@ -45,28 +52,32 @@ class DatedLine:
     text: str  # the source line, stripped
 
 
-def _wanted(kind: str | None) -> set[KeyDateKind]:
+def _wanted(document_type: str | None) -> set[KeyDateKind]:
+    kind = normalise_kind(document_type)
     if kind == "Insurance":
         return {"renewal"}
     if kind == "Contract":
         return {"contract_end"}
-    if not kind or kind not in KINDS:
-        # Unclassified or a legacy free-text kind: read both.
+    if kind is None:
+        # Unclassified: read both.
         return {"renewal", "contract_end"}
     return set()
 
 
 def _read(lines: list[str], patterns: tuple[re.Pattern, ...], kind: KeyDateKind) -> DatedLine | None:
-    found = []
+    found: list[DatedLine] = []
+    values: set[str | None] = set()
     for number, line in enumerate(lines, start=1):
         for pattern in patterns:
             match = pattern.match(line)
-            parsed = _date(match["date"]) if match else None
-            if parsed:
-                found.append(DatedLine(kind, date.fromisoformat(parsed), number, line.strip()))
+            if match:
+                parsed = _date(match["date"])
+                values.add(parsed)
+                if parsed:
+                    found.append(DatedLine(kind, date.fromisoformat(parsed), number, line.strip()))
                 break
-    # Conflicting dates for the same kind need the owner to read the document, as bill_review._field does.
-    if len({item.date for item in found}) != 1:
+    # Conflicting or unreadable labelled dates need the owner to read the document, as bill_review._field does.
+    if len(values) != 1 or None in values:
         return None
     return found[0]
 

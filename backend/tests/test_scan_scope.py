@@ -9,7 +9,7 @@ from app.main import app
 from app.models.base import Document
 from app.services.auth_service import create_access_token
 from app.services.categorisation_service import KINDS
-from app.services.key_dates import SCANNED_KINDS, scans_text
+from app.services.key_dates import SCANNED_KINDS, reviews_bills, scans_text
 from tests.accounts import create_users_and_document, delete_users
 
 # A manual whose sample page happens to look like a bill.
@@ -19,14 +19,26 @@ MANUAL_WITH_BILL_WORDS = (
 )
 
 
-@pytest.mark.parametrize("kind", ["Bill", "Insurance", "Contract", None, "", "Sales Receipt", "Utility statement"])
+@pytest.mark.parametrize("kind", ["Bill", "Insurance", "Contract", None, "", "  ", "Monthly bill", "Utility statement",
+                                  "Car insurance policy", "Tenancy agreement"])
 def test_scanned_kinds_and_unclassified_are_read(kind):
     assert scans_text(kind) is True
 
 
-@pytest.mark.parametrize("kind", ["Manual", "Receipt", "Warranty", "Other"])
+@pytest.mark.parametrize("kind", ["Manual", "Receipt", "Warranty", "Other", "User Manual", "Sales Receipt",
+                                  "Warranty Card", "Bin calendar"])
 def test_other_kinds_are_never_read(kind):
+    # Legacy free-text kinds are classified first (R2-a): only an empty value counts as unclassified.
     assert scans_text(kind) is False
+
+
+@pytest.mark.parametrize("kind, expected", [
+    ("Bill", True), ("Monthly bill", True), (None, True), ("", True),
+    ("Insurance", False), ("Contract", False), ("Manual", False), ("Receipt", False), ("Warranty", False),
+    ("Other", False), ("Sales Receipt", False), ("Car insurance policy", False),
+])
+def test_only_bills_and_unclassified_documents_get_a_bill_review(kind, expected):
+    assert reviews_bills(kind) is expected
 
 
 def test_scanned_kinds_are_fixed_kinds():
@@ -53,5 +65,20 @@ async def test_a_manual_with_bill_words_has_no_bill_review_but_a_bill_does():
         review = await _bill_review(document_id, owner_id, "Bill")
         assert review["amount_due"]["value"] == "45.00"
         assert review["due_date"]["value"] == "2026-11-20"
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+INSURANCE_RENEWAL_STATEMENT = (
+    "EXAMPLE INSURANCE\nRenewal statement\nAmount payable: EUR 310.00\nRenewal date: 12 December 2026"
+)
+
+
+@pytest.mark.asyncio
+async def test_an_insurance_renewal_statement_has_no_bill_review():
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=INSURANCE_RENEWAL_STATEMENT)
+    try:
+        assert await _bill_review(document_id, owner_id, "Insurance") is None
+        assert await _bill_review(document_id, owner_id, None) is not None
     finally:
         await delete_users(owner_id, other_id)

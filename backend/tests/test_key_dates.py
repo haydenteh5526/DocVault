@@ -57,3 +57,14 @@ def test_only_the_first_20000_characters_are_scanned():
 def test_empty_text_has_no_dates():
     assert extract_key_dates(None, "Insurance") == []
     assert extract_key_dates("", None) == []
+
+
+def test_an_unreadable_labelled_date_counts_as_a_conflict():
+    text = "Car insurance\nRenewal date: 15 January 2027\nRenewal date: 03/02/2027"
+    assert extract_key_dates(text, "Insurance") == []
+
+
+def test_a_legacy_kind_is_classified_before_reading():
+    text = household_texts.CAR_INSURANCE + "\n" + household_texts.TENANCY
+    assert [found.kind for found in extract_key_dates(text, "Car insurance policy")] == ["renewal"]
+    assert extract_key_dates(text, "Sales Receipt") == []
