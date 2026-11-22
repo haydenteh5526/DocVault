@@ -1,6 +1,43 @@
 # Dashboard Redesign, PR 1 of 6: Clean Titles, Fixed Kinds, Warranties, Summaries and Safe "Read Again"
 
-**Status:** approved by the owner on 22 November 2026 (architecture, the six-PR breakdown, decisions D1–D7 and four adjustments). Nothing in it is implemented.
+**Status:** approved by the owner on 22 November 2026 (architecture, the six-PR breakdown, decisions D1–D7 and four adjustments). **Revision 1 (22 November, owner-approved):** rulings on the review of `a7b3491`, which amend Tasks 1, 3 and 5 (see "Revision 1" below). Being built on `feature/dashboard-redesign-1-extraction`.
+
+## Revision 1: rulings on the review of `a7b3491`
+
+These amend the tasks below. Where they conflict, this section wins.
+
+- **R1-a (findings M1, M2): warranties only for kinds that can carry one.**
+  - The processor creates or fills a `Warranty` only when the resolved kind is `Receipt`, `Warranty`, `Manual`, `Other` or empty. `Bill`, `Insurance` and `Contract` never get a warranty; PR 2 reads their renewals and term ends.
+  - Also keep the builder's M1 fix: a labelled guarantee period counts only on a line that starts with `Warranty` or `Guarantee`.
+  - `Cover … ends` stays in `_EXPLICIT_END` (warranty certificates use it), behind the kind gate.
+  - Tests: a broadband bill with "Price guarantee: 12 months" and a home insurance renewal with "Cover ends: 12 December 2026" create no `Warranty`; D15 and the laptop receipt still do.
+- **R1-b (finding M3): an AI result can correct a stored kind; a fallback guess cannot.**
+  - `DocumentMetadata` gains `kind_source: Literal["model", "fallback"] | None`.
+  - In `process_document` the kind is always written (from the model, or from the fallback).
+  - In `refresh_details` and `reprocess`, a `model` kind replaces any stored kind. A `fallback` kind only fills an empty kind or a legacy value outside `KINDS`.
+  - This replaces the Task 5 row "Only if empty or not one of `KINDS`". No screen edits the kind today. A later PR that adds owner editing must add a "set by owner" flag and protect it.
+  - Tests: a document stored as `Other` during a provider failure becomes `Receipt` on refresh with a model result; a refresh during an outage (fallback result) leaves a stored `Receipt` unchanged; a legacy "Sales Receipt" refreshed during an outage becomes `Receipt` via `normalise_kind`, not `Other`.
+- **R1-c (finding L1): the fallback checks for a bill before insurance.**
+  - It returns `Bill` when `bill|statement|invoice` appears with an `amount due|total due|due date|payment due` line.
+  - It returns `Insurance` only when `insurance` appears with one of `policy|renewal|premium|sum insured|cover`.
+  - The other kinds keep the Task 1 order.
+  - Tests: "Linkline Premium Broadband … Bill … Amount due" is a `Bill`; a bill that mentions "home insurance cover" is a `Bill`; the car and home insurance texts are still `Insurance`.
+- **R1-d (second review, `016cfdf`):**
+  - A model reply whose `kind` is null takes the keyword fallback's kind, with `kind_source="fallback"`, so every document with text has a kind (second review note 1).
+  - The fallback also returns `Insurance` for a line containing `policy schedule` or `sum insured`, even without the word "insurance" (second review note 4, restoring a signal Task 1 had).
+  - The PR text states that a model kind on "Read details again" replaces a kind set through `PATCH /documents/{id}`, since no screen sets one (note 2). Removing `document_type` from `DocumentUpdate` is left to a later PR.
+  - The fallback reading an insurance statement with "payment due" as a `Bill` is recorded as a known limit (note 5).
+- **Owner-approved fixes from the review:**
+  - L2: e2e heading matchers include the run's timestamp.
+  - L3: `refresh-details` reloads through `_get_doc_or_404` and its test asserts tags.
+  - L4: bulleted `- Warranty ends:` lines are read; a purchase date after the expiry is dropped.
+  - L5: `brand` and `model` are capped at 100 characters.
+  - L8: "Read details again" is disabled while a read is in flight.
+  - The wording of the `Repo_Current_State.md` row is corrected.
+- **Accepted as-is:**
+  - L5b: refresh may recreate a warranty the owner deleted.
+  - L6: a document with no text keeps no kind; acceptance check 2 covers documents with text.
+- **Later:** L7 (the "move to a folder named after the type" banner) goes to a later PR.
 
 **Issue:** #48, "Redesign /app as an Overview dashboard and fix document extraction". Every PR in this series says `Part of #48`; only PR 6 or the last to merge may say `Closes #48` if every acceptance check of the series holds.
 
@@ -54,6 +91,12 @@ The live run on 21 November had Gemini active (`GEMINI_API_KEY` set; the Type co
 - No new npm or pip dependency. Dark-first app palette, WCAG AA, visible focus, one `h1` per page, nothing moves under `prefers-reduced-motion`.
 - **Browser rule:** headless Playwright CLI for tests and screenshots (`frontend/playwright.config.ts`, or a Node script with `chromium.launch({ headless: true })`); the built-in Browser pane for anything the owner watches. Never the Playwright MCP plugin, never Chrome.
 - **Screenshots** for this series go to the untracked `C:\DocVault\evaluation\dashboard-redesign\` as `after-*.png`, mirroring the eight `before-*.png` names. Never commit them.
+- **Visual proof (PRs 3, 4 and 5; added 22 November):** follow the "UI/UX visual proof" rule in `AGENTS.md`. Before asking to push or open the PR:
+  - capture every modified screen, flow and key state at `1366×768` and `390×844` with headless Playwright against a disposable stack
+  - inspect every image and fix any defect first
+  - show the images in the chat with a table of what each proves.
+
+  The plan's named `after-*.png` files count toward this. Extra verification shots go to `evaluation/visual-proof/<branch>/`, or to the series folder above. The Reviewer reports missing or unshown visual proof as a finding. This applies even if the `AGENTS.md` rule has not merged when the build starts.
 - Each PR updates `specs/Repo_Current_State.md` with one row: commit, environment, what ran, what did not.
 - Local gates per `AGENTS.md`; the four CI checks green before merge; merge rule as in `AGENTS.md`.
 
