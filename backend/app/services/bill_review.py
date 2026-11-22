@@ -9,6 +9,8 @@ from app.schemas.document import BillField, BillReview, BillSourceLine
 _AMOUNT_LABEL = re.compile(r"^\s*(?:(?:total\s+)?amount\s+(?:due|payable)|(?:total|balance)\s+due)\b", re.I)
 _DATE_LABEL = re.compile(r"^\s*(?:(?:payment\s+)?due\s+date|pay(?:ment\s+due)?\s+by)\b", re.I)
 _PERIOD_LABEL = re.compile(r"^\s*(?:billing|statement|supply)\s+period\b", re.I)
+# The labelled lines that make a document with the word bill, invoice or statement a bill.
+BILL_LABELS = (_AMOUNT_LABEL, _DATE_LABEL, _PERIOD_LABEL)
 _NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?"
 
 
@@ -62,8 +64,7 @@ def extract_bill_review(text: str | None) -> BillReview | None:
     if not text or not re.search(r"\b(?:bill|invoice|statement)\b", text, re.I):
         return None
     lines = text.splitlines()
-    labels = (_AMOUNT_LABEL, _DATE_LABEL, _PERIOD_LABEL)
-    if not any(label.match(line) for line in lines for label in labels):
+    if not any(label.match(line) for line in lines for label in BILL_LABELS):
         return None
     return BillReview(
         amount_due=_field(lines, _AMOUNT_LABEL, _euros),

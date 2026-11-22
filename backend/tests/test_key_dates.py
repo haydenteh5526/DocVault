@@ -68,3 +68,24 @@ def test_a_legacy_kind_is_classified_before_reading():
     text = household_texts.CAR_INSURANCE + "\n" + household_texts.TENANCY
     assert [found.kind for found in extract_key_dates(text, "Car insurance policy")] == ["renewal"]
     assert extract_key_dates(text, "Sales Receipt") == []
+
+
+def test_a_date_the_pattern_cannot_read_counts_as_a_conflict():
+    text = "Car insurance\nRenewal date: 15 January 2027\nRenewal date: 1st February 2027"
+    assert extract_key_dates(text, "Insurance") == []
+
+
+def test_one_trailing_full_stop_is_allowed():
+    [found] = extract_key_dates("Car insurance\nRenewal date: 15 January 2027.", "Insurance")
+    assert found.date == date(2027, 1, 15)
+
+
+def test_a_label_followed_by_words_is_not_a_date():
+    text = "Car insurance\nRenewal date: 15 January 2027\nValid until stock lasts"
+    [found] = extract_key_dates(text, "Insurance")
+    assert found.date == date(2027, 1, 15)
+
+
+def test_an_old_guess_label_is_read_as_unclassified():
+    text = household_texts.CAR_INSURANCE + "\n" + household_texts.TENANCY
+    assert {found.kind for found in extract_key_dates(text, "User Manual")} == {"renewal", "contract_end"}

@@ -1,15 +1,20 @@
 """Text is scanned for dates only on bills, policies, contracts and unclassified documents."""
 
+from datetime import date
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from app.dependencies import async_session
 from app.main import app
 from app.models.base import Document
+from app.schemas.document import BillConfirmation
 from app.services.auth_service import create_access_token
+from app.services.bill_review import extract_bill_review
+from app.services.bill_revisions import save_revision
 from app.services.categorisation_service import KINDS
-from app.services.key_dates import SCANNED_KINDS, reviews_bills, scans_text
+from app.services.key_dates import LEGACY_GUESS_LABELS, SCANNED_KINDS, reviews_bills, scans_text
 from tests.accounts import create_users_and_document, delete_users
 
 # A manual whose sample page happens to look like a bill.
@@ -25,11 +30,19 @@ def test_scanned_kinds_and_unclassified_are_read(kind):
     assert scans_text(kind) is True
 
 
-@pytest.mark.parametrize("kind", ["Manual", "Receipt", "Warranty", "Other", "User Manual", "Sales Receipt",
-                                  "Warranty Card", "Bin calendar"])
+@pytest.mark.parametrize("kind", ["Manual", "Receipt", "Warranty", "Other", "Sales Receipt", "Instruction manual",
+                                  "Warranty certificate", "Bin calendar"])
 def test_other_kinds_are_never_read(kind):
-    # Legacy free-text kinds are classified first (R2-a): only an empty value counts as unclassified.
+    # Legacy free-text kinds are classified first (R2-a).
     assert scans_text(kind) is False
+
+
+@pytest.mark.parametrize("kind", ["User Manual", "Warranty Card", "Quick Start Guide", "Specification Sheet"])
+def test_old_keyword_guesses_count_as_unclassified(kind):
+    # The pre-PR 1 fallback wrote these four from word fragments that real bills carry (R3-a).
+    assert kind in LEGACY_GUESS_LABELS
+    assert scans_text(kind) is True
+    assert reviews_bills(kind) is True
 
 
 @pytest.mark.parametrize("kind, expected", [
@@ -80,5 +93,39 @@ async def test_an_insurance_renewal_statement_has_no_bill_review():
     try:
         assert await _bill_review(document_id, owner_id, "Insurance") is None
         assert await _bill_review(document_id, owner_id, None) is not None
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+# A broadband bill the old keyword guesser stored as "User Manual" because of its direct debit line.
+LEGACY_BROADBAND = (
+    "LINKLINE BROADBAND\nBroadband bill\nTotal amount due: EUR 45.00\nPayment due date: 27 November 2026\n"
+    "Direct Debit Instruction: your bank will collect the amount due."
+)
+
+
+@pytest.mark.asyncio
+async def test_a_bill_stored_with_an_old_guess_label_gets_a_bill_review():
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=LEGACY_BROADBAND)
+    try:
+        review = await _bill_review(document_id, owner_id, "User Manual")
+        assert review["amount_due"]["value"] == "45.00"
+    finally:
+        await delete_users(owner_id, other_id)
+
+
+@pytest.mark.asyncio
+async def test_a_confirmed_bill_keeps_its_review_whatever_its_kind_became():
+    text = "Electricity bill\nTotal amount due: EUR 123.47\nPayment due date: 23 November 2026"
+    owner_id, other_id, document_id = await create_users_and_document(raw_text=text)
+    try:
+        async with async_session() as db:
+            doc = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one()
+            await save_revision(db, doc, BillConfirmation(
+                amount_due="123.47", due_date=date(2026, 11, 23), billing_period_start=date(2026, 10, 1),
+                billing_period_end=date(2026, 10, 31), reviewed=extract_bill_review(text), base_revision=0,
+            ))
+        review = await _bill_review(document_id, owner_id, "Other")
+        assert review is not None and review["amount_due"]["value"] == "123.47"
     finally:
         await delete_users(owner_id, other_id)

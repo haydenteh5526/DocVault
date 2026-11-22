@@ -27,7 +27,7 @@ from app.schemas.reminder import ReminderProposalOut
 from app.services.bill_review import extract_bill_review
 from app.services.bill_revisions import latest_revision
 from app.services.bill_split import latest_split
-from app.services.categorisation_service import KINDS
+from app.services.categorisation_service import KINDS, normalise_kind
 from app.services.key_dates import DatedLine, extract_key_dates, reviews_bills, scans_text
 from app.services.reminders import list_proposals
 
@@ -118,14 +118,11 @@ async def _load(db: AsyncSession, user_id: uuid.UUID) -> list[_Facts]:
     warranties = await db.execute(
         select(Warranty.document_id, Warranty.expiry_date)
         .join(Document, Document.id == Warranty.document_id)
-        .where(
-            Document.user_id == user_id,
-            Warranty.expiry_date.is_not(None),
-            # A document created after query 1 waits for the next overview.
-            Warranty.document_id.in_(list(facts)),
-        )
+        .where(Document.user_id == user_id, Warranty.expiry_date.is_not(None))
     )
     for doc_id, expiry in warranties:
+        if doc_id not in facts:
+            continue  # created after query 1; it shows on the next overview
         # The model says datetime; the column is a date in the database.
         facts[doc_id].warranty_end = expiry.date() if isinstance(expiry, datetime) else expiry
 
@@ -228,16 +225,19 @@ def _recent(facts: list[_Facts]) -> list[RecentDocument]:
     for f in facts[:RECENT_COUNT]:  # facts are newest first
         outcome, label = _outcome(f)
         out.append(RecentDocument(
-            id=f.doc.id, title=f.doc.title, kind=f.doc.document_type, processing_status=f.doc.processing_status,
+            id=f.doc.id, title=f.doc.title, kind=normalise_kind(f.doc.document_type),
+            processing_status=f.doc.processing_status,
             created_at=f.doc.created_at, outcome=outcome, outcome_label=label,
         ))
     return out
 
 
 def _counts(facts: list[_Facts]) -> dict[str, int]:
+    # Legacy labels count under the kind they classify as; an empty kind counts only in the total.
+    kinds = [normalise_kind(f.doc.document_type) for f in facts]
     counts = {"total": len(facts)}
     for kind in KINDS:
-        n = sum(1 for f in facts if f.doc.document_type == kind)
+        n = kinds.count(kind)
         if n:
             counts[kind] = n
     return counts

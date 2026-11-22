@@ -415,7 +415,7 @@ async def test_a_legacy_manual_kind_is_never_text_scanned(owner, monkeypatch):
     calls = []
     monkeypatch.setattr(overview_service, "extract_bill_review", lambda text: calls.append(text))
     monkeypatch.setattr(overview_service, "extract_key_dates", lambda text, kind: calls.append(text) or [])
-    await _doc(owner, "Smart meter manual", MANUAL_WITH_BILL_WORDS, "User Manual")
+    await _doc(owner, "Smart meter manual", MANUAL_WITH_BILL_WORDS, "Instruction manual")
 
     out = await _overview(owner)
 
@@ -442,6 +442,39 @@ async def test_a_warranty_on_a_document_created_mid_overview_does_not_raise(owne
 
     assert late and late[0] not in out.statuses
     assert [item.kind for item in out.attention] == ["bill_unconfirmed"]
+
+
+async def test_a_bill_stored_with_an_old_guess_label_needs_confirming(owner):
+    text = household_texts.BROADBAND_BILL_LIVE + "\nDirect Debit Instruction: your bank collects the amount due."
+    bill = await _doc(owner, "Broadband bill", text, "User Manual")
+
+    out = await _overview(owner)
+
+    assert [(item.kind, item.document_id) for item in out.attention] == [("bill_unconfirmed", bill)]
+    assert out.statuses[bill].label == "Needs confirming"
+
+
+async def test_legacy_labels_are_counted_and_shown_as_kinds(owner):
+    await _doc(owner, "Old bill", household_texts.BROADBAND_BILL_LIVE, "Monthly bill")
+    await _doc(owner, "No kind yet", None, None)
+
+    out = await _overview(owner)
+
+    assert out.counts == {"total": 2, "Bill": 1}
+    assert {doc.title: doc.kind for doc in out.recent} == {"Old bill": "Bill", "No kind yet": None}
+
+
+async def test_a_confirmed_bill_whose_kind_changed_keeps_its_status(owner):
+    bill = await _doc(owner, "October bill", household_texts.OCTOBER_BILL, "Other")
+    revision = await _revision(bill, household_texts.OCTOBER_BILL, cents=12500)
+    proposal = await _proposal(bill, owner, revision)
+
+    out = await _overview(owner)
+
+    assert [(item.kind, item.proposal_id) for item in out.attention] == [("reminder_pending", proposal)]
+    assert out.statuses[bill].label == "Reminder awaiting approval"
+    assert out.statuses[bill].bill.confirmed is True
+    assert [(item.kind, item.confirmed, item.amount_due) for item in out.upcoming] == [("bill_due", True, "125.00")]
 
 
 async def test_the_route_serves_the_signed_in_owner(owner):

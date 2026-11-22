@@ -64,3 +64,13 @@ async def test_a_confirmed_bill_whose_kind_changed_is_still_offered():
         assert await _bills(owner_id) == [document_id]
     finally:
         await delete_users(owner_id, other_id)
+
+
+async def test_a_bill_stored_with_an_old_guess_label_is_offered():
+    owner_id, other_id, _ = await create_users_and_document()
+    try:
+        text = BILL + "\nDirect Debit Instruction: your bank collects the amount due."
+        bill = await _add(owner_id, "Broadband bill", text, "User Manual", 1)
+        assert await _bills(owner_id) == [bill]
+    finally:
+        await delete_users(owner_id, other_id)

@@ -245,9 +245,10 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
     doc.updated_at = datetime.utcnow()
     await db.commit()
     # The same rule as the overview and DocBot, so all three agree on which documents are bills to confirm.
-    reviewed = doc.processing_status == "complete" and reviews_bills(doc.document_type)
-    review = extract_bill_review(doc.raw_text) if reviewed else None
+    # A confirmed bill keeps its review whatever its kind became, so it stays editable.
     confirmed = await latest_revision(db, doc.id)
+    reviewed = doc.processing_status == "complete" and (reviews_bills(doc.document_type) or confirmed is not None)
+    review = extract_bill_review(doc.raw_text) if reviewed else None
     split = await latest_split(db, doc.id)
     proposals = await list_proposals(db, doc.id)
     return DocumentDetailOut(
