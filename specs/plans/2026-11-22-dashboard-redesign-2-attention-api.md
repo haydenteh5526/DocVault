@@ -37,7 +37,7 @@ These amend Revision 2. Where they conflict, this section wins.
 - **R3-a (M-1, corrects R2-a): labels from the old keyword guesser count as unclassified.**
   - Before PR 1, the keyword fallback wrote exactly `"User Manual"`, `"Warranty Card"`, `"Quick Start Guide"` or `"Specification Sheet"` from word fragments. Real bills carry those fragments ("Direct Debit Instruction", "Direct Debit Guarantee", "Setup fee").
   - New `LEGACY_GUESS_LABELS` in `key_dates.py` holds those four strings. `scans_text` and `reviews_bills` treat them like an empty kind, so the document is scanned and may get a bill review. Every other value still goes through `normalise_kind` first (R2-a).
-  - Accepted cost: a real manual stored as "User Manual" is scanned until it is read again. It gets a bill review only if its text also has `bill|invoice|statement` and a bill label.
+  - Accepted cost: a real manual stored as "User Manual" is scanned until an AI model reads it again. Since R4-a, a keyless re-read clears the label only when the fallback finds a bill, receipt, policy or contract. It gets a bill review only if its text also has `bill|invoice|statement` and a bill label.
   - Tests: a broadband bill stored as "User Manual" with "Direct Debit Instruction" gets a bill review, a `bill_unconfirmed` item and a DocBot offer; "Sales Receipt" still is not scanned.
 - **R3-b (L-1): a confirmed bill stays editable whatever its kind became.**
   - `get_document` reads `latest_revision` first and computes `bill_review` when `reviews_bills(...)` holds or a confirmed revision exists. This mirrors R2-c's carve-out for DocBot.
@@ -55,7 +55,7 @@ These amend Revision 2. Where they conflict, this section wins.
   - Test: a legacy "Monthly bill" counts under `Bill`.
 - **R3-f (note):** the warranty query drops the `in_(...)` filter from R2-d and skips any `document_id` not in `facts` in Python. The result is the same, with no parameter growth.
 - **Wording:** fix the second-account sentence in `specs/Repo_Current_State.md` so it says a cross-account isolation check was run.
-- **Known limits for the PR description:** L1 from the first review (`save_revision` has no kind check). Real manuals with a legacy guess label are scanned until read again (R3-a).
+- **Known limits for the PR description:** L1 from the first review (`save_revision` has no kind check). Real manuals with a legacy guess label stay scanned until a model reads them again, or until a keyless re-read finds a bill, receipt, policy or contract (R3-a, R4-a).
 
 ## Revision 2: rulings on the `reviewer-deep` review of `12102d9`
 
