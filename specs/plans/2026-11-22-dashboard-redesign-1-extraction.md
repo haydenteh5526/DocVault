@@ -22,6 +22,11 @@ These amend the tasks below. Where they conflict, this section wins.
   - It returns `Insurance` only when `insurance` appears with one of `policy|renewal|premium|sum insured|cover`.
   - The other kinds keep the Task 1 order.
   - Tests: "Linkline Premium Broadband … Bill … Amount due" is a `Bill`; a bill that mentions "home insurance cover" is a `Bill`; the car and home insurance texts are still `Insurance`.
+- **R1-d (second review, `016cfdf`):**
+  - A model reply whose `kind` is null takes the keyword fallback's kind, with `kind_source="fallback"`, so every document with text has a kind (second review note 1).
+  - The fallback also returns `Insurance` for a line containing `policy schedule` or `sum insured`, even without the word "insurance" (second review note 4, restoring a signal Task 1 had).
+  - The PR text states that a model kind on "Read details again" replaces a kind set through `PATCH /documents/{id}`, since no screen sets one (note 2). Removing `document_type` from `DocumentUpdate` is left to a later PR.
+  - The fallback reading an insurance statement with "payment due" as a `Bill` is recorded as a known limit (note 5).
 - **Owner-approved fixes from the review:**
   - L2: e2e heading matchers include the run's timestamp.
   - L3: `refresh-details` reloads through `_get_doc_or_404` and its test asserts tags.
@@ -86,6 +91,12 @@ The live run on 21 November had Gemini active (`GEMINI_API_KEY` set; the Type co
 - No new npm or pip dependency. Dark-first app palette, WCAG AA, visible focus, one `h1` per page, nothing moves under `prefers-reduced-motion`.
 - **Browser rule:** headless Playwright CLI for tests and screenshots (`frontend/playwright.config.ts`, or a Node script with `chromium.launch({ headless: true })`); the built-in Browser pane for anything the owner watches. Never the Playwright MCP plugin, never Chrome.
 - **Screenshots** for this series go to the untracked `C:\DocVault\evaluation\dashboard-redesign\` as `after-*.png`, mirroring the eight `before-*.png` names. Never commit them.
+- **Visual proof (PRs 3, 4 and 5; added 22 November):** follow the "UI/UX visual proof" rule in `AGENTS.md`. Before asking to push or open the PR:
+  - capture every modified screen, flow and key state at `1366×768` and `390×844` with headless Playwright against a disposable stack
+  - inspect every image and fix any defect first
+  - show the images in the chat with a table of what each proves.
+
+  The plan's named `after-*.png` files count toward this. Extra verification shots go to `evaluation/visual-proof/<branch>/`, or to the series folder above. The Reviewer reports missing or unshown visual proof as a finding. This applies even if the `AGENTS.md` rule has not merged when the build starts.
 - Each PR updates `specs/Repo_Current_State.md` with one row: commit, environment, what ran, what did not.
 - Local gates per `AGENTS.md`; the four CI checks green before merge; merge rule as in `AGENTS.md`.
 
