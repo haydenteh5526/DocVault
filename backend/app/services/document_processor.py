@@ -22,11 +22,14 @@ from app.services import (
     storage_service,
     warranty_extraction,
 )
+from app.services.key_dates import LEGACY_GUESS_LABELS
 
 logger = get_logger("processor")
 
 # Kinds that may carry a product warranty; an unclassified document (None) may too.
 _WARRANTY_KINDS = {"Receipt", "Warranty", "Manual", "Other", None}
+# The fallback kinds that may replace an old keyword-guess label (R4-a).
+_FALLBACK_REPLACES_GUESS = {"Bill", "Receipt", "Insurance", "Contract"}
 
 _UPLOAD_EXTENSION = re.compile(r"\.(?:pdf|jpe?g|png|webp)$", re.IGNORECASE)
 
@@ -53,9 +56,11 @@ def _apply_details(doc: Document, raw_text: str, metadata) -> None:
     """Apply extracted details without overwriting anything the owner set.
 
     The title changes only while it still looks like an upload name. A kind read by a model
-    replaces the stored kind; a keyword-fallback guess (no key, or the provider failed) only
-    fills an empty kind, and a legacy free-text kind is mapped with normalise_kind instead.
-    Brand and model are filled only when empty.
+    replaces the stored kind. A keyword-fallback guess (no key, or the provider failed) fills an
+    empty kind, and replaces one of the four old keyword-guess labels only with Bill, Receipt,
+    Insurance or Contract; otherwise that label is kept and still counts as unclassified (R4-a).
+    Any other legacy free-text kind is mapped with normalise_kind. Brand and model are filled
+    only when empty.
     """
     if raw_text and looks_like_upload_name(doc.title):
         doc.title = (
@@ -66,6 +71,11 @@ def _apply_details(doc: Document, raw_text: str, metadata) -> None:
     kind_source = getattr(metadata, "kind_source", None)
     if kind_source == "model" and metadata.document_type:
         doc.document_type = metadata.document_type
+    elif doc.document_type in LEGACY_GUESS_LABELS:
+        # An old keyword guess says nothing about the kind (R3-a). A fallback guess replaces it only with a
+        # kind the guess can tell apart; otherwise the label stays and still counts as unclassified (R4-a).
+        if metadata.document_type in _FALLBACK_REPLACES_GUESS:
+            doc.document_type = metadata.document_type
     elif not doc.document_type:
         if metadata.document_type:
             doc.document_type = metadata.document_type
@@ -103,7 +113,9 @@ async def _apply_warranty(db, doc: Document, raw_text: str) -> None:
     "Cover ends" line is not a product warranty). An existing warranty keeps its purchase
     date, expiry date and notes; only an empty expiry or purchase date is filled in.
     """
-    if doc.document_type not in _WARRANTY_KINDS:
+    # An old keyword-guess label counts as unclassified, as everywhere else (R3-a).
+    kind = None if doc.document_type in LEGACY_GUESS_LABELS else doc.document_type
+    if kind not in _WARRANTY_KINDS:
         return
     dates = warranty_extraction.extract_warranty_dates(raw_text)
     if not dates or not (dates.get("expiry_date") or dates.get("purchase_date")):
