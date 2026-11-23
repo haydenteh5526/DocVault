@@ -54,7 +54,12 @@ Frontend only.
   - `attention = overview.attention`, `upcoming = overview.upcoming.filter(within 30 days)`
   - `needsApproval = attention.some(kind === 'reminder_pending')` drives `DocBotMark state="needs-approval"`
   - the `fetchActivity` argument is removed; `AppNav` and `AskAI` share the one query.
-- `DocBotActivity`: "Requires approval" lists `reminder_pending` items; its links keep the kept copy "Open bill to see its status" and "Review in bill". A new first section "Needs you" lists the other attention kinds with `attentionReasonText` and `attentionTarget`. "Coming up" lists `upcoming` (bill due with amount and "Not confirmed" when `confirmed` is false; renewals; warranty ends). "Household" is unchanged.
+- `DocBotActivity`: "Requires approval" lists `reminder_pending` items; its links keep the kept copy "Open bill to see its status" and "Review in bill".
+  - **Revision 1 (23 November):** the overview item has no due date, bill revision, split number or shares. For each `reminder_pending` item the card therefore reads that bill with `useQuery(['document', id])`, the same cache as the bill page. It renders the full existing card from the proposal whose id matches `proposal_id`.
+  - Until that loads, or if it fails, the card shows the title, "Remind on {date}" and €amount from the overview, with both links.
+  - These reads happen only for pending proposals, never in the Documents list, so acceptance check 3 holds.
+  - `DocBotActivity.test.tsx` "shows the exact pending details" passes unedited. Add a test for the loading/failed fallback.
+- A new first section "Needs you" lists the other attention kinds with `attentionReasonText` and `attentionTarget`. "Coming up" lists `upcoming` (bill due with amount and "Not confirmed" when `confirmed` is false; renewals; warranty ends). "Household" is unchanged.
 - [ ] **Tests first:** the live-run scenario (one `bill_unconfirmed`, zero proposals) renders the nav status "1 item needs you", never "All caught up". `DocBotActivity.test.tsx` and `AskAI.test.tsx` mocks move to the overview (allowed edit); every reminder-copy assertion stays.
 - [ ] Commit: `Let DocBot report the same attention count as everything else`
 
